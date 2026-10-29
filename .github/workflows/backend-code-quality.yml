@@ -1,0 +1,202 @@
+name: Backend - Code Quality
+
+on:
+  pull_request:
+    branches: [dev, stg]
+
+concurrency:
+  group: backend-code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: 8.30.1
+  TURBO_TELEMETRY_DISABLED: 1
+
+# No path filter on the trigger. Branch protection requires a check, and a
+# workflow that never starts reports nothing, so a pull request outside the
+# filter would wait for it forever. `discover` decides instead, and `summary`
+# is the check protection requires: it always runs.
+#
+# The quality jobs are a chain, not a fan-out: each needs the one before it,
+# so a cheap failure stops the run before the expensive jobs start.
+jobs:
+  discover:
+    name: Discover — Changes
+    if: vars.BACKEND_CODE_QUALITY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.scope.outputs.backend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # What the backend is built from: its own directory, the shared packages
+      # it may import, the root manifests, configs and tooling every workspace
+      # inherits, and this workflow.
+      - name: Does this PR touch the backend?
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")
+          pattern='^(apps/backend/|packages/|package\.json$|yarn\.lock$|\.yarnrc\.yml$|\.nvmrc$|turbo\.json$|tsconfig\.json$|biome\.json$|eslint\.config\.mjs$|vitest\.shared\.ts$|\.fallowrc\.json$|bin/|commitlint\.config\.mjs$|\.dockerignore$|\.github/actions/|\.github/workflows/backend-code-quality\.yml$)'
+          if echo "$changed" | grep -qE "$pattern"; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Secrets and commit messages apply to every change, so these two run on
+  # every pull request, whatever it touches.
+  secret-scan:
+    name: Security — Secret Scan
+    needs: discover
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The binary, not gitleaks-action: that action requires a paid licence
+      # for organisation repositories.
+      - name: Install gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tarball"
+          curl -sSfL "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt" \
+            | grep " $tarball\$" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Scan the pull request's commits
+        shell: bash
+        run: |
+          gitleaks git --redact --verbose \
+            --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+  commit-messages:
+    name: Quality — Commit Messages
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-monorepo
+
+      # The same check the commit-msg hook runs locally, for commits made
+      # without the hook installed.
+      - name: Lint the pull request's commits
+        run: |
+          yarn commitlint --verbose \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "${{ github.event.pull_request.head.sha }}"
+
+  lint:
+    name: Quality — Lint
+    needs: [discover, commit-messages]
+    if: needs.discover.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-monorepo
+
+      - name: Typecheck, lint and format
+        run: yarn turbo run typecheck lint format
+
+  tests:
+    name: Quality — Tests
+    needs: [discover, lint]
+    if: needs.discover.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-monorepo
+
+      # Every workspace's coverage, then merged into coverage/ at the root:
+      # the one report fallow reads.
+      - name: Test with coverage
+        run: yarn test:coverage
+
+      - name: Fallow
+        run: yarn fallow --fail-on-issues --coverage coverage/coverage-final.json
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+  docker-image:
+    name: Build — Docker Image
+    needs: [discover, tests]
+    if: needs.discover.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Never pushed: a pull request only proves the image builds. The context
+      # is the repository root, where the lockfile and workspace manifest live.
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          push: false
+          tags: frubble-backend:pr-${{ github.event.number }}
+          build-args: |
+            APP_VERSION=pr-${{ github.event.number }}
+            APP_COMMIT=${{ github.event.pull_request.head.sha }}
+            APP_ENV=ci
+
+  # The only check branch protection requires. It always runs and fails unless
+  # every job above succeeded or was skipped on purpose — a skipped job counts
+  # as passed to protection, so requiring the chain directly would let a pull
+  # request through on jobs that never ran.
+  summary:
+    name: Backend - Code Quality Summary
+    if: always()
+    needs: [discover, secret-scan, commit-messages, lint, tests, docker-image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every check to have passed
+        shell: bash
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r '
+            to_entries[]
+            | select(.value.result != "success" and .value.result != "skipped")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::failed or cancelled: $(echo "$failed" | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "all checks passed or were not needed"

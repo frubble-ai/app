@@ -1,0 +1,30 @@
+# Weekly update suggestions, one pull request per ecosystem.
+#
+# Actions are pinned to a commit SHA, and a pin nobody revisits is how a
+# repository ends up years behind. Dependabot turns "we should update" into a
+# pull request that goes through the same checks as any other change.
+version: 2
+
+updates:
+  # Dependabot rewrites the SHA and the version comment together, so the pin
+  # stays a pin.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci(deps)"
+
+  # The node and oven/bun base images in the backend's Dockerfile. Pinned by
+  # digest; Dependabot updates the digest and the tag beside it together.
+  - package-ecosystem: docker
+    directory: /apps/backend
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(docker)"

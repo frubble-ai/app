@@ -1,0 +1,21 @@
+name: Setup monorepo
+description: Node from .nvmrc, Yarn through corepack with a cache, and the workspace installed. Assumes the repository is already checked out.
+runs:
+  using: composite
+  steps:
+    # corepack first: the Yarn cache below asks `yarn` for its cache folder,
+    # and `yarn` exists only once corepack has put it on the path. The
+    # version comes from packageManager in package.json.
+    - name: Enable corepack
+      shell: bash
+      run: corepack enable
+
+    - name: Setup Node
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .nvmrc
+        cache: yarn
+
+    - name: Install dependencies
+      shell: bash
+      run: yarn install --immutable

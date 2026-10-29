@@ -1,0 +1,4 @@
+yarn turbo format
+yarn turbo lint
+yarn turbo typecheck
+yarn turbo test

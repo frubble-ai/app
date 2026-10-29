@@ -1,0 +1,23 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"files": {
+		"includes": ["**", "!**/.turbo", "!**/dist", "!**/coverage"]
+	},
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended"
+		}
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"semicolons": "always"
+		}
+	}
+}
