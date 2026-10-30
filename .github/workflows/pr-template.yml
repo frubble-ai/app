@@ -1,7 +1,7 @@
 name: PR Template
 
-# The title must be a conventional commit, since it becomes the squash
-# commit message, and the body must fill every section of the template.
+# The title must pass commitlint, since it becomes the squash commit
+# message, and the body must fill every section of the template.
 # `edited` is in the trigger so fixing either re-runs the check.
 on:
   pull_request:
@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   check:
@@ -21,10 +20,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check the title is a conventional commit
-        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+      - uses: ./.github/actions/setup-monorepo
+
+      # The same rules the commit-msg hook and `Quality — Commit Messages`
+      # apply, so a title they would reject as the squash commit fails here.
+      - name: Lint the title with commitlint
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | yarn commitlint --verbose
 
       # No action does this: the ones that exist only check that a body is
       # non-empty or contains a string. Bots never fill a template, so only
@@ -51,6 +54,13 @@ jobs:
                   problems.append(f"section missing: {heading}")
               elif not sections[heading]:
                   problems.append(f"section empty: {heading}")
+
+          # The template ships its checklist unticked, so a body copied as-is would
+          # pass the emptiness check. Every item must be ticked or marked n/a.
+          for heading in [h for h in sections if "checklist" in h.lower()]:
+              for line in sections[heading].splitlines():
+                  if re.match(r"\s*- \[ \]", line) and not re.search(r"\b(n/a|not applicable)\b", line, re.I):
+                      problems.append(f"checklist item not ticked or marked n/a: {line.strip()}")
 
           for p in problems:
               print(f"::error::{p}")

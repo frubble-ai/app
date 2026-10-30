@@ -43,7 +43,7 @@ docker run --rm -p 8080:8080 frubble-backend
 | ---------------------- | ------------------- | ------------------------------------------------- |
 | `backend-code-quality` | PR → `dev` / `stg`  | scan, lint, typecheck, tests, docker build        |
 | `backend-cd`           | push → `stg`        | build, trivy scan, push image, roll out over IAP  |
-| `pr-template`          | every PR, and edits | fails unless every section of the PR template is filled |
+| `pr-template`          | every PR, and edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
 
 `Backend - Code Quality Summary` and `Quality — PR Template` are the required checks. Deploys run in the `backend-stg`
 environment, which accepts deployments from `stg` only and whose name is part of the
