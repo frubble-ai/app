@@ -1,0 +1,97 @@
+name: PR Template
+
+# The title must pass commitlint, since it becomes the squash commit
+# message, and the body must fill every section of the template.
+# `edited` is in the trigger so fixing either re-runs the check.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Quality — PR Template
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-monorepo
+
+      # The same rules the commit-msg hook and `Quality — Commit Messages`
+      # apply, so a title they would reject as the squash commit fails here.
+      - name: Lint the title with commitlint
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | yarn commitlint --verbose
+
+      # From the base branch, never the pull request: a pull request that edits
+      # the template must not weaken what it is checked against.
+      - name: Fetch the template from the base branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          curl -sSf -G --data-urlencode "ref=$BASE_REF" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/contents/.github/pull_request_template.md" \
+            -o "$RUNNER_TEMP/pull_request_template.md"
+
+      # No action does this: the ones that exist only check that a body is
+      # non-empty or contains a string. Bots never fill a template, so only
+      # their title is checked. The body arrives through env, never
+      # interpolated into the script.
+      - name: Check every section of the template is filled
+        if: github.event.pull_request.user.type != 'Bot'
+        env:
+          TEMPLATE: ${{ runner.temp }}/pull_request_template.md
+          PR_BODY: ${{ github.event.pull_request.body }}
+        shell: python
+        run: |
+          import os, re, sys
+
+          strip = lambda s: re.sub(r"<!--.*?-->", "", s, flags=re.S)
+          template = strip(open(os.environ["TEMPLATE"], encoding="utf-8").read())
+          body = strip(os.environ.get("PR_BODY") or "")
+
+          def sections(text):
+              parts = re.split(r"^(## .+)$", text, flags=re.M)
+              return {parts[i].strip(): parts[i + 1].strip() for i in range(1, len(parts), 2)}
+
+          expected, given = sections(template), sections(body)
+          item = re.compile(r"^\s*[-*] \[( |x|X)\] (.*\S)", re.M)
+          na = re.compile(r"\b(n/a|not applicable)\b", re.I)
+
+          problems = []
+          # No checklist item anywhere in the body may stay unticked unless
+          # marked n/a, including ones the author adds.
+          for m in item.finditer(body):
+              if m.group(1) == " " and not na.search(m.group(2)):
+                  problems.append(f"checklist item not ticked or marked n/a: {m.group(2).strip()}")
+
+          for heading, content in expected.items():
+              if heading not in given:
+                  problems.append(f"section missing: {heading}")
+                  continue
+              if not given[heading]:
+                  problems.append(f"section empty: {heading}")
+                  continue
+              # Every item of the template must be there, by its text, with
+              # anything around it. The template ships them unticked, so a
+              # copied body must not pass on presence alone.
+              lines = [m.group(2) for m in item.finditer(given[heading])]
+              for m in item.finditer(content):
+                  text = m.group(2).strip()
+                  if not any(text in line for line in lines):
+                      problems.append(f"checklist item missing: {text}")
+
+          for p in problems:
+              print(f"::error::{p}")
+          if problems:
+              print("Fill every section of .github/pull_request_template.md, then edit the pull request.")
+              sys.exit(1)
+          print("The pull request follows the template.")
