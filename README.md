@@ -44,5 +44,7 @@ docker run --rm -p 8080:8080 frubble-backend
 | `backend-code-quality` | PR → `dev` / `stg`  | scan, lint, typecheck, tests, docker build        |
 | `deploy-stg`           | push → `stg`        | build, trivy scan, push image, roll out over IAP  |
 
-`Backend - Code Quality Summary` is the required check. Deploys use OIDC, no keys; the
-`GCP_*` and `*_ENABLED` repository variables come from `platform`.
+`Backend - Code Quality Summary` is the required check. Deploys run in the `backend-stg`
+environment, which accepts deployments from `stg` only and whose name is part of the
+identity `platform` trusts. They use OIDC, no keys; the `GCP_*` and `*_ENABLED`
+repository variables come from `platform`.

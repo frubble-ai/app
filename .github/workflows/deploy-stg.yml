@@ -1,8 +1,9 @@
 name: deploy-stg
 
-# The file name, the `stg` environment and the branch are all part of the
+# The file name, the `backend-stg` environment and the branch are all part of the
 # identity the platform repository trusts (repository|workflow|environment|ref). Renaming
-# any of them makes the Google sign-in fail.
+# any of them makes the Google sign-in fail. The environment is named after the
+# component because its name is what GitHub lists the deployment under.
 #
 # The path filter is safe here, unlike on the quality workflow: nothing waits
 # on this run as a required check. A push that touches none of these — a
@@ -98,7 +99,7 @@ jobs:
     name: deploy
     needs: build
     runs-on: ubuntu-latest
-    environment: stg
+    environment: backend-stg
     permissions:
       contents: read
       id-token: write # the OIDC token Workload Identity Federation exchanges
