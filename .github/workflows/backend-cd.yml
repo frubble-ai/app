@@ -1,4 +1,4 @@
-name: deploy-stg
+name: Backend - CD
 
 # The file name, the `backend-stg` environment and the branch are all part of the
 # identity the platform repository trusts (repository|workflow|environment|ref). Renaming
@@ -27,12 +27,12 @@ on:
       - biome.json
       - commitlint.config.mjs
       - .dockerignore
-      - .github/workflows/deploy-stg.yml
+      - .github/workflows/backend-cd.yml
 
 # One rollout at a time, never interrupted: a cancelled run can leave the VM
 # between images.
 concurrency:
-  group: deploy-stg
+  group: backend-cd
   cancel-in-progress: false
 
 permissions:
