@@ -24,12 +24,14 @@ inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
 2. **Deploy**, in the `backend-stg` environment, as the deploy identity `platform` trusts:
    1. Pushes the image to Artifact Registry as `frubble-backend:<commit>`
       ([`push-image.sh`](../.github/scripts/deploy/push-image.sh)). Tags are immutable, so a
-      re-run of the same commit reuses the image it already pushed.
+      re-run of the same commit reuses the image it already pushed, after scanning that image
+      again with the current Trivy rules.
    2. Rolls the service onto it with `gcloud run services update --image`
       ([`rollout.sh`](../.github/scripts/deploy/rollout.sh)). That creates a revision that
       differs from the current one by the image only. Everything else about the service,
       CPU, memory, scaling, probes, env, the identity it runs as, is Terraform's in `platform`;
-      a deploy never changes it.
+      a deploy never changes it. Traffic is then set to the latest revision, which also undoes
+      a rollback's pin.
    3. Waits until the new revision is healthy and holds all the traffic, checks that it runs
       the image just pushed, then asks `https://<API_HOSTNAME>/` which commit it serves and
       fails unless it is this one.
@@ -47,7 +49,7 @@ gcloud run services update-traffic frubble-stg-api --region us-central1 --projec
   --to-revisions <previous-revision>=100
 ```
 
-The next deploy from `stg` moves traffic forward again.
+The pin stays until the next deploy from `stg`, which moves traffic to the latest revision again.
 
 ## GitHub configuration
 

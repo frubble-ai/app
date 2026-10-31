@@ -11,6 +11,12 @@ set -euo pipefail
 gcloud run services update "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" --quiet
 
+# A rollback pins the traffic to a named revision, and Cloud Run keeps that
+# pin across later deploys. A deploy is the roll forward, so it moves the
+# traffic back to the latest revision.
+gcloud run services update-traffic "$SERVICE" --project "$PROJECT" --region "$REGION" \
+  --to-latest --quiet
+
 # The revision holding all traffic must run the image just deployed.
 revision=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --format=json | jq -r '.status.traffic[] | select(.percent == 100) | .revisionName')
