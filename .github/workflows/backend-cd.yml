@@ -28,9 +28,11 @@ on:
       - commitlint.config.mjs
       - .dockerignore
       - .github/workflows/backend-cd.yml
+      - .github/scripts/deploy/**
 
-# One rollout at a time, never interrupted: a cancelled run can leave the VM
-# between images.
+# One rollout at a time, never interrupted: Cloud Run keeps the previous
+# revision serving until the new one is healthy, but two rollouts racing
+# would leave the verification below checking the wrong one.
 concurrency:
   group: backend-cd
   cancel-in-progress: false
@@ -39,12 +41,13 @@ permissions:
   contents: read
 
 env:
-  IMAGE: ${{ vars.GCP_REGISTRY }}/frubble-backend:${{ github.sha }}
   TRIVY_VERSION: 0.76.1
 
 jobs:
   # No cloud credentials here. The image is built and scanned first, and only
-  # an image that passed reaches the job that can push it.
+  # an image that passed reaches the job that can push it. It is tagged by
+  # commit only; the registry path is the deploy job's, which is the one that
+  # runs in the environment and can read it.
   build:
     name: build
     if: vars.BACKEND_CD_ENABLED == 'true' && github.ref == 'refs/heads/stg'
@@ -62,7 +65,7 @@ jobs:
           # The repository root, where the lockfile and workspace manifest live.
           context: .
           file: apps/backend/Dockerfile
-          tags: ${{ env.IMAGE }}
+          tags: frubble-backend:${{ github.sha }}
           build-args: |
             APP_VERSION=stg-${{ github.run_number }}
             APP_COMMIT=${{ github.sha }}
@@ -95,6 +98,9 @@ jobs:
           path: ${{ runner.temp }}/image.tar
           retention-days: 1
 
+  # Everything the deploy needs about where it deploys to is a variable of the
+  # `backend-stg` environment, so a second environment is the same job with
+  # other values.
   deploy:
     name: deploy
     needs: build
@@ -103,7 +109,23 @@ jobs:
     permissions:
       contents: read
       id-token: write # the OIDC token Workload Identity Federation exchanges
+    env:
+      IMAGE: ${{ vars.GCP_REGISTRY }}/frubble-backend:${{ github.sha }}
+      LOCAL_IMAGE: frubble-backend:${{ github.sha }}
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      SERVICE: ${{ vars.GCP_RUN_SERVICE }}
+      API_HOSTNAME: ${{ vars.API_HOSTNAME }}
+      # Set only while the hostname still points elsewhere: the check then
+      # goes to the load balancer's address directly.
+      LB_IP: ${{ vars.GCP_LB_IP }}
+      COMMIT: ${{ github.sha }}
     steps:
+      # For the scripts only; no credentials are kept.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: image
@@ -124,32 +146,16 @@ jobs:
       - name: Impersonate the deploy spoke
         run: gcloud config set auth/impersonate_service_account "${{ vars.GCP_DEPLOY_SPOKE }}"
 
-      - name: Push image
-        run: |
-          gcloud auth configure-docker "${IMAGE%%/*}" --quiet
-          docker load --input "${{ runner.temp }}/image.tar"
-          docker push "$IMAGE"
+      # Tags are immutable in the registry, so a re-run of a commit that was
+      # already pushed reuses its image instead of failing on the push.
+      - name: Push the image
+        env:
+          IMAGE_TAR: ${{ runner.temp }}/image.tar
+        run: .github/scripts/deploy/push-image.sh
 
-      # IAP tunnel: the VM has no inbound firewall opening and no public IP.
-      # The check runs over the same SSH hop, against the app itself rather
-      # than the public hostname, which still points at the old stack.
-      # deploy.sh logs to stderr, but gcloud prints its first-run SSH key
-      # generation to stdout, so only the last line — curl's — is the answer.
+      # A new revision with this image and nothing else changed; the service
+      # definition is the platform repository's. Traffic moves only once the
+      # revision is healthy, and the public hostname is then asked which
+      # commit it serves.
       - name: Roll out and verify
-        shell: bash
-        run: |
-          set -euo pipefail
-          body=$(gcloud compute ssh "${{ vars.GCP_VM_NAME }}" \
-            --zone="${{ vars.GCP_ZONE }}" \
-            --project="${{ vars.GCP_PROJECT_ID }}" \
-            --tunnel-through-iap \
-            --quiet \
-            --command="sudo /etc/frubble/deploy.sh '$IMAGE' >&2 && curl -fsS http://127.0.0.1:8080/")
-          echo "$body"
-
-          commit=$(echo "$body" | tail -n 1 | jq -r '.commit')
-          if [ "$commit" != "${{ github.sha }}" ]; then
-            echo "::error::VM answered with commit '$commit', expected ${{ github.sha }}"
-            exit 1
-          fi
-          echo "✅ VM is serving ${{ github.sha }}"
+        run: .github/scripts/deploy/rollout.sh

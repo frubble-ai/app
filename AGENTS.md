@@ -43,6 +43,7 @@ Every package exports its TypeScript source; there is no build step.
 - [`docs/style-guide/testing-patterns.md`](./docs/style-guide/testing-patterns.md) — each testing rule in a snippet.
 - [`docs/typescript/conventions.md`](./docs/typescript/conventions.md) — type prefixes, names, dates with Luxon.
 - [`docs/dependencies.md`](./docs/dependencies.md) — why each `resolutions` override exists.
+- [`docs/deployment.md`](./docs/deployment.md) — what a push to `stg` does, rollback, and the variables the deploy reads.
 
 ## Skills
 
