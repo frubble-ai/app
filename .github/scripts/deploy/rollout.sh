@@ -8,6 +8,28 @@
 set -euo pipefail
 : "${IMAGE:?}" "${SERVICE:?}" "${REGION:?}" "${PROJECT:?}" "${API_HOSTNAME:?}" "${COMMIT:?}"
 
+serving_revision() {
+  gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
+    --format=json | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty'
+}
+
+# Readiness only stops a revision that never starts. If the checks below fail
+# after the traffic has moved, the revision that held it before is put back,
+# and the run still fails.
+previous=$(serving_revision)
+[ -n "$previous" ] || { echo "::error::no revision holds 100% of the traffic before the deploy"; exit 1; }
+
+restore_previous() {
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    echo "::warning::deploy failed; restoring traffic to $previous"
+    gcloud run services update-traffic "$SERVICE" --project "$PROJECT" --region "$REGION" \
+      --to-revisions "$previous=100" --quiet || echo "::error::could not restore $previous"
+  fi
+  exit "$status"
+}
+trap restore_previous EXIT
+
 gcloud run services update "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" --quiet
 
@@ -18,8 +40,7 @@ gcloud run services update-traffic "$SERVICE" --project "$PROJECT" --region "$RE
   --to-latest --quiet
 
 # The revision holding all traffic must run the image just deployed.
-revision=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
-  --format=json | jq -r '.status.traffic[] | select(.percent == 100) | .revisionName')
+revision=$(serving_revision)
 [ -n "$revision" ] || { echo "::error::no revision holds 100% of the traffic"; exit 1; }
 
 image=$(gcloud run revisions describe "$revision" --project "$PROJECT" --region "$REGION" \

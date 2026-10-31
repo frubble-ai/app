@@ -37,7 +37,9 @@ inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
       fails unless it is this one.
 
 Cloud Run moves traffic only to a revision whose startup probe passed. A build that does not
-start leaves the previous revision serving, and the run fails at step 2.2.
+start leaves the previous revision serving, and the run fails at step 2.2. A revision that
+starts but fails step 2.3 is taken out again: the script puts the traffic back on the revision
+that held it before the deploy, and the run fails.
 
 ## Rollback
 
