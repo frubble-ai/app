@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Pushes the built image to Artifact Registry unless its tag is already there.
-# Tags are immutable in the registry, so a re-run of a commit reuses the image
-# it pushed the first time instead of failing on the push. That image passed
-# the scan of its own run, not this one, so it is scanned again here with the
-# current rules before it is allowed to deploy.
+# A tag is pushed once and never pushed over: a re-run of a commit reuses the
+# image its first run pushed. That image passed the scan of its own run, not
+# this one, so it is scanned again here with the current rules before it is
+# allowed to deploy.
 set -euo pipefail
 : "${IMAGE:?registry path and tag}" "${LOCAL_IMAGE:?tag the build job used}" "${IMAGE_TAR:?path to the image tarball}"
 

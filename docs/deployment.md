@@ -23,9 +23,9 @@ inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
    on any CRITICAL vulnerability.
 2. **Deploy**, in the `backend-stg` environment, as the deploy identity `platform` trusts:
    1. Pushes the image to Artifact Registry as `frubble-backend:<commit>`
-      ([`push-image.sh`](../.github/scripts/deploy/push-image.sh)). Tags are immutable, so a
-      re-run of the same commit reuses the image it already pushed, after scanning that image
-      again with the current Trivy rules.
+      ([`push-image.sh`](../.github/scripts/deploy/push-image.sh)). A tag is pushed once and
+      never pushed over: a re-run of the same commit reuses the image it already pushed, after
+      scanning that image again with the current Trivy rules.
    2. Rolls the service onto it with `gcloud run services update --image`
       ([`rollout.sh`](../.github/scripts/deploy/rollout.sh)). That creates a revision that
       differs from the current one by the image only. Everything else about the service,
