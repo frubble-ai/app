@@ -43,13 +43,16 @@ gcloud run services update-traffic "$SERVICE" --project "$PROJECT" --region "$RE
 revision=$(serving_revision)
 [ -n "$revision" ] || { echo "::error::no revision holds 100% of the traffic"; exit 1; }
 
+# A revision records its image by digest, not by the tag it was deployed
+# from, so the comparison is against the digest the tag names in the registry.
+digest=$(gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)')
+[ -n "$digest" ] || { echo "::error::no digest in the registry for $IMAGE"; exit 1; }
 image=$(gcloud run revisions describe "$revision" --project "$PROJECT" --region "$REGION" \
   --format='value(spec.containers[0].image)')
-if [ "$image" != "$IMAGE" ]; then
-  echo "::error::$revision runs $image, expected $IMAGE"
-  exit 1
-fi
-echo "$revision serves $IMAGE"
+case "$image" in
+  *"@$digest") echo "$revision serves $IMAGE ($digest)" ;;
+  *) echo "::error::$revision runs $image, expected $IMAGE ($digest)"; exit 1 ;;
+esac
 
 # Through the load balancer, under the public name, with the certificate
 # checked. While the hostname still points elsewhere (LB_IP set), the request
