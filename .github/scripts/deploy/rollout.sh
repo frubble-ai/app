@@ -39,7 +39,8 @@ if [ -n "${LB_IP:-}" ]; then
   curl_args+=(--resolve "$API_HOSTNAME:443:$LB_IP")
 fi
 
-for attempt in $(seq 1 15); do
+attempts=15
+for attempt in $(seq 1 $attempts); do
   if body=$(curl "${curl_args[@]}" "https://$API_HOSTNAME/"); then
     served=$(jq -r '.commit // empty' <<<"$body" 2>/dev/null || true)
     if [ "$served" = "$COMMIT" ]; then
@@ -50,7 +51,7 @@ for attempt in $(seq 1 15); do
   else
     echo "attempt $attempt: no answer yet"
   fi
-  sleep 10
+  [ "$attempt" -lt "$attempts" ] && sleep 10
 done
 
 echo "::error::https://$API_HOSTNAME/ did not serve $COMMIT"

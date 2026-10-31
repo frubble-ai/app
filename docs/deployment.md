@@ -53,9 +53,11 @@ The pin stays until the next deploy from `stg`, which moves traffic to the lates
 
 ## GitHub configuration
 
-Deploy values live on the environment, so a second environment is the same job with other
-values. Values a job-level `if:` reads cannot come from an environment and stay on the
-repository.
+Deploy values live on the environment. Values a job-level `if:` reads cannot come from an
+environment and stay on the repository. A prd deploy would reuse the deploy job with a
+`backend-prd` environment holding the same names, and still change the workflow in three
+places: the branch the build gates on, the `APP_ENV` and `APP_VERSION` it bakes in, and the
+environment name on the job, which the trust rule in `platform` names too.
 
 | Name | Where | Value |
 |---|---|---|

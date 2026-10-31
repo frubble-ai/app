@@ -7,7 +7,15 @@
 set -euo pipefail
 : "${IMAGE:?registry path and tag}" "${LOCAL_IMAGE:?tag the build job used}" "${IMAGE_TAR:?path to the image tarball}"
 
-gcloud auth configure-docker "${IMAGE%%/*}" --quiet
+# IMAGE is composed in the workflow from GCP_REGISTRY; unset, it still passes
+# the guard above as "/frubble-backend:<sha>" and fails later with an empty host.
+registry="${IMAGE%%/*}"
+if [ -z "$registry" ] || [ "$registry" = "$IMAGE" ]; then
+  echo "::error::IMAGE has no registry host: '$IMAGE'. Is GCP_REGISTRY set on the environment?"
+  exit 1
+fi
+
+gcloud auth configure-docker "$registry" --quiet
 
 if gcloud artifacts docker images describe "$IMAGE" >/dev/null 2>&1; then
   echo "$IMAGE is already in the registry; scanning it instead of pushing"

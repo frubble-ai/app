@@ -87,9 +87,10 @@ jobs:
           path: ${{ runner.temp }}/image.tar
           retention-days: 1
 
-  # Everything the deploy needs about where it deploys to is a variable of the
-  # `backend-stg` environment, so a second environment is the same job with
-  # other values.
+  # Where it deploys to comes from the `backend-stg` environment's variables.
+  # A prd deploy still changes three things in this file: the branch the build
+  # gates on, the APP_ENV and APP_VERSION it bakes in, and the environment
+  # name here, which the trust rule on the platform side names too.
   deploy:
     name: deploy
     needs: build
