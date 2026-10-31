@@ -28,14 +28,14 @@ restore_previous() {
   fi
   exit "$status"
 }
-trap restore_previous EXIT
-
 # A revision records its image by digest, not by the tag it was deployed
 # from, so the check below compares against the digest the tag names in the
 # registry. Resolved first: if the registry cannot answer, nothing has
-# changed yet.
+# changed yet, and the restore above is not armed.
 digest=$(gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)')
 [ -n "$digest" ] || { echo "::error::no digest in the registry for $IMAGE"; exit 1; }
+
+trap restore_previous EXIT
 
 gcloud run services update "$SERVICE" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" --quiet
