@@ -9,3 +9,4 @@ the commands, CI/CD and the deploy.
 | [Style Guide](style-guide/index.md)                 | Placement, imports, packages, third-party integrations, and how tests are written      |
 | [TypeScript Conventions](typescript/conventions.md) | Type prefixes, no single-letter names, dates and times with Luxon                      |
 | [Dependencies](dependencies.md)                     | Why each `resolutions` override exists and when it can go                              |
+| [Deployment](deployment.md)                         | What a push to `stg` does, how to roll back, and the GitHub configuration it needs     |
