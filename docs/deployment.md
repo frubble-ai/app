@@ -66,7 +66,7 @@ repository.
 | `GCP_REGISTRY` | `backend-stg` variable | `us-central1-docker.pkg.dev/frubble-stg/frubble-stg` |
 | `GCP_RUN_SERVICE` | `backend-stg` variable | `frubble-stg-api` |
 | `API_HOSTNAME` | `backend-stg` variable | `api.stg.frubble.ai` |
-| `GCP_LB_IP` | `backend-stg` variable | the load balancer's address, **only while the hostname still points elsewhere**: the check then goes to that address under the hostname, without verifying the certificate. Remove it once DNS points at the load balancer |
+| `GCP_LB_IP` | `backend-stg` variable | the load balancer's address, **only while the hostname still points elsewhere**: the check then goes to that address under the hostname, certificate verified as usual, which needs the certificate active first. Remove it once DNS points at the load balancer |
 
 The `backend-stg` environment accepts deployments from `stg` only. Its name, the workflow
 file name and the branch are the identity `platform` trusts; renaming any of them stops the

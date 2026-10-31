@@ -106,7 +106,7 @@ jobs:
       SERVICE: ${{ vars.GCP_RUN_SERVICE }}
       API_HOSTNAME: ${{ vars.API_HOSTNAME }}
       # Set only while the hostname still points elsewhere: the check then
-      # goes to the load balancer's address directly.
+      # goes to the load balancer's address directly, certificate included.
       LB_IP: ${{ vars.GCP_LB_IP }}
       COMMIT: ${{ github.sha }}
     steps:

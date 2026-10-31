@@ -30,13 +30,13 @@ if [ "$image" != "$IMAGE" ]; then
 fi
 echo "$revision serves $IMAGE"
 
-# Through the load balancer, under the public name. While the hostname still
-# points elsewhere (LB_IP set), the request goes to the balancer's address
-# under that name, and the certificate, not issued until the name moves, is
-# not checked.
+# Through the load balancer, under the public name, with the certificate
+# checked. While the hostname still points elsewhere (LB_IP set), the request
+# goes to the balancer's address under that name; the certificate is already
+# issued, since its DNS authorization record is published before this runs.
 curl_args=(-fsS --max-time 20)
 if [ -n "${LB_IP:-}" ]; then
-  curl_args+=(--resolve "$API_HOSTNAME:443:$LB_IP" -k)
+  curl_args+=(--resolve "$API_HOSTNAME:443:$LB_IP")
 fi
 
 for attempt in $(seq 1 15); do
