@@ -4,6 +4,9 @@ Every variable the processes read, where it comes from in stg, and what happens 
 Locally they come from `apps/backend/.env.local` (copy `.env.example`); in stg Terraform sets
 them on the Cloud Run services and the migration job, secrets through Secret Manager.
 
+`APP_PROCESS` picks what the image runs: `api` (the default) or `worker`. The platform sets it
+on the worker service and nothing else about how the image starts.
+
 ## API (`src/services/api`)
 
 | Variable | Required | Stg source | Notes |

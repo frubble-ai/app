@@ -2,9 +2,9 @@
 
 # Built from the repository root (`docker build -f apps/backend/Dockerfile .`):
 # the lockfile, .yarnrc.yml and the workspace manifest all live there. One
-# image runs every process, each with its own command:
-#   api (default CMD):  bun run src/services/api/index.ts
-#   worker:             bun run src/services/worker/index.ts
+# image runs every process. The services share the CMD and APP_PROCESS picks
+# one (api by default, worker), so the platform sets a variable, never a
+# command; the one-off scripts are commands of their own:
 #   migration:          bun run scripts/migrate.ts   (SHOULD_RUN_MIGRATION=true)
 #   admin invite:       bun run scripts/create-admin.ts <email>
 #
@@ -89,4 +89,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD bun -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["bun", "run", "src/services/api/index.ts"]
+CMD ["bun", "run", "src/index.ts"]

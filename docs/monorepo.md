@@ -45,6 +45,7 @@ package, not against the app.
 
 The backend is one app with two processes and three scripts, all in one image: the API
 (`src/services/api`), the worker (`src/services/worker`) and `scripts/{migrate,seed,create-admin}.ts`.
+`src/index.ts` is the image's entrypoint and starts the process `APP_PROCESS` names.
 
 ## Source-first exports
 

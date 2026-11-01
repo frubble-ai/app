@@ -10,7 +10,7 @@ import { stopOnSignal } from "@/shared/shutdown";
 
 // The worker: Pub/Sub pushes each `emails` message to `POST /push/emails`, which renders and
 // sends it through the configured provider. Same image as the API, started with
-// `bun run src/services/worker/index.ts`. No database: everything it needs is in the message.
+// `APP_PROCESS=worker`. No database: everything it needs is in the message.
 
 const config = getWorkerConfig();
 
