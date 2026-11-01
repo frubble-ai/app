@@ -25,7 +25,8 @@ const changePasswordArgsSchema = z.object({
 
 /**
  * Change the calling user's password. Better Auth checks the current one against the session in
- * `headers` and revokes every other session, so a stolen session elsewhere is cut off.
+ * `headers` and revokes every session, the caller's included, so a stolen session elsewhere is
+ * cut off; the caller continues with the token returned here.
  */
 export const changePasswordUseCase = defineUseCase(
 	async function changePasswordUseCase(
@@ -36,13 +37,13 @@ export const changePasswordUseCase = defineUseCase(
 			currentPassword: string;
 			newPassword: string;
 		},
-	): Promise<void> {
+	): Promise<{ token: string }> {
 		const { userId, headers, currentPassword, newPassword } =
 			changePasswordArgsSchema.parse(args);
 		// Proving the current password counts as a sign-in attempt.
 		await enforceSignInAgainLimit(ctx, userId);
 
-		await ctx.auth.api
+		const result = await ctx.auth.api
 			.changePassword({
 				body: { currentPassword, newPassword, revokeOtherSessions: true },
 				headers,
@@ -63,5 +64,11 @@ export const changePasswordUseCase = defineUseCase(
 					),
 				}),
 			);
+		if (!result.token) {
+			throw new Error(
+				"Change password failed: no replacement session token returned",
+			);
+		}
+		return { token: result.token };
 	},
 );

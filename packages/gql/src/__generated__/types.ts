@@ -28,9 +28,14 @@ export type ChangePasswordInput = {
   newPassword: Scalars['String']['input'];
 };
 
+/**
+ * Every session was revoked, the caller's too: `token` replaces the one the
+ * request was made with.
+ */
 export type ChangePasswordPayload = {
   __typename?: 'ChangePasswordPayload';
   changed: Scalars['Boolean']['output'];
+  token: Scalars['String']['output'];
 };
 
 /** The signed-in user. */
@@ -45,7 +50,10 @@ export type Me = {
 export type Mutation = {
   __typename?: 'Mutation';
   _empty?: Maybe<Scalars['String']['output']>;
-  /** Change the calling user's password. Needs the current one; other sessions are revoked. */
+  /**
+   * Change the calling user's password. Needs the current one; every session is
+   * revoked and the payload carries the caller's new token.
+   */
   changePassword: ChangePasswordPayload;
   /**
    * Email a 6-digit password-reset code. Always answers `sent: true`, so the

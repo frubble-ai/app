@@ -6,7 +6,7 @@
 	"scripts": {
 		"codegen": "graphql-codegen --config codegen.yml",
 		"dev:api": "bun --env-file=.env.local --watch src/index.ts",
-		"dev:worker": "HOST=0.0.0.0 PORT=${WORKER_PORT:-8081} bun --env-file=.env.local --watch src/index.ts",
+		"dev:worker": "APP_PROCESS=worker HOST=0.0.0.0 PORT=${WORKER_PORT:-8081} bun --env-file=.env.local --watch src/index.ts",
 		"start": "bun run src/index.ts",
 		"start:worker": "APP_PROCESS=worker bun run src/index.ts",
 		"migrate": "bun --env-file=.env.local scripts/migrate.ts",

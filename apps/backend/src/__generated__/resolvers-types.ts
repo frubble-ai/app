@@ -125,6 +125,7 @@ export type AuthPayloadResolvers<ContextType = TGraphqlContext, ParentType exten
 
 export type ChangePasswordPayloadResolvers<ContextType = TGraphqlContext, ParentType extends ResolversParentTypes['ChangePasswordPayload'] = ResolversParentTypes['ChangePasswordPayload']> = {
   changed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
 };
 
 export interface DateTimeScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['DateTime'], any> {

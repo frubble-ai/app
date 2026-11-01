@@ -146,8 +146,9 @@ const apiEnvSchema = z
 		// The worker's setting, read here too: with no provider the API accepts the fixed code the
 		// worker cannot email.
 		EMAIL_PROVIDER: envVar(z.string().min(1).default("none")),
-		// Google's external load balancer is one hop; it appends the client, then itself.
-		TRUSTED_PROXIES: envVar(z.coerce.number().int().min(0).default(1)),
+		// Google's external load balancer is one hop; it appends the client, then itself. Zero
+		// would read the balancer's own address as every client's.
+		TRUSTED_PROXIES: envVar(z.coerce.number().int().min(1).default(1)),
 		...listenEnvFields,
 	})
 	.superRefine((env, context) => {

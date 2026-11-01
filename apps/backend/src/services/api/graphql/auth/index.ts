@@ -89,13 +89,13 @@ export function createAuthResolvers(): Resolvers {
 
 			changePassword: requireAuth(async (_parent, args, context) => {
 				const parsed = parseSchema(ChangePasswordInputSchema(), args.input);
-				await changePasswordUseCase({
+				const { token } = await changePasswordUseCase({
 					userId: context.user.id,
 					headers: context.requestHeaders,
 					currentPassword: parsed.currentPassword,
 					newPassword: parsed.newPassword,
 				});
-				return { changed: true };
+				return { changed: true, token };
 			}),
 		},
 	};

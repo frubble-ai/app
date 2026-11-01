@@ -7,19 +7,11 @@ const signOutArgsSchema = z.object({
 	userId: userIdSchema,
 });
 
-/** End the session in `headers`. A failure is logged; the caller is signed out either way. */
+/** End the session in `headers`. A failure propagates: a session that is still live must not be reported as ended. */
 export const signOutUseCase = defineUseCase(async function signOutUseCase(
 	ctx,
 	args: { headers: Headers; userId: string },
 ): Promise<void> {
-	const { headers, userId } = signOutArgsSchema.parse(args);
-
-	try {
-		await ctx.auth.api.signOut({ headers });
-	} catch (error) {
-		ctx.logger.warn(
-			{ err: error, userId },
-			"auth.api.signOut failed; treating sign-out as successful",
-		);
-	}
+	const { headers } = signOutArgsSchema.parse(args);
+	await ctx.auth.api.signOut({ headers });
 });

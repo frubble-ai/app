@@ -60,13 +60,22 @@ export const signUpWithEmailUseCase = defineUseCase(
 			}),
 		);
 
+		// A customer code and an admin invite can be live for the same address; each keeps its
+		// own attempt count. An admin invite takes the emailed code only: the fixed code is for
+		// environments without email, and nothing there may become an admin by knowing an address.
 		let flow = ctx.config.authSignup;
 		let result = await verifyCode(ctx.db, ctx.config.email, flow, email, code);
-		if (result === "missing") {
-			// An admin invite takes the emailed code only: the fixed code is for environments
-			// without email, and nothing there may become an admin by knowing an address.
-			flow = ctx.config.adminSignup;
-			result = await verifyOneTimeCode(ctx.db, flow, email, code);
+		if (result !== "valid") {
+			const invite = await verifyOneTimeCode(
+				ctx.db,
+				ctx.config.adminSignup,
+				email,
+				code,
+			);
+			if (invite === "valid") {
+				flow = ctx.config.adminSignup;
+				result = invite;
+			}
 		}
 		if (result !== "valid") {
 			throw badInput(INVALID_SIGN_UP_CODE_MESSAGE);

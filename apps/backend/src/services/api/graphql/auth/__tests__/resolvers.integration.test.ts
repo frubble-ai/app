@@ -364,9 +364,11 @@ describe("Mutation.changePassword", () => {
 		expect(changePasswordUseCase).not.toHaveBeenCalled();
 	});
 
-	it("a signed-in user changes their password with their request headers", async () => {
+	it("a signed-in user changes their password and gets the replacement token", async () => {
 		const user = generateAuthenticatedCustomer();
 		const context = generateContext({ user });
+		const token = faker.string.alphanumeric(32);
+		vi.mocked(changePasswordUseCase).mockResolvedValue({ token });
 		const resolve = callResolver(resolvers.Mutation?.changePassword);
 
 		const result = await resolve({}, { input }, context, info);
@@ -376,7 +378,7 @@ describe("Mutation.changePassword", () => {
 			headers: context.requestHeaders,
 			...input,
 		});
-		expect(result).toEqual({ changed: true });
+		expect(result).toEqual({ changed: true, token });
 	});
 
 	it("an unexpected failure is rethrown unchanged", async () => {

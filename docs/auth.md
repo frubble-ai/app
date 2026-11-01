@@ -20,7 +20,7 @@ worker sends the emails.
 5. `requestPasswordReset(input: { email })` always answers `sent: true` and emails a code only
    when an account exists. `resetPassword(input: { email, code, newPassword })` sets the
    password and revokes every session. `changePassword(input: { currentPassword, newPassword })`
-   needs the current password and revokes the other sessions.
+   needs the current password, revokes every session and returns the caller's new `token`.
 
 Better Auth's own HTTP routes are not mounted. Resolvers validate input, call use cases, and
 use cases call `ctx.auth.api.*`; the session lookup goes through an in-process cache keyed by

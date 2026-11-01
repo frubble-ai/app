@@ -31,8 +31,13 @@ type ResetPasswordPayload {
 	reset: Boolean!
 }
 
+"""
+Every session was revoked, the caller's too: `token` replaces the one the
+request was made with.
+"""
 type ChangePasswordPayload {
 	changed: Boolean!
+	token: String!
 }
 
 input RequestSignUpCodeInput {
@@ -101,6 +106,9 @@ extend type Mutation {
 	"""
 	resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
 
-	"Change the calling user's password. Needs the current one; other sessions are revoked."
+	"""
+	Change the calling user's password. Needs the current one; every session is
+	revoked and the payload carries the caller's new token.
+	"""
 	changePassword(input: ChangePasswordInput!): ChangePasswordPayload!
 }
