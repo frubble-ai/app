@@ -9,7 +9,6 @@ import {
 	type TAuthSignInResult,
 } from "@/use-cases/lib/auth/auth-user";
 import { rethrowAsDomainError } from "@/use-cases/lib/auth/better-auth-error";
-import { verifyCode } from "@/use-cases/lib/auth/fixed-one-time-code";
 import {
 	deleteOneTimeCode,
 	verifyOneTimeCode,
@@ -61,10 +60,9 @@ export const signUpWithEmailUseCase = defineUseCase(
 		);
 
 		// A customer code and an admin invite can be live for the same address; each keeps its
-		// own attempt count. An admin invite takes the emailed code only: the fixed code is for
-		// environments without email, and nothing there may become an admin by knowing an address.
+		// own attempt count.
 		let flow = ctx.config.authSignup;
-		let result = await verifyCode(ctx.db, ctx.config.email, flow, email, code);
+		let result = await verifyOneTimeCode(ctx.db, flow, email, code);
 		if (result !== "valid") {
 			const invite = await verifyOneTimeCode(
 				ctx.db,

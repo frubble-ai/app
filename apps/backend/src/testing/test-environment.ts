@@ -30,7 +30,6 @@ export function buildTestConfig(): TConfig {
 		cors: { origin: ["http://localhost:3000"] },
 		publicUrl: "http://localhost:8080",
 		pubsub: { emailsTopic: "emails" },
-		email: { delivery: "provider" },
 		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },
 		...staticConfigSections(),
 	};

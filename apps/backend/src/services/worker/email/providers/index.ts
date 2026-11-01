@@ -7,8 +7,8 @@ export type TEmailSender = {
 	send(to: string, email: TEmail, links?: TEmailLinks): Promise<void>;
 };
 
-/** The providers the worker ships an adapter for. `none` logs instead of sending (never in prd). */
-export const EMAIL_PROVIDERS = ["mailgun", "resend", "none"] as const;
+/** The providers the worker ships an adapter for. */
+export const EMAIL_PROVIDERS = ["mailgun", "resend"] as const;
 export type TEmailProvider = (typeof EMAIL_PROVIDERS)[number];
 
 /** What every adapter is given; a provider reads the parts it needs. */
@@ -28,14 +28,14 @@ type TSenderFactory = (
 	fetchImpl: typeof fetch,
 ) => TEmailSender;
 
-const SENDERS: Record<Exclude<TEmailProvider, "none">, TSenderFactory> = {
+const SENDERS: Record<TEmailProvider, TSenderFactory> = {
 	mailgun: createMailgunSender,
 	resend: createResendSender,
 };
 
 /** The adapter for `provider`. Adding a provider is one folder here and one entry in this table. */
 export function createEmailSender(
-	provider: Exclude<TEmailProvider, "none">,
+	provider: TEmailProvider,
 	config: TEmailProviderConfig,
 	fetchImpl: typeof fetch = fetch,
 ): TEmailSender {

@@ -44,16 +44,9 @@ describe("buildConfig", () => {
 			},
 			publicUrl: "http://localhost:8080",
 			cors: { origin: [] },
-			email: { delivery: "none", fixedCode: "111111" },
 			api: { host: "0.0.0.0", port: 8080, trustedProxies: 1 },
 			pubsub: { emailsTopic: "emails" },
 		});
-	});
-
-	it("turns email delivery on when the worker has a provider", () => {
-		withEnv(generateEnv({ EMAIL_PROVIDER: "mailgun" }));
-
-		expect(buildConfig().email).toEqual({ delivery: "provider" });
 	});
 
 	it("splits CORS origins and keeps them whole", () => {
@@ -90,11 +83,6 @@ describe("buildConfig", () => {
 			label: "no database CA outside local",
 			env: { APP_ENV: "stg" },
 			message: /DB_CA_PEM/,
-		},
-		{
-			label: "no email provider in prd",
-			env: { APP_ENV: "prd", DB_CA_PEM: "cert" },
-			message: /EMAIL_PROVIDER/,
 		},
 	])("refuses to start with $label", ({ env, message }) => {
 		withEnv(generateEnv(env));

@@ -7,17 +7,6 @@ function generateEnv(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe("getWorkerConfig", () => {
-	it("runs without a provider locally, logging instead of sending", () => {
-		const config = getWorkerConfig(generateEnv());
-
-		expect(config).toMatchObject({
-			provider: "none",
-			email: null,
-			host: "0.0.0.0",
-			port: 8080,
-		});
-	});
-
 	it.each(["mailgun", "resend"] as const)(
 		"configures the %s adapter from the generic variables",
 		(provider) => {
@@ -33,7 +22,11 @@ describe("getWorkerConfig", () => {
 				}),
 			);
 
-			expect(config.provider).toBe(provider);
+			expect(config).toMatchObject({
+				provider,
+				host: "0.0.0.0",
+				port: 8080,
+			});
 			expect(config.email).toEqual({
 				apiKey,
 				apiUrl: undefined,
@@ -57,14 +50,10 @@ describe("getWorkerConfig", () => {
 		},
 		{
 			label: "a provider it does not ship",
-			env: { EMAIL_PROVIDER: "pigeon" },
+			env: { EMAIL_PROVIDER: "pigeon", EMAIL_API_KEY: "k", EMAIL_DOMAIN: "d" },
 			message: /EMAIL_PROVIDER/,
 		},
-		{
-			label: "no provider in prd",
-			env: { APP_ENV: "prd" },
-			message: /EMAIL_PROVIDER/,
-		},
+		{ label: "no provider", env: {}, message: /EMAIL_PROVIDER/ },
 	])("refuses to start with $label", ({ env, message }) => {
 		expect(() => getWorkerConfig(generateEnv(env))).toThrow(message);
 	});

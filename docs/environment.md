@@ -19,7 +19,6 @@ on the worker service and nothing else about how the image starts.
 | `BETTER_AUTH_SECRET` | yes, 32+ chars | Secret Manager | |
 | `CORS_ORIGIN` | no | Terraform | comma-separated browser origins, no wildcards; empty means none |
 | `PUBSUB_EMAILS_TOPIC` | yes | Terraform | locally the emulator's topic, with `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` |
-| `EMAIL_PROVIDER` | prd | Terraform | `none` makes the API accept the fixed code `111111` |
 | `TRUSTED_PROXIES` | no | | proxies appending to `X-Forwarded-For`, at least 1; default 1, the load balancer |
 | `HOST`, `PORT` | no | Cloud Run sets `PORT` | default `0.0.0.0:8080` |
 | `LOG_LEVEL`, `LOG_FORMAT` | no | | `json` when `NODE_ENV=production`, else pretty |
@@ -29,9 +28,9 @@ on the worker service and nothing else about how the image starts.
 | Variable | Required | Stg source | Notes |
 | --- | --- | --- | --- |
 | `APP_ENV` | yes | Terraform | |
-| `EMAIL_PROVIDER` | prd | Terraform | `mailgun`, `resend` or `none` |
-| `EMAIL_API_KEY` | with a provider | Secret Manager | the provider's sending key |
-| `EMAIL_DOMAIN` | with a provider | Terraform | the sending domain registered at the provider |
+| `EMAIL_PROVIDER` | yes | Terraform | `mailgun` or `resend` |
+| `EMAIL_API_KEY` | yes | Secret Manager | the provider's sending key |
+| `EMAIL_DOMAIN` | yes | Terraform | the sending domain registered at the provider |
 | `EMAIL_API_URL` | no | | the provider's API origin, for a stand-in |
 | `EMAIL_FROM`, `EMAIL_FROM_NAME` | no | Terraform | defaults `noreply@frubble.ai`, `Frubble` |
 | `EMAIL_SUPPORT_URL` | no | | the footer link |

@@ -25,9 +25,9 @@ yarn db:seed        # admin@frubble.ai, customer.1@example.com, customer.2@examp
 yarn dev            # API at http://localhost:8080/graphql, worker on 8081
 ```
 
-Without an email provider the worker logs each email, and sign-up and password reset accept
-the code `111111` ([sign-in](docs/auth.md)). Tests run against a Postgres container, so
-Docker must be running.
+The worker sends real email, so `.env.local` needs the provider's key and sending domain
+([sign-in](docs/auth.md)). Tests run against a Postgres container, so Docker must be
+running.
 
 ```bash
 yarn typecheck

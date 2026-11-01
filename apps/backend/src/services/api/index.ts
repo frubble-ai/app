@@ -9,12 +9,6 @@ import { buildUseCaseContext } from "@/use-cases/lib/shared/build-use-case-conte
 // Validates env at boot, so a missing key fails startup rather than a request.
 const config = getConfig();
 
-if (config.email.delivery === "none") {
-	logger.warn(
-		"EMAIL_PROVIDER is none: the fixed one-time code is accepted beside the emailed one (never in prd)",
-	);
-}
-
 // Awaited, so a broken deploy exits before it takes traffic.
 await initUseCaseContext(buildUseCaseContext);
 

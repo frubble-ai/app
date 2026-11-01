@@ -52,12 +52,6 @@ export type TConfig = {
 	pubsub: {
 		emailsTopic: string;
 	};
-	/**
-	 * How emails leave. `none` is only possible outside prd: the worker logs each email instead of
-	 * sending it, and `fixedCode` is accepted beside the emailed code, so sign-up and password reset
-	 * still work (`use-cases/lib/auth/fixed-one-time-code.ts`).
-	 */
-	email: { delivery: "provider" } | { delivery: "none"; fixedCode: string };
 	api: {
 		host: string;
 		port: number;
@@ -133,7 +127,6 @@ function parseCorsOrigins(raw: string, context: z.RefinementCtx): string[] {
 }
 
 /** The code accepted beside the emailed one when emails are not delivered (never in prd). */
-const FIXED_ONE_TIME_CODE = "111111";
 
 const apiEnvSchema = z
 	.object({
@@ -143,9 +136,6 @@ const apiEnvSchema = z
 		BETTER_AUTH_SECRET: envVar(z.string().min(32)),
 		CORS_ORIGIN: envVar(z.string().default("").transform(parseCorsOrigins)),
 		PUBSUB_EMAILS_TOPIC: envVar(z.string().min(1)),
-		// The worker's setting, read here too: with no provider the API accepts the fixed code the
-		// worker cannot email.
-		EMAIL_PROVIDER: envVar(z.string().min(1).default("none")),
 		// Google's external load balancer is one hop; it appends the client, then itself. Zero
 		// would read the balancer's own address as every client's.
 		TRUSTED_PROXIES: envVar(z.coerce.number().int().min(1).default(1)),
@@ -157,13 +147,6 @@ const apiEnvSchema = z
 				code: "custom",
 				message:
 					"DB_CA_PEM is required outside APP_ENV=local: the database connection is TLS against its CA",
-			});
-		}
-		if (env.APP_ENV === "prd" && env.EMAIL_PROVIDER === "none") {
-			context.addIssue({
-				code: "custom",
-				message:
-					"EMAIL_PROVIDER is required in prd: without it the fixed one-time code is accepted and emails are not sent",
 			});
 		}
 	});
@@ -188,10 +171,6 @@ export function buildConfig(): TConfig {
 		cors: { origin: env.CORS_ORIGIN },
 		publicUrl: env.BETTER_AUTH_URL.replace(/\/+$/, ""),
 		pubsub: { emailsTopic: env.PUBSUB_EMAILS_TOPIC },
-		email:
-			env.EMAIL_PROVIDER === "none"
-				? { delivery: "none", fixedCode: FIXED_ONE_TIME_CODE }
-				: { delivery: "provider" },
 		api: {
 			host: env.HOST,
 			port: env.PORT,

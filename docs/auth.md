@@ -41,10 +41,6 @@ The client IP comes from `X-Forwarded-For`: Google's load balancer appends the c
 address and then its own, so the client is the entry before the last `TRUSTED_PROXIES`
 (default 1) entries, and anything a client put in the header itself is ignored.
 
-## Without an email provider
-
-With `EMAIL_PROVIDER=none` (local, and stg until its provider is set up) the worker logs each
-email instead of sending it, and the API accepts the fixed code `111111` beside the emailed
-one for sign-up and password reset, while a code was requested and is live. An admin invite
-never takes the fixed code: nobody may become an admin by knowing an address. Locally the seed
-creates the admin. prd refuses to start without a provider.
+Every environment sends real email: the worker needs its provider's key and sending domain to
+start, locally too. The seed creates the local admin, so a local account exists before any
+code is emailed.

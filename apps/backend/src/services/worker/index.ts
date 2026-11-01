@@ -1,10 +1,7 @@
 import { logger } from "@/logger";
 import { buildWorkerApp } from "@/services/worker/app";
 import { handleEmailMessage } from "@/services/worker/email";
-import {
-	createEmailSender,
-	type TEmailSender,
-} from "@/services/worker/email/providers";
+import { createEmailSender } from "@/services/worker/email/providers";
 import { getWorkerConfig } from "@/services/worker/lib/config";
 import { stopOnSignal } from "@/shared/shutdown";
 
@@ -14,21 +11,7 @@ import { stopOnSignal } from "@/shared/shutdown";
 
 const config = getWorkerConfig();
 
-// Without a provider (never in prd) each email is logged and dropped; the API accepts the
-// fixed one-time code beside the emailed one, so sign-up and password reset still work.
-const sender: TEmailSender =
-	config.provider !== "none" && config.email
-		? createEmailSender(config.provider, config.email)
-		: {
-				send: async (_to, email) => {
-					logger.warn({ type: email.type }, "email not sent: no provider");
-				},
-			};
-if (config.provider === "none") {
-	logger.warn(
-		"EMAIL_PROVIDER is none: emails are logged, not sent, and the API accepts the fixed one-time code (not prd)",
-	);
-}
+const sender = createEmailSender(config.provider, config.email);
 
 const app = buildWorkerApp({
 	handleEmails: (body) =>

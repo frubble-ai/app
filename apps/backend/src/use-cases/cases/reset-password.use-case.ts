@@ -2,8 +2,10 @@ import { account } from "@frubble/db/schema";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import { verifyCode } from "@/use-cases/lib/auth/fixed-one-time-code";
-import { deleteOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
+import {
+	deleteOneTimeCode,
+	verifyOneTimeCode,
+} from "@/use-cases/lib/auth/one-time-code";
 import {
 	authRateLimitChecks,
 	enforceRateLimits,
@@ -53,9 +55,8 @@ export const resetPasswordUseCase = defineUseCase(
 			}),
 		);
 
-		const result = await verifyCode(
+		const result = await verifyOneTimeCode(
 			ctx.db,
-			ctx.config.email,
 			ctx.config.passwordReset,
 			email,
 			code,

@@ -177,21 +177,6 @@ describe("signUpWithEmailUseCase", () => {
 		expect(users).toEqual([]);
 	});
 
-	it("the fixed code works only while emails are not delivered", async () => {
-		const clone = getClone();
-		const email = newEmail();
-		await issueOneTimeCode(clone.db, getConfig().authSignup, email);
-
-		await expect(
-			signUpWithEmailUseCase({
-				email,
-				code: "111111",
-				name: faker.person.fullName(),
-				password: "password123",
-			}),
-		).rejects.toThrow(INVALID_SIGN_UP_CODE_MESSAGE);
-	});
-
 	it("an address with no code is refused", async () => {
 		await expect(
 			signUpWithEmailUseCase({
