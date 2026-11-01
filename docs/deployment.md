@@ -1,9 +1,9 @@
 # Deployment
 
 One pipeline ships this repository: [`backend-cd.yml`](../.github/workflows/backend-cd.yml)
-deploys the API to Cloud Run. The GCP side (the service definition, the load balancer in
-front of it, the registry, the deploy identity) lives in
-[`platform`](https://github.com/frubble-ai/platform).
+builds one image and moves the migration job, the API and the worker onto it, in that order.
+The GCP side (the service and job definitions, the load balancer, the database, the queue,
+the registry, the deploy identity) lives in [`platform`](https://github.com/frubble-ai/platform).
 
 ## Branches and environments
 
@@ -13,8 +13,8 @@ front of it, the registry, the deploy identity) lives in
 | Manual run (Actions → Run workflow) from `stg` | `backend-stg` | the API to stg, even if nothing in the path filter changed |
 | Push to `dev` | nothing | |
 
-A push deploys only when it touches `apps/backend`, the root manifests, the Dockerfile's
-inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
+A push deploys only when it touches `apps/backend`, `packages`, the root manifests, the
+Dockerfile's inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
 
 ## What a deploy does
 
@@ -26,20 +26,27 @@ inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
       ([`push-image.sh`](../.github/scripts/deploy/push-image.sh)). A tag is pushed once and
       never pushed over: a re-run of the same commit reuses the image it already pushed, after
       scanning that image again with the current Trivy rules.
-   2. Rolls the service onto it with `gcloud run services update --image`
+   2. Runs the migration ([`migrate.sh`](../.github/scripts/deploy/migrate.sh)): the migration
+      job's image is moved to this one and the job is executed once, with `--wait`. A failed
+      migration stops the deploy here, with both services still on the previous image.
+   3. Rolls the API onto it with `gcloud run services update --image`
       ([`rollout.sh`](../.github/scripts/deploy/rollout.sh)). That creates a revision that
       differs from the current one by the image only. Everything else about the service,
       CPU, memory, scaling, probes, env, the identity it runs as, is Terraform's in `platform`;
       a deploy never changes it. Traffic is then set to the latest revision, which also undoes
       a rollback's pin.
-   3. Waits until the new revision is healthy and holds all the traffic, checks that it runs
+   4. Waits until the new revision is healthy and holds all the traffic, checks that it runs
       the image just pushed, then asks `https://<API_HOSTNAME>/` which commit it serves and
       fails unless it is this one.
+   5. Rolls the worker the same way. It has no public name, so its check is that the revision
+      on the new image is ready and holds the traffic.
 
 Cloud Run moves traffic only to a revision whose startup probe passed. A build that does not
-start leaves the previous revision serving, and the run fails at step 2.2. A revision that
-starts but fails step 2.3 is taken out again: the script puts the traffic back on the revision
-that held it before the deploy, and the run fails.
+start leaves the previous revision serving, and the run fails at step 2.3. A revision that
+starts but fails step 2.4 is taken out again: the script puts the traffic back on the revision
+that held it before the deploy, and the run fails. A migration that ran before a failed
+rollout stays applied: migrations are additive, and the previous image must keep working on
+the new schema.
 
 ## Rollback
 
@@ -51,7 +58,9 @@ gcloud run services update-traffic frubble-stg-api --region us-central1 --projec
   --to-revisions <previous-revision>=100
 ```
 
-The pin stays until the next deploy from `stg`, which moves traffic to the latest revision again.
+The pin stays until the next deploy from `stg`, which moves traffic to the latest revision
+again. The worker rolls back the same way, with `frubble-stg-worker`. A migration is not
+rolled back: write a new one.
 
 ## GitHub configuration
 
@@ -69,6 +78,8 @@ environment name on the job, which the trust rule in `platform` names too.
 | `GCP_PROJECT_ID`, `GCP_REGION` | `backend-stg` variable | `frubble-stg`, `us-central1` |
 | `GCP_REGISTRY` | `backend-stg` variable | `us-central1-docker.pkg.dev/frubble-stg/frubble-stg` |
 | `GCP_RUN_SERVICE` | `backend-stg` variable | `frubble-stg-api` |
+| `GCP_RUN_SERVICE_WORKER` | `backend-stg` variable | `frubble-stg-worker`; unset skips the worker rollout |
+| `GCP_RUN_JOB_MIGRATE` | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration |
 | `API_HOSTNAME` | `backend-stg` variable | `api.stg.frubble.ai` |
 | `GCP_LB_IP` | `backend-stg` variable | the load balancer's address, **only while the hostname still points elsewhere**: the check then goes to that address under the hostname, certificate verified as usual, which needs the certificate active first. Remove it once DNS points at the load balancer |
 

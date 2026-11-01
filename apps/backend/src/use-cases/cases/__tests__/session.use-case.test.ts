@@ -1,0 +1,54 @@
+import { faker } from "@faker-js/faker";
+import { describe, expect, it } from "vitest";
+import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
+import { signUpTestUser } from "@/testing/signup-test-user";
+import { loadAuthenticatedUserFromRequestUseCase } from "@/use-cases/cases/load-authenticated-user-from-request.use-case";
+import { signInWithEmailPasswordUseCase } from "@/use-cases/cases/sign-in-with-email-password.use-case";
+import { signOutUseCase } from "@/use-cases/cases/sign-out.use-case";
+
+const { getClone } = setupIntegrationTestContext();
+
+function newEmail(): string {
+	return `session+${faker.string.alphanumeric(8).toLowerCase()}@example.com`;
+}
+
+describe("a session, from sign-in to sign-out", () => {
+	it("the bearer token identifies the user until they sign out", async () => {
+		const clone = getClone();
+		const email = newEmail();
+		const customer = await signUpTestUser(clone.auth, { email });
+		const { sessionToken } = await signInWithEmailPasswordUseCase({
+			email,
+			password: "password123",
+		});
+		const headers = new Headers({ authorization: `Bearer ${sessionToken}` });
+
+		expect(await loadAuthenticatedUserFromRequestUseCase({ headers })).toEqual({
+			id: customer.id,
+			name: customer.name,
+			email,
+			role: "customer",
+		});
+
+		await signOutUseCase({ headers, userId: customer.id });
+
+		expect(
+			await loadAuthenticatedUserFromRequestUseCase({ headers }),
+		).toBeNull();
+	});
+
+	it.each([
+		{ label: "no token", headers: () => new Headers() },
+		{
+			label: "a token nobody issued",
+			headers: () =>
+				new Headers({
+					authorization: `Bearer ${faker.string.alphanumeric(40)}`,
+				}),
+		},
+	])("a request with $label is signed out", async ({ headers }) => {
+		expect(
+			await loadAuthenticatedUserFromRequestUseCase({ headers: headers() }),
+		).toBeNull();
+	});
+});

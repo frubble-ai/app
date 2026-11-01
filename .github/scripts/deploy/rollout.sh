@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Rolls the Cloud Run service onto IMAGE and proves the API serves COMMIT.
+# Rolls one Cloud Run service onto IMAGE. With API_HOSTNAME set it then proves
+# the public hostname serves COMMIT; without it (the worker, which has no
+# public name) it proves the serving revision runs the image and is ready.
 #
 # `services update --image` creates a revision that differs from the current
 # one by the image only; everything else about the service is the platform
 # repository's. It returns non-zero if the revision never becomes ready, and
 # traffic stays on the previous revision in that case.
 set -euo pipefail
-: "${IMAGE:?}" "${SERVICE:?}" "${REGION:?}" "${PROJECT:?}" "${API_HOSTNAME:?}" "${COMMIT:?}"
+: "${IMAGE:?}" "${SERVICE:?}" "${REGION:?}" "${PROJECT:?}" "${COMMIT:?}"
 
 serving_revision() {
   gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" \
@@ -56,6 +58,17 @@ case "$image" in
   *"@$digest") echo "$revision serves $IMAGE ($digest)" ;;
   *) echo "::error::$revision runs $image, expected $IMAGE ($digest)"; exit 1 ;;
 esac
+
+# A service with no public name is done once its revision is ready: Cloud Run
+# moved the traffic only after the startup probe passed.
+if [ -z "${API_HOSTNAME:-}" ]; then
+  ready=$(gcloud run revisions describe "$revision" --project "$PROJECT" --region "$REGION" \
+    --format='value(status.conditions[?type=Ready].status)' 2>/dev/null || true)
+  case "$ready" in
+    *True*) echo "✅ $SERVICE serves $COMMIT on $revision"; exit 0 ;;
+    *) echo "::error::$revision is not ready"; exit 1 ;;
+  esac
+fi
 
 # Through the load balancer, under the public name, with the certificate
 # checked. While the hostname still points elsewhere (LB_IP set), the request

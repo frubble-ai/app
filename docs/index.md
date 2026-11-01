@@ -10,3 +10,5 @@ the commands, CI/CD and the deploy.
 | [TypeScript Conventions](typescript/conventions.md) | Type prefixes, no single-letter names, dates and times with Luxon                      |
 | [Dependencies](dependencies.md)                     | Why each `resolutions` override exists and when it can go                              |
 | [Deployment](deployment.md)                         | What a push to `stg` does, how to roll back, and the GitHub configuration it needs     |
+| [Sign-in](auth.md)                                  | The email and password flow, its codes, roles and rate limits                          |
+| [Environment](environment.md)                       | Every variable the API, the worker and the migration read                              |

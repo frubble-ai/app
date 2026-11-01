@@ -10,14 +10,22 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "turbo run dev",
+		"dev": "turbo run dev:api dev:worker",
 		"test": "turbo run test",
 		"test:coverage": "turbo run test:coverage && node bin/merge-coverage.mjs",
 		"typecheck": "turbo run typecheck",
 		"lint": "turbo run lint",
 		"format": "turbo run format",
 		"format:write": "turbo run format:write",
-		"postinstall": "node .husky/install.mjs"
+		"postinstall": "node .husky/install.mjs",
+		"codegen": "turbo run codegen",
+		"db:generate": "yarn workspace @frubble/db db:generate",
+		"db:migrate": "yarn workspace @frubble/backend migrate",
+		"db:seed": "yarn workspace @frubble/backend seed",
+		"local:create": "bin/local-create.sh",
+		"local:start": "bin/local-start.sh",
+		"local:stop": "bin/local-stop.sh",
+		"local:clean": "bin/local-clean.sh"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.3",

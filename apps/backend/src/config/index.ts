@@ -1,0 +1,205 @@
+import { dbEnvSchema } from "@frubble/db/env";
+import { z } from "zod";
+import { envVar, listenEnvFields, parseEnv } from "@/shared/env";
+
+// Typed config parsed from env once at boot, so a missing key fails startup. Tests swap in a
+// fixture with `setConfigForTests`.
+
+export type TRateLimitRule = {
+	/** Attempts allowed per window. */
+	limit: number;
+	windowMs: number;
+};
+
+/** A one-time emailed code flow (sign-up, password reset, admin invite). */
+export type TCodeFlowConfig = {
+	/** Prefix on the verification row's `identifier` for this flow. */
+	identifierPrefix: string;
+	codeTtlMs: number;
+	/** Wrong guesses allowed before the code is burned. */
+	maxAttempts: number;
+};
+
+/** `local` is docker-compose; `stg` and `prd` are the deployed environments. */
+const APP_ENVS = ["local", "stg", "prd"] as const;
+export type TAppEnv = (typeof APP_ENVS)[number];
+
+/** The schema every process parses `APP_ENV` with. */
+export const appEnvSchema = z.enum(APP_ENVS, {
+	error: () => `APP_ENV must be one of ${APP_ENVS.join(", ")}`,
+});
+
+export type TConfig = {
+	appEnv: TAppEnv;
+	db: {
+		user: string;
+		password: string;
+		host: string;
+		port: string;
+		name: string;
+		/** The server's CA, PEM. Unset locally, where the connection is plain. */
+		caPem: string | undefined;
+	};
+	betterAuth: {
+		url: string;
+		secret: string;
+	};
+	cors: {
+		origin: string[];
+	};
+	/** Public origin of this API (`BETTER_AUTH_URL` without a trailing slash). */
+	publicUrl: string;
+	pubsub: {
+		emailsTopic: string;
+	};
+	/**
+	 * How emails leave. `none` is only possible outside prd: the worker logs each email instead of
+	 * sending it, and `fixedCode` is accepted beside the emailed code, so sign-up and password reset
+	 * still work (`use-cases/lib/auth/fixed-one-time-code.ts`).
+	 */
+	email: { delivery: "provider" } | { delivery: "none"; fixedCode: string };
+	api: {
+		host: string;
+		port: number;
+	};
+	authSignup: TCodeFlowConfig;
+	passwordReset: TCodeFlowConfig;
+	adminSignup: TCodeFlowConfig;
+	/** Limits on the unauthenticated auth flows. */
+	authRateLimits: {
+		perEmail: TRateLimitRule;
+		/** High: offices and mobile carriers put many users behind one address. */
+		perIp: TRateLimitRule;
+	};
+};
+
+type TStaticConfigSections = Pick<
+	TConfig,
+	"authSignup" | "passwordReset" | "adminSignup" | "authRateLimits"
+>;
+
+/** The tuning knobs shared by the real and the test config. */
+export function staticConfigSections(): TStaticConfigSections {
+	return {
+		// Distinct prefixes: a code minted for one flow can never be redeemed by another.
+		authSignup: {
+			identifierPrefix: "signup-code:",
+			codeTtlMs: 15 * 60 * 1000,
+			maxAttempts: 5,
+		},
+		passwordReset: {
+			identifierPrefix: "password-reset-code:",
+			codeTtlMs: 15 * 60 * 1000,
+			maxAttempts: 5,
+		},
+		adminSignup: {
+			// `signUp` sets role=system_admin when the matched code carries this prefix. The role is
+			// `input: false` in Better Auth, so only this server path can set it.
+			identifierPrefix: "admin-signup-code:",
+			codeTtlMs: 72 * 60 * 60 * 1000,
+			maxAttempts: 5,
+		},
+		authRateLimits: {
+			perEmail: { limit: 10, windowMs: 15 * 60 * 1000 },
+			perIp: { limit: 50, windowMs: 15 * 60 * 1000 },
+		},
+	};
+}
+
+/** Comma-separated origins, also Better Auth's trustedOrigins: full http(s) origins, no wildcards. */
+function parseCorsOrigins(raw: string, context: z.RefinementCtx): string[] {
+	const entries = raw
+		.split(",")
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+	for (const entry of entries) {
+		if (entry.includes("*")) {
+			context.addIssue({
+				code: "custom",
+				message: `"${entry}" is a wildcard; the same list is Better Auth's trusted origins, which take none`,
+			});
+			continue;
+		}
+		if (!z.url({ protocol: /^https?$/ }).safeParse(entry).success) {
+			context.addIssue({
+				code: "custom",
+				message: `"${entry}" is not an http(s) origin; use the full origin, comma-separated`,
+			});
+		}
+	}
+	return entries;
+}
+
+/** The code accepted beside the emailed one when emails are not delivered (never in prd). */
+const FIXED_ONE_TIME_CODE = "111111";
+
+const apiEnvSchema = z
+	.object({
+		APP_ENV: envVar(appEnvSchema),
+		...dbEnvSchema.shape,
+		BETTER_AUTH_URL: envVar(z.url()),
+		BETTER_AUTH_SECRET: envVar(z.string().min(32)),
+		CORS_ORIGIN: envVar(z.string().default("").transform(parseCorsOrigins)),
+		PUBSUB_EMAILS_TOPIC: envVar(z.string().min(1)),
+		// The worker's setting, read here too: with no provider the API accepts the fixed code the
+		// worker cannot email.
+		EMAIL_PROVIDER: envVar(z.string().min(1).default("none")),
+		...listenEnvFields,
+	})
+	.superRefine((env, context) => {
+		if (env.APP_ENV !== "local" && env.DB_CA_PEM === undefined) {
+			context.addIssue({
+				code: "custom",
+				message:
+					"DB_CA_PEM is required outside APP_ENV=local: the database connection is TLS against its CA",
+			});
+		}
+		if (env.APP_ENV === "prd" && env.EMAIL_PROVIDER === "none") {
+			context.addIssue({
+				code: "custom",
+				message:
+					"EMAIL_PROVIDER is required in prd: without it the fixed one-time code is accepted and emails are not sent",
+			});
+		}
+	});
+
+export function buildConfig(): TConfig {
+	const env = parseEnv(apiEnvSchema, process.env);
+
+	return {
+		appEnv: env.APP_ENV,
+		db: {
+			user: env.DB_USER,
+			password: env.DB_PASSWORD,
+			host: env.DB_HOST,
+			port: env.DB_PORT,
+			name: env.DB_NAME,
+			caPem: env.DB_CA_PEM,
+		},
+		betterAuth: {
+			url: env.BETTER_AUTH_URL,
+			secret: env.BETTER_AUTH_SECRET,
+		},
+		cors: { origin: env.CORS_ORIGIN },
+		publicUrl: env.BETTER_AUTH_URL.replace(/\/+$/, ""),
+		pubsub: { emailsTopic: env.PUBSUB_EMAILS_TOPIC },
+		email:
+			env.EMAIL_PROVIDER === "none"
+				? { delivery: "none", fixedCode: FIXED_ONE_TIME_CODE }
+				: { delivery: "provider" },
+		api: { host: env.HOST, port: env.PORT },
+		...staticConfigSections(),
+	};
+}
+
+let _config: TConfig | null = null;
+
+export function getConfig(): TConfig {
+	if (!_config) _config = buildConfig();
+	return _config;
+}
+
+/** Tests only: pre-register a fixture config. */
+export function setConfigForTests(config: TConfig): void {
+	_config = config;
+}

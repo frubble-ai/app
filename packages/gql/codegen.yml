@@ -1,0 +1,26 @@
+# The one generated source for every consumer: the schema's types and the input validation.
+# Never committed; the codegen task runs before typecheck, lint and test, and in the image build.
+schema:
+  - ./schema/**/*.graphql
+generates:
+  ./src/__generated__/types.ts:
+    plugins:
+      - typescript
+    config:
+      enumsAsTypes: false
+      scalars:
+        DateTime: string
+        UserId: string
+  ./src/__generated__/validation.ts:
+    plugins:
+      - typescript-validation-schema
+    config:
+      schema: zod
+      importFrom: ./types
+      useTypeImports: true
+      # Inline, so a schema with no input of that scalar leaves no unused import behind. The
+      # UserId pattern is the one in src/lib/scalar-schemas.ts.
+      scalarSchemas:
+        DateTime: z.iso.datetime()
+        ID: z.uuid()
+        UserId: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/)

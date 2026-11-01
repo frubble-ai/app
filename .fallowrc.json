@@ -1,8 +1,17 @@
 {
 	"$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-	"ignorePatterns": ["**/__mocks__/**"],
-	"dynamicallyLoaded": ["**/testing/mock-*.{ts,tsx}", "**/__mocks__/**"],
+	"ignorePatterns": [
+		"**/__mocks__/**",
+		"**/__generated__/**"
+	],
+	"dynamicallyLoaded": [
+		"**/testing/mock-*.{ts,tsx}",
+		"**/__mocks__/**"
+	],
 	"rules": {
 		"unused-types": "error"
-	}
+	},
+	"ignoreDependencies": [
+		"graphql-codegen-typescript-validation-schema"
+	]
 }

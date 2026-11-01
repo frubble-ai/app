@@ -1,0 +1,8 @@
+"A date-time string at UTC, ISO 8601."
+scalar DateTime
+
+"""
+A Better Auth user id: 16 to 64 characters of letters, digits, `_` and `-`.
+Wider than Better Auth's default so an id-format change does not break the schema.
+"""
+scalar UserId
