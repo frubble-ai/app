@@ -31,8 +31,8 @@ on the worker service and nothing else about how the image starts.
 | `EMAIL_PROVIDER` | yes | Terraform | `mailgun` or `resend` |
 | `EMAIL_API_KEY` | yes | Secret Manager | the provider's sending key |
 | `EMAIL_DOMAIN` | yes | Terraform | the sending domain registered at the provider |
-| `EMAIL_API_URL` | no | | the provider's API origin, for a stand-in |
-| `EMAIL_FROM`, `EMAIL_FROM_NAME` | no | Terraform | defaults `noreply@frubble.ai`, `Frubble` |
+| `EMAIL_API_URL` | no | | the provider's API origin, for a stand-in; https outside local |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME` | no | Terraform | defaults `noreply@<EMAIL_DOMAIN>`, `Frubble` |
 | `EMAIL_SUPPORT_URL` | no | | the footer link |
 | `HOST`, `PORT` | no | Cloud Run sets `PORT` | |
 

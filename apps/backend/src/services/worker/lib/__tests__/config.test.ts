@@ -18,7 +18,6 @@ describe("getWorkerConfig", () => {
 					EMAIL_PROVIDER: provider,
 					EMAIL_API_KEY: apiKey,
 					EMAIL_DOMAIN: domain,
-					EMAIL_FROM: `noreply@${domain}`,
 				}),
 			);
 
@@ -54,7 +53,31 @@ describe("getWorkerConfig", () => {
 			message: /EMAIL_PROVIDER/,
 		},
 		{ label: "no provider", env: {}, message: /EMAIL_PROVIDER/ },
+		{
+			label: "a plain-http provider URL outside local",
+			env: {
+				APP_ENV: "stg",
+				EMAIL_PROVIDER: "mailgun",
+				EMAIL_API_KEY: "k",
+				EMAIL_DOMAIN: "d",
+				EMAIL_API_URL: "http://mailgun.internal",
+			},
+			message: /EMAIL_API_URL/,
+		},
 	])("refuses to start with $label", ({ env, message }) => {
 		expect(() => getWorkerConfig(generateEnv(env))).toThrow(message);
+	});
+
+	it("takes a plain-http stand-in locally", () => {
+		const config = getWorkerConfig(
+			generateEnv({
+				EMAIL_PROVIDER: "resend",
+				EMAIL_API_KEY: "k",
+				EMAIL_DOMAIN: "example.test",
+				EMAIL_API_URL: "http://localhost:9999",
+			}),
+		);
+
+		expect(config.email.apiUrl).toBe("http://localhost:9999");
 	});
 });

@@ -19,17 +19,33 @@ export type TWorkerConfig = {
 	port: number;
 };
 
-const workerEnvSchema = z.object({
-	APP_ENV: envVar(appEnvSchema),
-	EMAIL_PROVIDER: envVar(z.enum(EMAIL_PROVIDERS)),
-	EMAIL_API_KEY: envVar(z.string().min(1)),
-	EMAIL_API_URL: envVar(z.url().optional()),
-	EMAIL_DOMAIN: envVar(z.string().min(1)),
-	EMAIL_FROM: envVar(z.email().default("noreply@frubble.ai")),
-	EMAIL_FROM_NAME: envVar(z.string().min(1).default("Frubble")),
-	EMAIL_SUPPORT_URL: envVar(z.url().optional()),
-	...listenEnvFields,
-});
+const workerEnvSchema = z
+	.object({
+		APP_ENV: envVar(appEnvSchema),
+		EMAIL_PROVIDER: envVar(z.enum(EMAIL_PROVIDERS)),
+		EMAIL_API_KEY: envVar(z.string().min(1)),
+		EMAIL_API_URL: envVar(z.url().optional()),
+		EMAIL_DOMAIN: envVar(z.string().min(1)),
+		// Defaults to noreply@ the sending domain: the address must be on the domain the provider verified.
+		EMAIL_FROM: envVar(z.email().optional()),
+		EMAIL_FROM_NAME: envVar(z.string().min(1).default("Frubble")),
+		EMAIL_SUPPORT_URL: envVar(z.url().optional()),
+		...listenEnvFields,
+	})
+	.superRefine((env, context) => {
+		// The key travels in every request; only a local stand-in may take it in clear.
+		if (
+			env.APP_ENV !== "local" &&
+			env.EMAIL_API_URL !== undefined &&
+			!env.EMAIL_API_URL.startsWith("https://")
+		) {
+			context.addIssue({
+				code: "custom",
+				path: ["EMAIL_API_URL"],
+				message: "EMAIL_API_URL must be https outside APP_ENV=local",
+			});
+		}
+	});
 
 /** The worker's env. Fails at boot on anything missing or malformed. */
 export function getWorkerConfig(
@@ -43,7 +59,7 @@ export function getWorkerConfig(
 			apiKey: parsed.EMAIL_API_KEY,
 			apiUrl: parsed.EMAIL_API_URL,
 			domain: parsed.EMAIL_DOMAIN,
-			fromEmail: parsed.EMAIL_FROM,
+			fromEmail: parsed.EMAIL_FROM ?? `noreply@${parsed.EMAIL_DOMAIN}`,
 			fromName: parsed.EMAIL_FROM_NAME,
 		},
 		supportUrl: parsed.EMAIL_SUPPORT_URL,
