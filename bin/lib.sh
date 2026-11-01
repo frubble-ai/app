@@ -23,3 +23,32 @@ require_command() {
     exit 1
   fi
 }
+
+PUBSUB_HOST="${PUBSUB_EMULATOR_HOST:-localhost:8085}"
+PUBSUB_PROJECT="${PUBSUB_PROJECT_ID:-frubble-local}"
+PUBSUB_TOPIC="${PUBSUB_EMAILS_TOPIC:-emails}"
+WORKER_PORT="${WORKER_PORT:-8081}"
+
+# The emulator keeps topics and subscriptions in memory, so every start of it
+# needs them again. PUT creates; 409 means it exists, which is the state wanted.
+ensure_pubsub() {
+  local base="http://$PUBSUB_HOST/v1/projects/$PUBSUB_PROJECT"
+  echo "Waiting for the Pub/Sub emulator..."
+  for _ in $(seq 1 60); do
+    if curl -fsS "$base/topics" >/dev/null 2>&1; then break; fi
+    sleep 1
+  done
+  curl -fsS "$base/topics" >/dev/null || { echo "error: the Pub/Sub emulator did not come up on $PUBSUB_HOST" >&2; exit 1; }
+  put_pubsub "$base/topics/$PUBSUB_TOPIC" '{}'
+  put_pubsub "$base/subscriptions/$PUBSUB_TOPIC-worker" \
+    "{\"topic\":\"projects/$PUBSUB_PROJECT/topics/$PUBSUB_TOPIC\",\"pushConfig\":{\"pushEndpoint\":\"http://host.docker.internal:$WORKER_PORT/push/emails\"},\"ackDeadlineSeconds\":30}"
+}
+
+put_pubsub() {
+  local status
+  status=$(curl -sS -o /dev/null -w '%{http_code}' -X PUT "$1" -H 'Content-Type: application/json' -d "$2")
+  case "$status" in
+    200|409) ;;
+    *) echo "error: $1 answered $status" >&2; exit 1 ;;
+  esac
+}

@@ -101,16 +101,42 @@ describe("authRateLimitChecks", () => {
 });
 
 describe("clientIpFromHeaders", () => {
-	it("takes the last X-Forwarded-For entry, the one the load balancer appended", () => {
-		const real = faker.internet.ipv4();
+	it("takes the entry before the load balancer's own, which it appends last", () => {
+		const client = faker.internet.ipv4();
+		const balancer = faker.internet.ipv4();
 		const headers = new Headers({
-			"x-forwarded-for": `${faker.internet.ipv4()}, ${real}`,
+			"x-forwarded-for": `${faker.internet.ipv4()}, ${client}, ${balancer}`,
 		});
 
-		expect(clientIpFromHeaders(headers)).toBe(real);
+		expect(clientIpFromHeaders(headers, 1)).toBe(client);
 	});
 
-	it("is undefined without the header", () => {
-		expect(clientIpFromHeaders(new Headers())).toBeUndefined();
+	it("ignores what a client put in the header itself", () => {
+		const client = faker.internet.ipv4();
+		const headers = new Headers({
+			"x-forwarded-for": `1.1.1.1, 2.2.2.2, ${client}, ${faker.internet.ipv4()}`,
+		});
+
+		expect(clientIpFromHeaders(headers, 1)).toBe(client);
+	});
+
+	it("counts as many proxies as are trusted", () => {
+		const client = faker.internet.ipv4();
+		const headers = new Headers({
+			"x-forwarded-for": `${client}, ${faker.internet.ipv4()}, ${faker.internet.ipv4()}`,
+		});
+
+		expect(clientIpFromHeaders(headers, 2)).toBe(client);
+	});
+
+	it.each([
+		{ label: "no header", headers: new Headers(), proxies: 1 },
+		{
+			label: "only the proxy's entry",
+			headers: new Headers({ "x-forwarded-for": "9.9.9.9" }),
+			proxies: 1,
+		},
+	])("is undefined with $label", ({ headers, proxies }) => {
+		expect(clientIpFromHeaders(headers, proxies)).toBeUndefined();
 	});
 });

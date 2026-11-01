@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${DB_NAME:-frubble}
       POSTGRES_USER: ${DB_USER:-frubble}
@@ -22,7 +22,7 @@ services:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
     command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=frubble-local
     ports:
-      - "8085:8085"
+      - "127.0.0.1:8085:8085"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

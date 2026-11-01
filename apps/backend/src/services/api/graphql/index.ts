@@ -18,7 +18,10 @@ export type TGraphqlContext = {
 };
 
 /** The GraphQL server. Resolvers only call use cases; the context carries the user and headers. */
-export function buildYoga(args: { corsOrigin: string[] }) {
+export function buildYoga(args: {
+	corsOrigin: string[];
+	trustedProxies: number;
+}) {
 	return createYoga<TGraphqlContext>({
 		graphqlEndpoint: "/graphql",
 		maskedErrors: {
@@ -48,7 +51,7 @@ export function buildYoga(args: { corsOrigin: string[] }) {
 				return {
 					user,
 					requestHeaders: request.headers,
-					clientIp: clientIpFromHeaders(request.headers),
+					clientIp: clientIpFromHeaders(request.headers, args.trustedProxies),
 				};
 			} catch (err) {
 				// Envelop replaces a non-GraphQL context error with a new one, losing the original.

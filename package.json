@@ -20,7 +20,7 @@
 		"postinstall": "node .husky/install.mjs",
 		"codegen": "turbo run codegen",
 		"db:generate": "yarn workspace @frubble/db db:generate",
-		"db:migrate": "yarn workspace @frubble/backend migrate",
+		"db:migrate": "SHOULD_RUN_MIGRATION=true yarn workspace @frubble/backend migrate",
 		"db:seed": "yarn workspace @frubble/backend seed",
 		"local:create": "bin/local-create.sh",
 		"local:start": "bin/local-start.sh",

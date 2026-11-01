@@ -18,7 +18,12 @@ if (config.email.delivery === "none") {
 // Awaited, so a broken deploy exits before it takes traffic.
 await initUseCaseContext(buildUseCaseContext);
 
-const app = buildApp({ yoga: buildYoga({ corsOrigin: config.cors.origin }) });
+const app = buildApp({
+	yoga: buildYoga({
+		corsOrigin: config.cors.origin,
+		trustedProxies: config.api.trustedProxies,
+	}),
+});
 
 const server = Bun.serve({
 	hostname: config.api.host,

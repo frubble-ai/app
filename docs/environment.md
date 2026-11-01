@@ -20,6 +20,7 @@ on the worker service and nothing else about how the image starts.
 | `CORS_ORIGIN` | no | Terraform | comma-separated browser origins, no wildcards; empty means none |
 | `PUBSUB_EMAILS_TOPIC` | yes | Terraform | locally the emulator's topic, with `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` |
 | `EMAIL_PROVIDER` | prd | Terraform | `none` makes the API accept the fixed code `111111` |
+| `TRUSTED_PROXIES` | no | | proxies appending to `X-Forwarded-For`; default 1, the load balancer |
 | `HOST`, `PORT` | no | Cloud Run sets `PORT` | default `0.0.0.0:8080` |
 | `LOG_LEVEL`, `LOG_FORMAT` | no | | `json` when `NODE_ENV=production`, else pretty |
 

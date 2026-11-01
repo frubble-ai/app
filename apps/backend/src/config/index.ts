@@ -61,6 +61,8 @@ export type TConfig = {
 	api: {
 		host: string;
 		port: number;
+		/** Proxies between the client and the API that append to `X-Forwarded-For`: the load balancer. */
+		trustedProxies: number;
 	};
 	authSignup: TCodeFlowConfig;
 	passwordReset: TCodeFlowConfig;
@@ -144,6 +146,8 @@ const apiEnvSchema = z
 		// The worker's setting, read here too: with no provider the API accepts the fixed code the
 		// worker cannot email.
 		EMAIL_PROVIDER: envVar(z.string().min(1).default("none")),
+		// Google's external load balancer is one hop; it appends the client, then itself.
+		TRUSTED_PROXIES: envVar(z.coerce.number().int().min(0).default(1)),
 		...listenEnvFields,
 	})
 	.superRefine((env, context) => {
@@ -187,7 +191,11 @@ export function buildConfig(): TConfig {
 			env.EMAIL_PROVIDER === "none"
 				? { delivery: "none", fixedCode: FIXED_ONE_TIME_CODE }
 				: { delivery: "provider" },
-		api: { host: env.HOST, port: env.PORT },
+		api: {
+			host: env.HOST,
+			port: env.PORT,
+			trustedProxies: env.TRUSTED_PROXIES,
+		},
 		...staticConfigSections(),
 	};
 }

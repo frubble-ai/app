@@ -11,5 +11,6 @@ if (!email) {
 
 await runUseCaseScript("create-admin", async () => {
 	await requestAdminSignUpCodeUseCase({ email });
-	return `Invite code sent to ${email.trim().toLowerCase()}.`;
+	// The address stays out of the logs; the operator typed it.
+	return "Invite code sent.";
 });

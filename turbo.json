@@ -52,6 +52,9 @@
 			"dependsOn": [
 				"codegen",
 				"^codegen"
+			],
+			"passThroughEnv": [
+				"WORKER_PORT"
 			]
 		},
 		"typecheck": {

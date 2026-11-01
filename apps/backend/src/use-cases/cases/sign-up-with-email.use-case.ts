@@ -10,7 +10,10 @@ import {
 } from "@/use-cases/lib/auth/auth-user";
 import { rethrowAsDomainError } from "@/use-cases/lib/auth/better-auth-error";
 import { verifyCode } from "@/use-cases/lib/auth/fixed-one-time-code";
-import { deleteOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
+import {
+	deleteOneTimeCode,
+	verifyOneTimeCode,
+} from "@/use-cases/lib/auth/one-time-code";
 import {
 	authRateLimitChecks,
 	enforceRateLimits,
@@ -60,8 +63,10 @@ export const signUpWithEmailUseCase = defineUseCase(
 		let flow = ctx.config.authSignup;
 		let result = await verifyCode(ctx.db, ctx.config.email, flow, email, code);
 		if (result === "missing") {
+			// An admin invite takes the emailed code only: the fixed code is for environments
+			// without email, and nothing there may become an admin by knowing an address.
 			flow = ctx.config.adminSignup;
-			result = await verifyCode(ctx.db, ctx.config.email, flow, email, code);
+			result = await verifyOneTimeCode(ctx.db, flow, email, code);
 		}
 		if (result !== "valid") {
 			throw badInput(INVALID_SIGN_UP_CODE_MESSAGE);

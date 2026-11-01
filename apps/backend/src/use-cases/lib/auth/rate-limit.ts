@@ -90,12 +90,21 @@ export function authRateLimitChecks(
 }
 
 /**
- * The caller's address. Behind the load balancer the last `X-Forwarded-For` entry is the one it
- * appended, so a client cannot spoof it with its own header.
+ * The caller's address from `X-Forwarded-For`. Every trusted proxy on the way appends one entry
+ * (Google's external load balancer appends the client's address and then its own), so the
+ * client is the entry `trustedProxies` from the end; whatever a client put in the header itself
+ * sits before that and is ignored. Undefined without the header, as locally.
  */
-export function clientIpFromHeaders(headers: Headers): string | undefined {
+export function clientIpFromHeaders(
+	headers: Headers,
+	trustedProxies: number,
+): string | undefined {
 	const forwarded = headers.get("x-forwarded-for");
 	if (!forwarded) return undefined;
-	const last = forwarded.split(",").at(-1)?.trim();
-	return last || undefined;
+	const entries = forwarded
+		.split(",")
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+	const client = entries.at(-1 - trustedProxies);
+	return client || undefined;
 }

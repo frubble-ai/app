@@ -31,7 +31,7 @@ export function buildTestConfig(): TConfig {
 		publicUrl: "http://localhost:8080",
 		pubsub: { emailsTopic: "emails" },
 		email: { delivery: "provider" },
-		api: { host: "127.0.0.1", port: 8080 },
+		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },
 		...staticConfigSections(),
 	};
 }

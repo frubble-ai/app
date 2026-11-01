@@ -45,7 +45,7 @@ describe("buildConfig", () => {
 			publicUrl: "http://localhost:8080",
 			cors: { origin: [] },
 			email: { delivery: "none", fixedCode: "111111" },
-			api: { host: "0.0.0.0", port: 8080 },
+			api: { host: "0.0.0.0", port: 8080, trustedProxies: 1 },
 			pubsub: { emailsTopic: "emails" },
 		});
 	});
