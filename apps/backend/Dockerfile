@@ -21,12 +21,14 @@ WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 COPY package.json yarn.lock .yarnrc.yml ./
+COPY apps/app/package.json apps/app/
 COPY apps/backend/package.json apps/backend/
 COPY packages/db/package.json packages/db/
 COPY packages/emails/package.json packages/emails/
 COPY packages/eslint-plugin/package.json packages/eslint-plugin/
 COPY packages/events/package.json packages/events/
 COPY packages/gql/package.json packages/gql/
+COPY packages/react-sdk/package.json packages/react-sdk/
 COPY packages/seed/package.json packages/seed/
 RUN yarn workspaces focus @frubble/backend --production
 
@@ -38,12 +40,14 @@ WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 COPY package.json yarn.lock .yarnrc.yml ./
+COPY apps/app/package.json apps/app/
 COPY apps/backend/package.json apps/backend/
 COPY packages/db/package.json packages/db/
 COPY packages/emails/package.json packages/emails/
 COPY packages/eslint-plugin/package.json packages/eslint-plugin/
 COPY packages/events/package.json packages/events/
 COPY packages/gql/package.json packages/gql/
+COPY packages/react-sdk/package.json packages/react-sdk/
 COPY packages/seed/package.json packages/seed/
 # skip-build: no lifecycle scripts, so the root's husky postinstall (a git
 # hook installer) never runs in an image that has no git.
