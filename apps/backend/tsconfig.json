@@ -2,10 +2,11 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"types": ["bun-types"],
+		"jsx": "react-jsx",
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["src/*"]
 		}
 	},
-	"include": ["src/**/*.ts"]
+	"include": ["src/**/*.ts", "scripts/**/*.ts"]
 }

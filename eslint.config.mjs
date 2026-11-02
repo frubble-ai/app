@@ -8,6 +8,7 @@ export default [
 			"**/dist/**",
 			"**/coverage/**",
 			"**/.turbo/**",
+			"**/__generated__/**",
 		],
 	},
 	{

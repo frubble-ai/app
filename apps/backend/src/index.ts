@@ -1,21 +1,17 @@
-import { app, meta } from "./app.ts";
+// The image's one entrypoint. APP_PROCESS picks what runs, so the same image
+// is the API and the worker, and the platform never needs a `command`: a
+// placeholder image that ignores the variable still starts.
+const PROCESSES = {
+	api: () => import("./services/api/index.ts"),
+	worker: () => import("./services/worker/index.ts"),
+};
 
-const port = Number(Bun.env.PORT ?? 8080);
-
-const server = Bun.serve({
-	port,
-	hostname: "0.0.0.0",
-	fetch: app.fetch,
-});
-
-console.log(
-	`${meta.service} ${meta.version} (${meta.commit}) listening on :${server.port}`,
-);
-
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-	process.on(signal, () => {
-		console.log(`${signal} received, draining…`);
-		server.stop();
-		process.exit(0);
-	});
+const name = process.env.APP_PROCESS ?? "api";
+const start = PROCESSES[name as keyof typeof PROCESSES];
+if (!start) {
+	console.error(
+		`APP_PROCESS must be one of ${Object.keys(PROCESSES).join(", ")}, not "${name}"`,
+	);
+	process.exit(1);
 }
+await start();
