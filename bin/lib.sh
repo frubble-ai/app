@@ -38,9 +38,14 @@ ensure_push_token() {
   PUSH_TOKEN=$(sed -n 's/^PUSH_TOKEN=//p' "$BACKEND_ENV" | tail -1)
   if [ -z "$PUSH_TOKEN" ]; then
     PUSH_TOKEN=$(openssl rand -hex 32)
-    grep -v '^PUSH_TOKEN=' "$BACKEND_ENV" > "$BACKEND_ENV.tmp" || true
-    echo "PUSH_TOKEN=$PUSH_TOKEN" >> "$BACKEND_ENV.tmp"
-    mv "$BACKEND_ENV.tmp" "$BACKEND_ENV"
+    # Written back through the file itself, so it keeps its mode: the copy
+    # is private, and `cat >` rewrites the original in place.
+    local tmp
+    tmp=$(umask 077 && mktemp)
+    grep -v '^PUSH_TOKEN=' "$BACKEND_ENV" > "$tmp" || true
+    echo "PUSH_TOKEN=$PUSH_TOKEN" >> "$tmp"
+    cat "$tmp" > "$BACKEND_ENV"
+    rm -f "$tmp"
   fi
 }
 
@@ -56,8 +61,14 @@ ensure_pubsub() {
   done
   curl -fsS "$base/topics" >/dev/null || { echo "error: the Pub/Sub emulator did not come up on $PUBSUB_HOST" >&2; exit 1; }
   put_pubsub "$base/topics/$PUBSUB_TOPIC" '{}'
+  local push_config="{\"pushEndpoint\":\"http://host.docker.internal:$WORKER_PORT/push/emails?token=$PUSH_TOKEN\"}"
   put_pubsub "$base/subscriptions/$PUBSUB_TOPIC-worker" \
-    "{\"topic\":\"projects/$PUBSUB_PROJECT/topics/$PUBSUB_TOPIC\",\"pushConfig\":{\"pushEndpoint\":\"http://host.docker.internal:$WORKER_PORT/push/emails?token=$PUSH_TOKEN\"},\"ackDeadlineSeconds\":30}"
+    "{\"topic\":\"projects/$PUBSUB_PROJECT/topics/$PUBSUB_TOPIC\",\"pushConfig\":$push_config,\"ackDeadlineSeconds\":30}"
+  # A subscription that already existed keeps its push URL; set it again, so
+  # a new token or worker port reaches it too.
+  curl -fsS -X POST "$base/subscriptions/$PUBSUB_TOPIC-worker:modifyPushConfig" \
+    -H 'Content-Type: application/json' -d "{\"pushConfig\":$push_config}" >/dev/null \
+    || { echo "error: could not update the push subscription's URL" >&2; exit 1; }
 }
 
 put_pubsub() {
