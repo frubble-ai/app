@@ -33,15 +33,16 @@ function configured(): TGraphqlConfig {
 	return config;
 }
 
-const bearer = () => {
-	const token = getToken();
-	return token ? `Bearer ${token}` : undefined;
-};
-
-/** A token was sent and refused: the session is over, whichever operation found out. */
+/**
+ * The token sent was refused: that session is over, whichever operation found out. Only when it is
+ * still the current one: a request sent before a sign-in can fail after it, and must not end the
+ * new session.
+ */
 const sessionLink = new ErrorLink(({ error, operation }) => {
+	const sentToken: unknown = operation.getContext().sentToken;
 	if (
-		operation.getContext().sentToken === true &&
+		typeof sentToken === "string" &&
+		sentToken === getToken() &&
 		CombinedGraphQLErrors.is(error) &&
 		error.errors.some(
 			(graphqlError) => graphqlError.extensions?.code === "UNAUTHENTICATED",
@@ -52,9 +53,10 @@ const sessionLink = new ErrorLink(({ error, operation }) => {
 });
 
 const headersLink = new SetContextLink((previous) => {
-	const authorization = bearer();
+	const token = getToken();
+	const authorization = token ? `Bearer ${token}` : undefined;
 	return {
-		sentToken: authorization !== undefined,
+		sentToken: token ?? undefined,
 		headers: {
 			...previous.headers,
 			...(authorization ? { Authorization: authorization } : {}),

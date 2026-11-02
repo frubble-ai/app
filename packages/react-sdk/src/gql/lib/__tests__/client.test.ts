@@ -63,6 +63,25 @@ describe("graphqlClient", () => {
 		expect(onUnauthenticated).toHaveBeenCalledOnce();
 	});
 
+	it("leaves a newer session alone when a request sent with the old token is refused", async () => {
+		const oldToken = faker.string.alphanumeric(40);
+		vi.mocked(getToken).mockReturnValue(oldToken);
+		mockFetch.mockImplementationOnce(async () => {
+			// Signed in again while the request was out
+			vi.mocked(getToken).mockReturnValue(faker.string.alphanumeric(40));
+			return {
+				ok: true,
+				status: 200,
+				headers: { get: () => "application/json" },
+				text: async () => JSON.stringify(unauthenticated),
+			};
+		});
+
+		await expect(graphqlClient.query({ query: MeDocument })).rejects.toThrow();
+
+		expect(onUnauthenticated).not.toHaveBeenCalled();
+	});
+
 	it("leaves the session alone when no token was sent", async () => {
 		answerFetch(unauthenticated);
 

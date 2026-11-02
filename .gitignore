@@ -25,7 +25,9 @@ CLAUDE.md
 .fallow/
 .gstack/
 
-# The SDK's typed documents, hooks and schema introspection (codegen)
+# Codegen output, generated before typecheck, lint, test and the image builds
+packages/gql/src/__generated__/
+apps/backend/src/__generated__/
 packages/react-sdk/src/gql/generated.ts
 packages/react-sdk/src/gql/documents.ts
 packages/react-sdk/src/gql/operations.ts
