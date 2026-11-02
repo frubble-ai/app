@@ -119,17 +119,18 @@ environment and stay on the repository. A prd deploy would reuse the deploy job 
 places: the branch the build gates on, the `APP_ENV` and `APP_VERSION` it bakes in, and the
 environment name on the job, which the trust rule in `platform` names too.
 
-| Name                                   | Where                  | Value                                                                 |
-| -------------------------------------- | ---------------------- | --------------------------------------------------------------------- |
-| `BACKEND_CD_ENABLED`                   | repository variable    | `true` turns the pipeline on                                          |
-| `GCP_WIF_PROVIDER`, `GCP_WIF_AUDIENCE` | repository variable    | the identity pool provider and audience, from `platform`              |
-| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE`   | `backend-stg` variable | the hub the job signs in as and the spoke it becomes, from `platform` |
-| `GCP_PROJECT_ID`, `GCP_REGION`         | `backend-stg` variable | `frubble-stg`, `us-central1`                                          |
-| `GCP_REGISTRY`                         | `backend-stg` variable | `us-central1-docker.pkg.dev/frubble-stg/frubble-stg`                  |
-| `GCP_RUN_SERVICE`                      | `backend-stg` variable | `frubble-stg-api`                                                     |
-| `GCP_RUN_SERVICE_WORKER`               | `backend-stg` variable | `frubble-stg-worker`; unset skips the worker rollout                  |
-| `GCP_RUN_JOB_MIGRATE`                  | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration                      |
-| `API_HOSTNAME`                         | `backend-stg` variable | `api.stg.frubble.ai`                                                  |
+| Name                                   | Where                  | Value                                                                                                                    |
+| -------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `BACKEND_CD_ENABLED`                   | repository variable    | `true` turns the pipeline on                                                                                             |
+| `BACKEND_CODE_QUALITY_ENABLED`         | repository variable    | `true` runs the backend's pull-request checks; without it `Backend - Code Quality Summary` passes having checked nothing |
+| `GCP_WIF_PROVIDER`, `GCP_WIF_AUDIENCE` | repository variable    | the identity pool provider and audience, from `platform`                                                                 |
+| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE`   | `backend-stg` variable | the hub the job signs in as and the spoke it becomes, from `platform`                                                    |
+| `GCP_PROJECT_ID`, `GCP_REGION`         | `backend-stg` variable | `frubble-stg`, `us-central1`                                                                                             |
+| `GCP_REGISTRY`                         | `backend-stg` variable | `us-central1-docker.pkg.dev/frubble-stg/frubble-stg`                                                                     |
+| `GCP_RUN_SERVICE`                      | `backend-stg` variable | `frubble-stg-api`                                                                                                        |
+| `GCP_RUN_SERVICE_WORKER`               | `backend-stg` variable | `frubble-stg-worker`; unset skips the worker rollout                                                                     |
+| `GCP_RUN_JOB_MIGRATE`                  | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration                                                                         |
+| `API_HOSTNAME`                         | `backend-stg` variable | `api.stg.frubble.ai`                                                                                                     |
 
 The `backend-stg` environment accepts deployments from `stg` only. Its name, the workflow
 file name and the branch are the identity `platform` trusts; renaming any of them stops the
