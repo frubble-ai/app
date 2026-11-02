@@ -62,11 +62,12 @@ esac
 # A service with no public name is done once its revision is ready: Cloud Run
 # moved the traffic only after the startup probe passed.
 if [ -z "${API_HOSTNAME:-}" ]; then
+  # Read from the JSON: gcloud's format projections have no filter syntax.
   ready=$(gcloud run revisions describe "$revision" --project "$PROJECT" --region "$REGION" \
-    --format='value(status.conditions[?type=Ready].status)' 2>/dev/null || true)
+    --format=json | jq -r '[.status.conditions[] | select(.type == "Ready") | .status][0] // empty')
   case "$ready" in
-    *True*) echo "✅ $SERVICE serves $COMMIT on $revision"; exit 0 ;;
-    *) echo "::error::$revision is not ready"; exit 1 ;;
+    True) echo "✅ $SERVICE serves $COMMIT on $revision"; exit 0 ;;
+    *) echo "::error::$revision is not ready (Ready=${ready:-missing})"; exit 1 ;;
   esac
 fi
 
