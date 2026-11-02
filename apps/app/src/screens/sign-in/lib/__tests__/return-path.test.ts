@@ -18,6 +18,8 @@ describe("returnPath", () => {
 		["another site, behind a newline", "/\n/example.com"],
 		["another site, behind a carriage return", "/\r/example.com"],
 		["another site, backslashes all the way", "/\\\\example.com"],
+		["another site, once the dot segment resolves", "/.//example.com"],
+		["another site, after a parent segment", "/a/..//example.com"],
 		["a relative path", "sandbox"],
 	])("goes home for %s", (_case, from) => {
 		expect(returnPath(from)).toBe("/");

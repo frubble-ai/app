@@ -93,6 +93,16 @@
 			"outputs": [
 				"coverage/**"
 			]
+		},
+		"build": {
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			],
+			"outputs": [
+				".next/**",
+				"!.next/cache/**"
+			]
 		}
 	}
 }

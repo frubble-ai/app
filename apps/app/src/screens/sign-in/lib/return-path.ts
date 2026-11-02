@@ -11,5 +11,10 @@ export function returnPath(from: string | null): string {
 	if (!from?.startsWith("/")) return "/";
 	const url = new URL(from, SITE);
 	if (url.origin !== SITE) return "/";
-	return `${url.pathname}${url.search}${url.hash}`;
+	const path = `${url.pathname}${url.search}${url.hash}`;
+	// A path can resolve to one that starts `//` (`/.//host`): the browser reads that as another
+	// site when it navigates, so what comes back is checked once more the same way
+	return path.startsWith("//") || new URL(path, SITE).origin !== SITE
+		? "/"
+		: path;
 }

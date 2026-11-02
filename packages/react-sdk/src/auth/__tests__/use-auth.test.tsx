@@ -3,6 +3,8 @@ import { faker } from "@faker-js/faker";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateAuthPayload } from "../../gql/__mocks__/generate-auth-payload";
+import { MeDocument } from "../../gql/documents";
+import { graphqlClient } from "../../gql/lib/client";
 import {
 	createMockGenerated,
 	mockMutate,
@@ -71,7 +73,32 @@ describe("useAuth", () => {
 
 		expect(mockMutate).toHaveBeenCalledOnce();
 		expect(setToken).toHaveBeenCalledWith(payload.token);
+		expect(graphqlClient.cache.writeQuery).toHaveBeenCalledWith({
+			query: MeDocument,
+			data: { me: payload.user },
+		});
 		expect(mockRefetch).toHaveBeenCalledOnce();
+	});
+
+	it("keeps the session when refreshing the user afterwards fails", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const payload = generateAuthPayload();
+		mockMutate.mockResolvedValueOnce({ data: { signIn: payload } });
+		mockRefetch.mockRejectedValueOnce(new Error("offline"));
+
+		const { result } = renderHook(() => useAuth());
+
+		await act(async () => {
+			await expect(
+				result.current.signIn({
+					email: payload.user.email,
+					password: faker.internet.password(),
+				}),
+			).resolves.toEqual(payload);
+		});
+
+		await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+		warn.mockRestore();
 	});
 
 	it("signUp calls mutation, sets token, refetches me query", async () => {

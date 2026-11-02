@@ -21,4 +21,5 @@ reads `.graphql` files from disk).
 ## When to run
 
 Run `yarn codegen` after any change to `.graphql` files. Turbo runs the gql codegen before its
-consumers, and before `typecheck`, `test` and `build`. Generated files are never committed.
+consumers, and before `typecheck`, `test`, `dev` and `build`. Generated files are never committed,
+so a script run directly with `yarn workspace` on a fresh checkout needs `yarn codegen` first.

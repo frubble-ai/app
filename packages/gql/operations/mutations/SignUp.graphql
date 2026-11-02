@@ -1,10 +1,7 @@
 mutation SignUp($input: SignUpInput!) {
 	signUp(input: $input) {
 		user {
-			id
-			name
-			email
-			role
+			...MeFields
 		}
 		token
 	}

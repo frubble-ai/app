@@ -98,10 +98,13 @@ URL). A link is checked by its `href`: following a click is Next's own navigatio
 ## Running it
 
 ```bash
-yarn dev                               # the API, the worker and the app, on http://localhost:3000
-yarn workspace @frubble/app dev        # the app alone, against your local API
-yarn workspace @frubble/app test
+yarn dev                                          # the API, the worker and the app, on http://localhost:3000
+yarn turbo run dev --filter=@frubble/app          # the app alone, against your local API
+yarn turbo run test --filter=@frubble/app...      # the app's tests and its packages'
 ```
+
+Turbo runs the codegen the SDK needs first: its generated files are never committed, so a
+command run with `yarn workspace` on a fresh checkout needs `yarn codegen` before it.
 
 The local API must allow the app's origin: `CORS_ORIGIN` includes `http://localhost:3000`
 (`apps/backend/.env.example`). To use stg's API instead, set `GRAPHQL_URL` in
