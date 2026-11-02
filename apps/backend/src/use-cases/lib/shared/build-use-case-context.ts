@@ -1,4 +1,4 @@
-import { createDb } from "@frubble/db";
+import { createDb, tlsAgainstInstanceCa } from "@frubble/db";
 import { databaseUrl } from "@frubble/db/env";
 import { createPubSubTransport } from "@frubble/events/pubsub";
 import { PubSub } from "@google-cloud/pubsub";
@@ -23,9 +23,9 @@ export async function buildUseCaseContext(): Promise<TUseCaseContext> {
 	// Outside local the connection is TLS against the instance's own CA (`DB_CA_PEM`, which the
 	// config requires there).
 	const ssl =
-		config.appEnv === "local"
+		config.appEnv === "local" || config.db.caPem === undefined
 			? undefined
-			: { ca: config.db.caPem, rejectUnauthorized: true };
+			: tlsAgainstInstanceCa(config.db.caPem);
 
 	const db = createDb(databaseUrl(config.db), {
 		ssl,
