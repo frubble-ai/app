@@ -15,6 +15,8 @@ export type TWorkerConfig = {
 	email: TEmailProviderConfig;
 	/** Footer link in every email. */
 	supportUrl: string | undefined;
+	/** Required on every push when set: locally, where no invoker check guards the port. */
+	pushToken: string | undefined;
 	host: string;
 	port: number;
 };
@@ -30,6 +32,9 @@ const workerEnvSchema = z
 		EMAIL_FROM: envVar(z.email().optional()),
 		EMAIL_FROM_NAME: envVar(z.string().min(1).default("Frubble")),
 		EMAIL_SUPPORT_URL: envVar(z.url().optional()),
+		// Cloud Run's invoker check and internal ingress guard the push route in stg and prd.
+		// Locally nothing does, so a token in the subscription's push URL takes their place.
+		PUSH_TOKEN: envVar(z.string().min(32).optional()),
 		...listenEnvFields,
 	})
 	.superRefine((env, context) => {
@@ -43,6 +48,14 @@ const workerEnvSchema = z
 				code: "custom",
 				path: ["EMAIL_API_URL"],
 				message: "EMAIL_API_URL must be https outside APP_ENV=local",
+			});
+		}
+		if (env.APP_ENV === "local" && env.PUSH_TOKEN === undefined) {
+			context.addIssue({
+				code: "custom",
+				path: ["PUSH_TOKEN"],
+				message:
+					"PUSH_TOKEN is required with APP_ENV=local: nothing else guards the push route (yarn local:create sets it)",
 			});
 		}
 	});
@@ -63,6 +76,7 @@ export function getWorkerConfig(
 			fromName: parsed.EMAIL_FROM_NAME,
 		},
 		supportUrl: parsed.EMAIL_SUPPORT_URL,
+		pushToken: parsed.PUSH_TOKEN,
 		host: parsed.HOST,
 		port: parsed.PORT,
 	};

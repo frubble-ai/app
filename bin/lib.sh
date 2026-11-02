@@ -28,10 +28,26 @@ PUBSUB_HOST="${PUBSUB_EMULATOR_HOST:-localhost:8085}"
 PUBSUB_PROJECT="${PUBSUB_PROJECT_ID:-frubble-local}"
 PUBSUB_TOPIC="${PUBSUB_EMAILS_TOPIC:-emails}"
 WORKER_PORT="${WORKER_PORT:-8081}"
+BACKEND_ENV="$ROOT_DIR/apps/backend/.env.local"
+
+# The worker refuses a push without this token locally, where no invoker
+# check guards its port. Made once and kept in the backend's .env.local,
+# which the worker reads; the subscription carries it in its push URL.
+ensure_push_token() {
+  [ -f "$BACKEND_ENV" ] || { echo "error: $BACKEND_ENV is missing; copy apps/backend/.env.example" >&2; exit 1; }
+  PUSH_TOKEN=$(sed -n 's/^PUSH_TOKEN=//p' "$BACKEND_ENV" | tail -1)
+  if [ -z "$PUSH_TOKEN" ]; then
+    PUSH_TOKEN=$(openssl rand -hex 32)
+    grep -v '^PUSH_TOKEN=' "$BACKEND_ENV" > "$BACKEND_ENV.tmp" || true
+    echo "PUSH_TOKEN=$PUSH_TOKEN" >> "$BACKEND_ENV.tmp"
+    mv "$BACKEND_ENV.tmp" "$BACKEND_ENV"
+  fi
+}
 
 # The emulator keeps topics and subscriptions in memory, so every start of it
 # needs them again. PUT creates; 409 means it exists, which is the state wanted.
 ensure_pubsub() {
+  ensure_push_token
   local base="http://$PUBSUB_HOST/v1/projects/$PUBSUB_PROJECT"
   echo "Waiting for the Pub/Sub emulator..."
   for _ in $(seq 1 60); do
@@ -41,7 +57,7 @@ ensure_pubsub() {
   curl -fsS "$base/topics" >/dev/null || { echo "error: the Pub/Sub emulator did not come up on $PUBSUB_HOST" >&2; exit 1; }
   put_pubsub "$base/topics/$PUBSUB_TOPIC" '{}'
   put_pubsub "$base/subscriptions/$PUBSUB_TOPIC-worker" \
-    "{\"topic\":\"projects/$PUBSUB_PROJECT/topics/$PUBSUB_TOPIC\",\"pushConfig\":{\"pushEndpoint\":\"http://host.docker.internal:$WORKER_PORT/push/emails\"},\"ackDeadlineSeconds\":30}"
+    "{\"topic\":\"projects/$PUBSUB_PROJECT/topics/$PUBSUB_TOPIC\",\"pushConfig\":{\"pushEndpoint\":\"http://host.docker.internal:$WORKER_PORT/push/emails?token=$PUSH_TOKEN\"},\"ackDeadlineSeconds\":30}"
 }
 
 put_pubsub() {

@@ -78,4 +78,23 @@ describe("the worker app", () => {
 
 		expect(response.status).toBe(404);
 	});
+
+	it("refuses a push without the token when one is configured", async () => {
+		const handleEmails = vi.fn().mockResolvedValue(undefined);
+		const pushToken = faker.string.alphanumeric(40);
+		const app = buildWorkerApp({ handleEmails, pushToken });
+		const body = { type: "signup.code_requested", code: "123456" };
+
+		const missing = await app.request("/push/emails", push(body));
+		const wrong = await app.request("/push/emails?token=nope", push(body));
+		const right = await app.request(
+			`/push/emails?token=${pushToken}`,
+			push(body),
+		);
+
+		expect(missing.status).toBe(401);
+		expect(wrong.status).toBe(401);
+		expect(right.status).toBe(204);
+		expect(handleEmails).toHaveBeenCalledTimes(1);
+	});
 });

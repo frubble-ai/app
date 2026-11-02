@@ -7,6 +7,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 require_command docker
 require_command curl
+require_command openssl
 
 docker compose -f "$COMPOSE_FILE" start
 ensure_pubsub

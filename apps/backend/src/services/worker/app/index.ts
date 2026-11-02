@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { logger } from "@/logger";
 import { InvalidMessageError } from "@/services/worker/lib/envelope";
@@ -7,7 +8,13 @@ import { isDomainError } from "@/use-cases/lib/shared/domain-errors";
 export type TWorkerAppDeps = {
 	/** Handles one `emails` message (its parsed body). Throws to have Pub/Sub retry it. */
 	handleEmails: (body: unknown) => Promise<void>;
+	/** When set, every push must carry it as `?token=`: locally, in place of Cloud Run's invoker check. */
+	pushToken?: string;
 };
+
+function digest(value: string): Buffer {
+	return createHash("sha256").update(value).digest();
+}
 
 /**
  * The worker's HTTP app. Pub/Sub pushes each message to its channel's route and reads the
@@ -27,6 +34,12 @@ export function buildWorkerApp(deps: TWorkerAppDeps) {
 	);
 
 	app.post("/push/emails", async (context) => {
+		if (deps.pushToken !== undefined) {
+			const given = context.req.query("token") ?? "";
+			if (!timingSafeEqual(digest(given), digest(deps.pushToken))) {
+				return context.json({ error: "unauthorized" }, 401);
+			}
+		}
 		const push = parsePushMessage(await context.req.json().catch(() => null));
 		try {
 			await deps.handleEmails(push.body);

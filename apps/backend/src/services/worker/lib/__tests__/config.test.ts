@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getWorkerConfig } from "@/services/worker/lib/config";
 
 function generateEnv(overrides: Record<string, string | undefined> = {}) {
-	return { APP_ENV: "local", ...overrides };
+	return { APP_ENV: "local", PUSH_TOKEN: "t".repeat(32), ...overrides };
 }
 
 describe("getWorkerConfig", () => {
@@ -53,6 +53,16 @@ describe("getWorkerConfig", () => {
 			message: /EMAIL_PROVIDER/,
 		},
 		{ label: "no provider", env: {}, message: /EMAIL_PROVIDER/ },
+		{
+			label: "no push token locally",
+			env: {
+				EMAIL_PROVIDER: "mailgun",
+				EMAIL_API_KEY: "k",
+				EMAIL_DOMAIN: "d",
+				PUSH_TOKEN: undefined,
+			},
+			message: /PUSH_TOKEN/,
+		},
 		{
 			label: "a plain-http provider URL outside local",
 			env: {

@@ -14,6 +14,7 @@ const config = getWorkerConfig();
 const sender = createEmailSender(config.provider, config.email);
 
 const app = buildWorkerApp({
+	pushToken: config.pushToken,
 	handleEmails: (body) =>
 		handleEmailMessage(
 			{

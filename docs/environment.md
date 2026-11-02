@@ -33,6 +33,7 @@ on the worker service and nothing else about how the image starts.
 | `EMAIL_DOMAIN` | yes | Terraform | the sending domain registered at the provider |
 | `EMAIL_API_URL` | no | | the provider's API origin, for a stand-in; https outside local |
 | `EMAIL_FROM`, `EMAIL_FROM_NAME` | no | Terraform | defaults `noreply@<EMAIL_DOMAIN>`, `Frubble` |
+| `PUSH_TOKEN` | local only | `yarn local:create` | 32+ chars; every push must carry it as `?token=`, since nothing else guards the port locally. Cloud Run's invoker check and internal ingress do that in stg |
 | `EMAIL_SUPPORT_URL` | no | | the footer link |
 | `HOST`, `PORT` | no | Cloud Run sets `PORT` | |
 

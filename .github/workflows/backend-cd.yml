@@ -163,8 +163,12 @@ jobs:
       # definition is the platform repository's. Traffic moves only once the
       # revision is healthy, and the public hostname is then asked which
       # commit it serves.
+      # Without a hostname the script would take the worker's readiness-only
+      # path, so the API step refuses to run without one.
       - name: Roll out the API and verify
-        run: .github/scripts/deploy/rollout.sh
+        run: |
+          : "${API_HOSTNAME:?API_HOSTNAME is required to verify the API rollout}"
+          .github/scripts/deploy/rollout.sh
 
       # The worker has no public name: its rollout is done once the revision
       # on the new image is ready and holds the traffic.
