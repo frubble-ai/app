@@ -4,7 +4,7 @@ import pg from "pg";
 import * as schema from "../schema/index";
 
 export interface ICreateDbOptions {
-	/** pg's `ssl`: `{ ca, rejectUnauthorized: true }` to pin the server's CA. Unset locally. */
+	/** pg's `ssl`, from `tlsAgainstInstanceCa`. Unset locally. */
 	ssl?: pg.PoolConfig["ssl"];
 	/** Called once per statement with the rendered SQL and its parameters. */
 	logger?: DrizzleLogger;
