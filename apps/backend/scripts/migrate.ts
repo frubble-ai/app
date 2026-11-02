@@ -1,3 +1,4 @@
+import { tlsAgainstInstanceCa } from "@frubble/db";
 import { databaseUrl, dbConnectionFromEnv, dbEnvSchema } from "@frubble/db/env";
 import { runMigrations } from "@frubble/db/migrate";
 import { z } from "zod";
@@ -30,9 +31,8 @@ if (!isLocal && !env.DB_CA_PEM) {
 	logger.error("DB_CA_PEM is required outside APP_ENV=local");
 	process.exit(1);
 }
-const ssl = isLocal
-	? undefined
-	: { ca: env.DB_CA_PEM, rejectUnauthorized: true };
+const ssl =
+	isLocal || !env.DB_CA_PEM ? undefined : tlsAgainstInstanceCa(env.DB_CA_PEM);
 
 const connection = dbConnectionFromEnv(env);
 logger.info(
