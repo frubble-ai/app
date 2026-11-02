@@ -1,0 +1,50 @@
+# The app's operations as typed documents and Apollo Client hooks; schema types come from
+# @frubble/gql.
+schema:
+  - ../gql/schema/**/*.graphql
+documents:
+  - ../gql/operations/**/*.graphql
+config:
+  # The repository's tsconfig has verbatimModuleSyntax: a type comes in as a type
+  useTypeImports: true
+  importSchemaTypesFrom: "~@frubble/gql/types"
+  namespacedImportName: Types
+  # Same scalar types as @frubble/gql, so operation results aren't `unknown`
+  scalars:
+    DateTime: string
+    UserId: string
+generates:
+  # Operation types and typed documents, for `graphqlClient` calls outside components
+  ./src/gql/documents.ts:
+    plugins:
+      - typescript-operations
+      - typed-document-node
+  # The documents above under their operation names, as the hooks import them
+  ./src/gql/operations.ts:
+    plugins:
+      - ./codegen/operation-names.cjs
+  # A hook per operation, on the documents above: typescript-react-apollo, minus its suspense-query
+  # hooks (see the plugin)
+  ./src/gql/generated.ts:
+    plugins:
+      - ./codegen/react-apollo-hooks.cjs
+    config:
+      documentMode: external
+      importDocumentNodeExternallyFrom: ./operations
+      importOperationTypesFrom: Operations
+      addDocBlocks: false
+      # Apollo Client 4: hooks and their option types come from `@apollo/client/react`
+      apolloReactCommonImportFrom: "@apollo/client/react"
+      apolloReactHooksImportFrom: "@apollo/client/react"
+      withHooks: true
+      withComponent: false
+      withHOC: false
+      withMutationFn: false
+      withResultType: false
+      withMutationOptionsType: false
+  # The schema for test helpers (`withTypenames`)
+  ./src/testing/__generated__/schema.json:
+    plugins:
+      - introspection
+    config:
+      minify: true

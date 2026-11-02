@@ -1,0 +1,9 @@
+{
+	"brand": "Frubble",
+	"loading": "Loading…",
+	"signOut": "Sign out",
+	"roleFallback": {
+		"title": "This isn't a customer account",
+		"description": "{{email}} can't use the app. Sign out and sign in with your customer account."
+	}
+}

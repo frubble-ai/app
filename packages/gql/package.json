@@ -7,7 +7,8 @@
 		".": "./src/index.ts",
 		"./types": "./src/__generated__/types.ts",
 		"./validation": "./src/__generated__/validation.ts",
-		"./schema/*": "./schema/*.graphql"
+		"./schema/*": "./schema/*.graphql",
+		"./operations/*": "./operations/**/*.graphql"
 	},
 	"scripts": {
 		"codegen": "graphql-codegen --config codegen.yml",

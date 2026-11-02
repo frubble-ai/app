@@ -22,12 +22,18 @@
 	"tasks": {
 		"codegen": {
 			"outputs": [
-				"src/__generated__/**"
+				"src/__generated__/**",
+				"src/gql/documents.ts",
+				"src/gql/operations.ts",
+				"src/gql/generated.ts",
+				"src/testing/__generated__/**"
 			],
 			"inputs": [
 				"codegen.yml",
+				"codegen/**",
 				"schema/**",
-				"../../packages/gql/schema/**"
+				"../../packages/gql/schema/**",
+				"../../packages/gql/operations/**"
 			]
 		},
 		"dev": {

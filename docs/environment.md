@@ -42,6 +42,18 @@ on the worker service and nothing else about how the image starts.
 `SHOULD_RUN_MIGRATION=true` exactly, plus `APP_ENV` and the `DB_*` variables. Any other
 value is a logged no-op, so the script run anywhere but the migration job changes nothing.
 
+## App
+
+Locally from `apps/app/.env.local` (copy `.env.local.example`); in stg Terraform sets them on the
+app's Cloud Run service. The server reads them at request time, so one image serves every
+environment.
+
+| Variable | Required | Stg source | Notes |
+| --- | --- | --- | --- |
+| `APP_ENV` | no | Terraform | `local` (the default), `stg` or `prd` |
+| `GRAPHQL_URL` | outside local | Terraform | the API's GraphQL URL; locally `http://localhost:8080/graphql` unless set. Its `CORS_ORIGIN` must allow the app's origin |
+| `PORT` | no | Cloud Run sets it | default 3000 |
+
 ## Build arguments
 
 `APP_VERSION`, `APP_COMMIT` and `APP_ENV` are baked into the image by the deploy; `GET /`

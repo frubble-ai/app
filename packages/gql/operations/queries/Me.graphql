@@ -1,0 +1,12 @@
+query Me {
+	me {
+		...MeFields
+	}
+}
+
+fragment MeFields on Me {
+	id
+	name
+	email
+	role
+}

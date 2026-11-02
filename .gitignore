@@ -24,3 +24,12 @@ CLAUDE.md
 # Tool output
 .fallow/
 .gstack/
+
+# The SDK's typed documents, hooks and schema introspection (codegen)
+packages/react-sdk/src/gql/generated.ts
+packages/react-sdk/src/gql/documents.ts
+packages/react-sdk/src/gql/operations.ts
+packages/react-sdk/src/testing/__generated__/
+# Next
+.next/
+next-env.d.ts

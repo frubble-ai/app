@@ -11,4 +11,6 @@ the commands, CI/CD and the deploy.
 | [Dependencies](dependencies.md)                     | Why each `resolutions` override exists and when it can go                              |
 | [Deployment](deployment.md)                         | What a push to `stg` does, how to roll back, and the GitHub configuration it needs     |
 | [Sign-in](auth.md)                                  | The email and password flow, its codes, roles and rate limits                          |
-| [Environment](environment.md)                       | Every variable the API, the worker and the migration read                              |
+| [App](app/index.md)                                 | The customers' web app: its stack, structure, tests and how to run it                  |
+| [GraphQL](graphql/index.md)                         | The schema, codegen and the client SDK                                                 |
+| [Environment](environment.md)                       | Every variable the API, the worker, the migration and the app read                     |

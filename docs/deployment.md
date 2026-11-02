@@ -1,7 +1,9 @@
 # Deployment
 
-One pipeline ships this repository: [`backend-cd.yml`](../.github/workflows/backend-cd.yml)
-builds one image and moves the migration job, the API and the worker onto it, in that order.
+Two pipelines ship this repository. [`backend-cd.yml`](../.github/workflows/backend-cd.yml)
+builds one image and moves the migration job, the API and the worker onto it, in that order;
+[`app-cd.yml`](../.github/workflows/app-cd.yml) builds the web app's image and moves its service
+onto it ([App](#app)).
 The GCP side (the service and job definitions, the load balancer, the database, the queue,
 the registry, the deploy identity) lives in [`platform`](https://github.com/frubble-ai/platform).
 
@@ -85,3 +87,25 @@ environment name on the job, which the trust rule in `platform` names too.
 The `backend-stg` environment accepts deployments from `stg` only. Its name, the workflow
 file name and the branch are the identity `platform` trusts; renaming any of them stops the
 Google sign-in. No secrets are needed: authentication is OIDC.
+
+## App
+
+`.github/workflows/app-cd.yml` deploys `apps/app` the same way, on a push to `stg` that touches
+the app, the packages it imports or the root config: build and scan `apps/app/Dockerfile` with no
+cloud credentials, then, in the `app-stg` environment, push `frubble-app:<commit>` and roll the
+app's Cloud Run service onto it with [`rollout.sh`](../.github/scripts/deploy/rollout.sh). The app
+answers no commit, so its check is the worker's: the revision on the new image is ready and holds
+the traffic. One image serves every environment; nothing is baked in but the code
+([app](app/index.md)). Rollback is the service's previous revision, as above, with the app's
+service name.
+
+| Name | Where | Value |
+|---|---|---|
+| `APP_CD_ENABLED` | repository variable | `true` turns the pipeline on |
+| `APP_CODE_QUALITY_ENABLED` | repository variable | `true` turns the app's pull-request checks on |
+| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE` | `app-stg` variable | the same hub and spoke as `backend-stg`, from `platform` |
+| `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_REGISTRY` | `app-stg` variable | as `backend-stg` |
+| `GCP_RUN_SERVICE` | `app-stg` variable | `frubble-stg-app` |
+
+The `app-stg` environment accepts deployments from `stg` only; its name, the workflow file name
+and the branch are an entry in the deploy hub's trust rule in `platform`.

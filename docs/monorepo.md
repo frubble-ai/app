@@ -8,12 +8,14 @@ from one `yarn.lock`; Turborepo runs their scripts and caches the results.
 ```
 .
 ├── apps/
-│   └── backend/          @frubble/backend — the API, the worker, the scripts (one image)
+│   ├── backend/          @frubble/backend — the API, the worker, the scripts (one image)
+│   └── app/              @frubble/app — the customers' web app (Next.js)
 ├── packages/
 │   ├── db/               @frubble/db — the Drizzle schema, client and migrations
 │   ├── events/           @frubble/events — the message catalog, envelope and transports
 │   ├── emails/           @frubble/emails — the email templates
-│   ├── gql/              @frubble/gql — the GraphQL schema and its generated types
+│   ├── gql/              @frubble/gql — the GraphQL schema, the operations and the generated types
+│   ├── react-sdk/        @frubble/react-sdk — the typed client, hooks and auth the app uses
 │   ├── seed/             @frubble/seed — the local users
 │   └── eslint-plugin/    @frubble/eslint-plugin — the placement rules
 ├── bin/                  local-*.sh: the docker-compose dependencies
