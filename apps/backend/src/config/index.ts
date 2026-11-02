@@ -11,7 +11,7 @@ export type TRateLimitRule = {
 	windowMs: number;
 };
 
-/** A one-time emailed code flow (sign-up, password reset, admin invite). */
+/** A one-time emailed code flow (sign-up, password reset). */
 export type TCodeFlowConfig = {
 	/** Prefix on the verification row's `identifier` for this flow. */
 	identifierPrefix: string;
@@ -60,7 +60,6 @@ export type TConfig = {
 	};
 	authSignup: TCodeFlowConfig;
 	passwordReset: TCodeFlowConfig;
-	adminSignup: TCodeFlowConfig;
 	/** Limits on the unauthenticated auth flows. */
 	authRateLimits: {
 		perEmail: TRateLimitRule;
@@ -71,7 +70,7 @@ export type TConfig = {
 
 type TStaticConfigSections = Pick<
 	TConfig,
-	"authSignup" | "passwordReset" | "adminSignup" | "authRateLimits"
+	"authSignup" | "passwordReset" | "authRateLimits"
 >;
 
 /** The tuning knobs shared by the real and the test config. */
@@ -86,13 +85,6 @@ export function staticConfigSections(): TStaticConfigSections {
 		passwordReset: {
 			identifierPrefix: "password-reset-code:",
 			codeTtlMs: 15 * 60 * 1000,
-			maxAttempts: 5,
-		},
-		adminSignup: {
-			// `signUp` sets role=system_admin when the matched code carries this prefix. The role is
-			// `input: false` in Better Auth, so only this server path can set it.
-			identifierPrefix: "admin-signup-code:",
-			codeTtlMs: 72 * 60 * 60 * 1000,
 			maxAttempts: 5,
 		},
 		authRateLimits: {

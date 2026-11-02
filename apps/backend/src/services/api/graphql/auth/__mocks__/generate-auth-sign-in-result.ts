@@ -10,7 +10,6 @@ export function generateAuthSignInResult(
 			id: faker.string.alphanumeric(32),
 			name: faker.person.fullName(),
 			email: faker.internet.email().toLowerCase(),
-			role: "customer",
 		},
 		...overrides,
 	};

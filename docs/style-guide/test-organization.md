@@ -13,7 +13,6 @@ Where tests, mocks and factories live, and the rules every test follows.
 ## Structure
 
 > `src/` here means per app or package: `apps/<app>/src/`, `packages/<package>/src/`.
-
 2. **Any folder with source may have `__tests__/` and `__mocks__/` beside it.**
 
    ```

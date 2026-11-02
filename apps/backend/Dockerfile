@@ -5,8 +5,7 @@
 # image runs every process. The services share the CMD and APP_PROCESS picks
 # one (api by default, worker), so the platform sets a variable, never a
 # command; the one-off scripts are commands of their own:
-#   migration:          bun run scripts/migrate.ts   (SHOULD_RUN_MIGRATION=true)
-#   admin invite:       bun run scripts/create-admin.ts <email>
+#   migration:          bun run scripts/migrate.ts   (SHOULD_RUN_MIGRATION=true; --reset drops first, never in prd)
 #
 # Both base images are pinned by digest, not only by tag: a tag can be moved to
 # another image, a digest names exactly one. The tag stays beside it so a

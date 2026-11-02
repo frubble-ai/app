@@ -31,11 +31,11 @@ token: `changePassword` stores it in place of the old one.
 
 From `packages/gql/operations/**` (`packages/react-sdk/codegen.yml`):
 
-| File | Contents |
-|---|---|
-| `src/gql/documents.ts` | Operation types and a typed document per operation (`MeDocument`, `SignInDocument`) |
-| `src/gql/generated.ts` | A hook per operation: `useMeQuery`, `useSignInMutation` (`codegen/react-apollo-hooks.cjs`: typescript-react-apollo minus its suspense hooks, which don't type against Apollo Client 4, and minus an import nothing then uses) |
-| `src/testing/__generated__/schema.json` | The schema's introspection, for `withTypenames` |
+| File                                    | Contents                                                                                                                                                                                                                      |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/gql/documents.ts`                  | Operation types and a typed document per operation (`MeDocument`, `SignInDocument`)                                                                                                                                           |
+| `src/gql/generated.ts`                  | A hook per operation: `useMeQuery`, `useSignInMutation` (`codegen/react-apollo-hooks.cjs`: typescript-react-apollo minus its suspense hooks, which don't type against Apollo Client 4, and minus an import nothing then uses) |
+| `src/testing/__generated__/schema.json` | The schema's introspection, for `withTypenames`                                                                                                                                                                               |
 
 Import them from `@frubble/react-sdk`, not from generated files.
 

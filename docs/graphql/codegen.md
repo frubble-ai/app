@@ -8,10 +8,10 @@ schema:
 
 Consumers import those and generate only what is specific to them:
 
-| Consumer | Generates | Imports |
-|---|---|---|
-| `apps/backend` | Resolver signatures (`typescript-resolvers`) | `@frubble/gql/types`, `@frubble/gql/validation` |
-| `packages/react-sdk` | Typed documents and Apollo Client hooks for the app's operations ([client](./client.md)) | `@frubble/gql/types` (re-exported) |
+| Consumer             | Generates                                                                                | Imports                                         |
+| -------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `apps/backend`       | Resolver signatures (`typescript-resolvers`)                                             | `@frubble/gql/types`, `@frubble/gql/validation` |
+| `packages/react-sdk` | Typed documents and Apollo Client hooks for the app's operations ([client](./client.md)) | `@frubble/gql/types` (re-exported)              |
 
 The generated types use the wire format for scalars (`DateTime` is a string).
 

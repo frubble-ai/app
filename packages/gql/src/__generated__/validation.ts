@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { UserRole } from './types'
 import type { ChangePasswordInput, RequestPasswordResetInput, RequestSignUpCodeInput, ResetPasswordInput, SignInInput, SignUpInput } from './types'
 
 type Properties<T> = Required<{
@@ -11,8 +10,6 @@ type definedNonNullAny = {};
 export const isDefinedNonNullAny = (v: any): v is definedNonNullAny => v !== undefined && v !== null;
 
 export const definedNonNullAnySchema = z.any().refine((v) => isDefinedNonNullAny(v));
-
-export const UserRoleSchema: z.ZodType<UserRole> = z.nativeEnum(UserRole);
 
 export function ChangePasswordInputSchema(): z.ZodObject<Properties<ChangePasswordInput>> {
   return z.object({

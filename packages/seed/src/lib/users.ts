@@ -7,14 +7,12 @@ const SEED_PASSWORD = "password123";
 type TSeedUser = {
 	email: string;
 	name: string;
-	role: "system_admin" | "customer";
 };
 
-/** An admin and two customers. Re-runs converge: a user that exists is updated, not duplicated. */
+/** Two customers. Re-runs converge: a user that exists is updated, not duplicated. */
 const SEED_USERS: TSeedUser[] = [
-	{ email: "admin@frubble.ai", name: "Admin", role: "system_admin" },
-	{ email: "customer.1@example.com", name: "Customer One", role: "customer" },
-	{ email: "customer.2@example.com", name: "Customer Two", role: "customer" },
+	{ email: "customer.1@example.com", name: "Customer One" },
+	{ email: "customer.2@example.com", name: "Customer Two" },
 ];
 
 async function upsertAccount(
@@ -38,7 +36,7 @@ async function upsertAccount(
 
 	await context.db
 		.update(userTable)
-		.set({ role: seedUser.role, emailVerified: true })
+		.set({ emailVerified: true })
 		.where(eq(userTable.id, userId));
 	return userId;
 }
@@ -49,6 +47,6 @@ export async function seedUsers(context: TSeedContext): Promise<void> {
 	}
 	console.log(`  Users: ${SEED_USERS.length} (password: ${SEED_PASSWORD})`);
 	for (const seedUser of SEED_USERS) {
-		console.log(`    ${seedUser.role}: ${seedUser.email}`);
+		console.log(`    ${seedUser.email}`);
 	}
 }

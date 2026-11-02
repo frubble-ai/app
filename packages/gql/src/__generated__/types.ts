@@ -44,7 +44,6 @@ export type Me = {
   email: Scalars['String']['output'];
   id: Scalars['UserId']['output'];
   name: Scalars['String']['output'];
-  role: UserRole;
 };
 
 export type Mutation = {
@@ -157,8 +156,3 @@ export type SignUpInput = {
   name: Scalars['String']['input'];
   password: Scalars['String']['input'];
 };
-
-export enum UserRole {
-  Customer = 'CUSTOMER',
-  SystemAdmin = 'SYSTEM_ADMIN'
-}

@@ -1,20 +1,10 @@
-import { type TUserRole, userRoleEnum } from "@frubble/db";
-import { badInput, internalError } from "@/use-cases/lib/shared/domain-errors";
-
-/** Narrow a value from a Better Auth result to `TUserRole`. */
-export function isUserRole(value: unknown): value is TUserRole {
-	return (
-		typeof value === "string" &&
-		(userRoleEnum.enumValues as readonly string[]).includes(value)
-	);
-}
+import { internalError } from "@/use-cases/lib/shared/domain-errors";
 
 /** The signed-in user every sign-in and sign-up use case returns. */
 export type TAuthenticatedUser = {
 	id: string;
 	name: string;
 	email: string;
-	role: TUserRole;
 };
 
 export type TAuthSignInResult = {
@@ -41,7 +31,6 @@ export function formatAuthSignInResult(
 		id?: unknown;
 		name?: unknown;
 		email?: unknown;
-		role?: unknown;
 	};
 	if (
 		typeof fields.id !== "string" ||
@@ -50,18 +39,12 @@ export function formatAuthSignInResult(
 	) {
 		throw internalError(failureMessage);
 	}
-	if (!isUserRole(fields.role)) {
-		throw badInput(
-			`Unknown role on auth result for user ${fields.id}: ${String(fields.role ?? "null")}`,
-		);
-	}
 	return {
 		sessionToken: token,
 		user: {
 			id: fields.id,
 			name: fields.name,
 			email: fields.email,
-			role: fields.role,
 		},
 	};
 }

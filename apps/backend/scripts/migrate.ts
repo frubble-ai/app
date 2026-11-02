@@ -1,6 +1,6 @@
 import { tlsAgainstInstanceCa } from "@frubble/db";
 import { databaseUrl, dbConnectionFromEnv, dbEnvSchema } from "@frubble/db/env";
-import { runMigrations } from "@frubble/db/migrate";
+import { resetDatabase, runMigrations } from "@frubble/db/migrate";
 import { z } from "zod";
 import { logger } from "@/logger";
 import { envVar, parseEnv } from "@/shared/env";
@@ -19,12 +19,21 @@ if (SHOULD_RUN_MIGRATION !== "true") {
 	process.exit(0);
 }
 
+// `--reset` drops what the migrations made first, so they run on an empty database: the reset
+// workflow passes it, on stg only. prd refuses it whatever passes it.
+const reset = process.argv.includes("--reset");
+
 // Only the database variables, not the API's whole config.
 const env = parseEnv(
 	dbEnvSchema.extend({ APP_ENV: envVar(z.string().optional()) }),
 	process.env,
 	"migration environment",
 );
+
+if (reset && env.APP_ENV === "prd") {
+	logger.error("--reset is refused in prd");
+	process.exit(1);
+}
 
 const isLocal = env.APP_ENV === "local";
 if (!isLocal && !env.DB_CA_PEM) {
@@ -40,6 +49,12 @@ logger.info(
 );
 let code = 0;
 try {
+	if (reset) {
+		logger.warn(
+			`Resetting ${connection.host}:${connection.port}/${connection.name}`,
+		);
+		await resetDatabase(databaseUrl(connection), ssl);
+	}
 	await runMigrations(databaseUrl(connection), ssl);
 	logger.info("Migrations completed.");
 } catch (err) {

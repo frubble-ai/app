@@ -1,4 +1,4 @@
-import { UserRole, useAuth } from "@frubble/react-sdk";
+import { useAuth } from "@frubble/react-sdk";
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "@/shared/components/auth-guard";
@@ -14,10 +14,7 @@ vi.mock("@/shared/session", async () => import("@/testing/mock-session"));
 
 function renderGuarded(path: string) {
 	return renderWithProviders(
-		<AuthGuard
-			requiredRole={UserRole.Customer}
-			pending={<div data-testid="pending" />}
-		>
+		<AuthGuard pending={<div data-testid="pending" />}>
 			<div data-testid="guarded" />
 		</AuthGuard>,
 		{ path, routes: ["/sign-in"] },
@@ -27,7 +24,7 @@ function renderGuarded(path: string) {
 describe("AuthGuard", () => {
 	beforeEach(() => vi.clearAllMocks());
 
-	it("shows the page to a customer", () => {
+	it("shows the page to a signed-in user", () => {
 		vi.mocked(useAuth).mockReturnValue(generateAuth());
 
 		renderGuarded("/");
@@ -59,16 +56,5 @@ describe("AuthGuard", () => {
 		const { location } = renderGuarded("/");
 
 		expect(location().search).toBe("");
-	});
-
-	it("offers an admin only a way out", () => {
-		vi.mocked(useAuth).mockReturnValue(
-			generateAuth({ role: UserRole.SystemAdmin }),
-		);
-
-		renderGuarded("/");
-
-		expect(screen.getByTestId("role-fallback")).toBeInTheDocument();
-		expect(screen.queryByTestId("guarded")).not.toBeInTheDocument();
 	});
 });

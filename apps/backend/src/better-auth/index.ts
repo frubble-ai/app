@@ -30,11 +30,6 @@ export function createAuth(db: TDb, config: TConfig) {
 		},
 		databaseHooks,
 		plugins: [bearer()],
-		user: {
-			additionalFields: {
-				role: { type: "string", defaultValue: "customer", input: false },
-			},
-		},
 	});
 
 	cacheRef.current = createSessionCache((args) => auth.api.getSession(args));

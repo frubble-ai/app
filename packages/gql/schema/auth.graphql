@@ -1,14 +1,8 @@
-enum UserRole {
-	SYSTEM_ADMIN
-	CUSTOMER
-}
-
 "The signed-in user."
 type Me {
 	id: UserId!
 	name: String!
 	email: String!
-	role: UserRole!
 }
 
 """

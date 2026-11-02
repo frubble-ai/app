@@ -37,7 +37,7 @@ Root files hold what every workspace shares. A workspace holds only what is its 
 | What               | something that runs: a server, a job, a frontend | code other workspaces import         |
 | Deployed           | yes, each on its own                             | never on its own, only inside an app |
 | Imported by others | no                                               | yes                                  |
-| Name               | `@frubble/<name>`                                 | `@frubble/<name>`                     |
+| Name               | `@frubble/<name>`                                | `@frubble/<name>`                    |
 
 An app depends on packages; a package never depends on an app. If two apps need the same
 code, that code becomes a package rather than one app importing from the other. A package
@@ -46,7 +46,7 @@ react-email for `emails`) is a package even with one consumer: the tool runs aga
 package, not against the app.
 
 The backend is one app with two processes and three scripts, all in one image: the API
-(`src/services/api`), the worker (`src/services/worker`) and `scripts/{migrate,seed,create-admin}.ts`.
+(`src/services/api`), the worker (`src/services/worker`) and `scripts/{migrate,seed}.ts`.
 `src/index.ts` is the image's entrypoint and starts the process `APP_PROCESS` names.
 
 ## Source-first exports

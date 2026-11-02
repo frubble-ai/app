@@ -21,7 +21,6 @@ export function useAuth() {
 
 	return {
 		user: me,
-		role: me?.role ?? null,
 		isAuthenticated: me !== null,
 		isPending: loading && data === undefined,
 		...useCodeActions(),

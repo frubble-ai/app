@@ -1,4 +1,4 @@
-import { UserRole, useAuth } from "@frubble/react-sdk";
+import { useAuth } from "@frubble/react-sdk";
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SignedInLayout from "@/app/(signed-in)/layout";
@@ -25,7 +25,7 @@ function renderLayout() {
 describe("signed-in layout", () => {
 	beforeEach(() => vi.clearAllMocks());
 
-	it("shows a customer the page in the app's frame", () => {
+	it("shows a signed-in user the page in the app's frame", () => {
 		vi.mocked(useAuth).mockReturnValue(generateAuth());
 
 		renderLayout();
@@ -50,17 +50,6 @@ describe("signed-in layout", () => {
 
 		expect(screen.getByTestId("app-shell")).toBeInTheDocument();
 		expect(screen.getByTestId("loading-state")).toBeInTheDocument();
-		expect(screen.queryByTestId("page")).not.toBeInTheDocument();
-	});
-
-	it("keeps an admin out", () => {
-		vi.mocked(useAuth).mockReturnValue(
-			generateAuth({ role: UserRole.SystemAdmin }),
-		);
-
-		renderLayout();
-
-		expect(screen.getByTestId("role-fallback")).toBeInTheDocument();
 		expect(screen.queryByTestId("page")).not.toBeInTheDocument();
 	});
 });

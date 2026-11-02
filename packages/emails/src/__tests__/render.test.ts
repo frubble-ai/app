@@ -12,19 +12,10 @@ describe("renderEmail", () => {
 			label: "the sign-up code",
 			email: (code: string): TEmail => ({
 				type: "signup.code_requested",
-				props: { code, isAdminInvite: false },
+				props: { code },
 			}),
 			contains: ["Confirm your email", "15 minutes"],
-			excludes: ["administrator"],
-		},
-		{
-			label: "the admin invite",
-			email: (code: string): TEmail => ({
-				type: "signup.code_requested",
-				props: { code, isAdminInvite: true },
-			}),
-			contains: ["administrator", "72 hours"],
-			excludes: ["15 minutes"],
+			excludes: [],
 		},
 		{
 			label: "the password reset code",

@@ -42,13 +42,13 @@ wrapper. The same rule applies to every one of them, in every app and package.
 6. **Collections are the exception.** A folder whose files are all members of one kind holds
    them directly, with no folder per file. Ours:
 
-   | Folder     | Holds                                            |
-   | ---------- | ------------------------------------------------ |
-   | `lib/`     | a module's helpers                               |
-   | `cases/`   | one file per case, such as a use case per action |
+   | Folder     | Holds                                             |
+   | ---------- | ------------------------------------------------- |
+   | `lib/`     | a module's helpers                                |
+   | `cases/`   | one file per case, such as a use case per action  |
    | `rules/`   | one file per rule, as in `@frubble/eslint-plugin` |
-   | `testing/` | shared test setup                                |
-   | `shared/`  | units with more than one consumer                |
+   | `testing/` | shared test setup                                 |
+   | `shared/`  | units with more than one consumer                 |
 
 ## How to decide
 

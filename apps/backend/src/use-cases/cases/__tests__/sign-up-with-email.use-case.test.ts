@@ -48,108 +48,16 @@ describe("signUpWithEmailUseCase", () => {
 			id: expect.any(String),
 			name,
 			email,
-			role: "customer",
 		});
 		expect(result.sessionToken).toEqual(expect.any(String));
 		const [row] = await clone.db
 			.select()
 			.from(user)
 			.where(eq(user.id, result.user.id));
-		expect(row).toMatchObject({ emailVerified: true, role: "customer" });
+		expect(row).toMatchObject({ emailVerified: true });
 		expect(
 			await codeRowsFor(codeIdentifier(getConfig().authSignup, email)),
 		).toEqual([]);
-	});
-
-	it("an admin invite code creates a system admin", async () => {
-		const clone = getClone();
-		const email = newEmail();
-		const code = await issueOneTimeCode(
-			clone.db,
-			getConfig().adminSignup,
-			email,
-		);
-
-		const result = await signUpWithEmailUseCase({
-			email,
-			code,
-			name: faker.person.fullName(),
-			password: "password123",
-		});
-
-		expect(result.user.role).toBe("system_admin");
-		const [row] = await clone.db
-			.select({ role: user.role })
-			.from(user)
-			.where(eq(user.id, result.user.id));
-		expect(row?.role).toBe("system_admin");
-		expect(
-			await codeRowsFor(codeIdentifier(getConfig().adminSignup, email)),
-		).toEqual([]);
-	});
-
-	it("an admin invite code is accepted while a customer code is live for the address", async () => {
-		const clone = getClone();
-		const email = newEmail();
-		await issueOneTimeCode(clone.db, getConfig().authSignup, email);
-		const invite = await issueOneTimeCode(
-			clone.db,
-			getConfig().adminSignup,
-			email,
-		);
-
-		const result = await signUpWithEmailUseCase({
-			email,
-			code: invite,
-			name: faker.person.fullName(),
-			password: "password123",
-		});
-
-		expect(result.user.role).toBe("system_admin");
-	});
-
-	it("a wrong code counts against the customer code and the admin invite alike", async () => {
-		const clone = getClone();
-		const email = newEmail();
-		const code = await issueOneTimeCode(
-			clone.db,
-			getConfig().authSignup,
-			email,
-		);
-		const invite = await issueOneTimeCode(
-			clone.db,
-			getConfig().adminSignup,
-			email,
-		);
-		const wrong = code === "000000" ? "000001" : "000000";
-
-		for (
-			let attempt = 0;
-			attempt < getConfig().authSignup.maxAttempts;
-			attempt++
-		) {
-			await expect(
-				signUpWithEmailUseCase({
-					email,
-					code: wrong,
-					name: faker.person.fullName(),
-					password: "password123",
-				}),
-			).rejects.toMatchObject({ message: INVALID_SIGN_UP_CODE_MESSAGE });
-		}
-
-		// Both rows took the guesses, so both codes are gone.
-		expect(
-			await codeRowsFor(codeIdentifier(getConfig().authSignup, email)),
-		).toEqual([]);
-		await expect(
-			signUpWithEmailUseCase({
-				email,
-				code: invite,
-				name: faker.person.fullName(),
-				password: "password123",
-			}),
-		).rejects.toMatchObject({ message: INVALID_SIGN_UP_CODE_MESSAGE });
 	});
 
 	it("a wrong code is refused and no user is created", async () => {

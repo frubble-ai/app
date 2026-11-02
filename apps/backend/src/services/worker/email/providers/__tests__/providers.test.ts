@@ -58,7 +58,7 @@ describe("the Resend adapter", () => {
 
 		await createEmailSender("resend", config, fetchImpl).send(to, {
 			type: "signup.code_requested",
-			props: { code, isAdminInvite: false },
+			props: { code },
 		});
 
 		const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];

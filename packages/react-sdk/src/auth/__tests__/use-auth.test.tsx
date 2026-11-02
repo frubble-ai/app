@@ -54,7 +54,6 @@ describe("useAuth", () => {
 		const { result } = renderHook(() => useAuth());
 		expect(result.current.isAuthenticated).toBe(true);
 		expect(result.current.user).toMatchObject({ id: payload.user.id });
-		expect(result.current.role).toBe(payload.user.role);
 	});
 
 	it("signIn calls mutation, sets token, refetches me query", async () => {

@@ -33,7 +33,7 @@ describe("signInWithEmailPasswordUseCase", () => {
 
 		expect(result).toEqual({
 			sessionToken: expect.any(String),
-			user: { id: customer.id, name, email, role: "customer" },
+			user: { id: customer.id, name, email },
 		});
 		const after = await clone.db
 			.select()

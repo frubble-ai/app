@@ -1,5 +1,4 @@
 import { faker } from "@faker-js/faker";
-import { UserRole } from "@frubble/gql/types";
 
 /** A session as the API returns it from signing up or in. */
 export function generateAuthPayload() {
@@ -9,10 +8,6 @@ export function generateAuthPayload() {
 			id: faker.string.alphanumeric(32),
 			name: faker.person.fullName(),
 			email: faker.internet.email(),
-			role: faker.helpers.arrayElement([
-				UserRole.Customer,
-				UserRole.SystemAdmin,
-			]),
 		},
 	};
 }

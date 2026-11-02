@@ -93,7 +93,6 @@ export type ResolversTypes = {
   SignUpInput: Types.SignUpInput;
   String: ResolverTypeWrapper<Types.Scalars['String']['output']>;
   UserId: ResolverTypeWrapper<Types.Scalars['UserId']['output']>;
-  UserRole: Types.UserRole;
 };
 
 /** Mapping between all available schema types and the resolvers parents */
@@ -136,7 +135,6 @@ export type MeResolvers<ContextType = TGraphqlContext, ParentType extends Resolv
   email?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['UserId'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  role?: Resolver<ResolversTypes['UserRole'], ParentType, ContextType>;
 };
 
 export type MutationResolvers<ContextType = TGraphqlContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {

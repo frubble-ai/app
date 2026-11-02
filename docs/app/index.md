@@ -5,26 +5,26 @@ and out, resets a forgotten password, and shows a home page.
 
 ## Stack, and why
 
-| Choice | Why |
-|---|---|
-| Next.js 16, App Router | The SDK is React (Apollo hooks) |
-| Its own server (`output: "standalone"`) | The image runs `node server.js` on port 3000 (Dockerfile): no web server or config of ours in front of it. The security headers are in `next.config.ts` |
-| Pages render in the browser | The session is a bearer token in `localStorage`, so the server has nothing to render: `AppProviders` shows the splash screen until the session has loaded, and each page is a client component (`"use client"`) |
-| `@frubble/react-sdk` | The typed client, hooks and `useAuth`; the app gives it a `localStorage` token store (`src/shared/token-store`, [client](../graphql/client.md#session-token-storage)) |
-| Plain HTML, one small stylesheet | No component library, palette or theme: `src/app/app.css` lays out the page and leaves fonts and colors to the browser |
+| Choice                                  | Why                                                                                                                                                                                                             |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Next.js 16, App Router                  | The SDK is React (Apollo hooks)                                                                                                                                                                                 |
+| Its own server (`output: "standalone"`) | The image runs `node server.js` on port 3000 (Dockerfile): no web server or config of ours in front of it. The security headers are in `next.config.ts`                                                         |
+| Pages render in the browser             | The session is a bearer token in `localStorage`, so the server has nothing to render: `AppProviders` shows the splash screen until the session has loaded, and each page is a client component (`"use client"`) |
+| `@frubble/react-sdk`                    | The typed client, hooks and `useAuth`; the app gives it a `localStorage` token store (`src/shared/token-store`, [client](../graphql/client.md#session-token-storage))                                           |
+| Plain HTML, one small stylesheet        | No component library, palette or theme: `src/app/app.css` lays out the page and leaves fonts and colors to the browser                                                                                          |
 
 ## Dependencies
 
 Each was at least three days old when picked, as `.yarnrc.yml`'s age gate requires.
 
-| Package | For |
-|---|---|
-| `next` | Routing, the build, the server |
-| `@apollo/client`, `graphql`, `rxjs` | `ApolloProvider` and the error types; `graphql` and `rxjs` are Apollo's peers |
-| `i18next`, `react-i18next` | Translations |
-| `zod` | The runtime config (`src/config/app-config`) |
-| `@vitejs/plugin-react` | JSX in Vitest (Next only builds) |
-| `@testing-library/user-event`, `-dom`, `-jest-dom` | Driving and asserting on the DOM in tests |
+| Package                                            | For                                                                           |
+| -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `next`                                             | Routing, the build, the server                                                |
+| `@apollo/client`, `graphql`, `rxjs`                | `ApolloProvider` and the error types; `graphql` and `rxjs` are Apollo's peers |
+| `i18next`, `react-i18next`                         | Translations                                                                  |
+| `zod`                                              | The runtime config (`src/config/app-config`)                                  |
+| `@vitejs/plugin-react`                             | JSX in Vitest (Next only builds)                                              |
+| `@testing-library/user-event`, `-dom`, `-jest-dom` | Driving and asserting on the DOM in tests                                     |
 
 ## Structure
 
@@ -43,7 +43,7 @@ apps/app/
     ├── i18n/                # setup, resources/en/<domain>.json, lib/i18next.d.ts (typed keys)
     ├── screens/<name>/      # what a route shows: index.tsx, hooks/, lib/, __tests__/, __mocks__/
     ├── shared/
-    │   ├── components/      # app-shell, auth-guard, role-fallback, page-head, code-flow-error…
+    │   ├── components/      # app-shell, auth-guard, page-head, code-flow-error…
     │   ├── code-flow/       # what a failed sign-up or reset step shows
     │   ├── session/         # boot and end a session
     │   ├── token-store/     # localStorage, for the SDK
@@ -53,8 +53,8 @@ apps/app/
 
 - A page (`page.tsx`) renders its screen and nothing else; `src/app/__tests__/pages.test.tsx` checks
   that, with each screen's `__mocks__/index.tsx`.
-- `src/app/(signed-in)/layout.tsx` wraps every page behind sign-in in `AuthGuard` (signed in,
-  `customer`; an admin gets `RoleFallback`, which only signs out) and `AppShell`.
+- `src/app/(signed-in)/layout.tsx` wraps every page behind sign-in in `AuthGuard` (signed in, or
+  off to `/sign-in?from=`) and `AppShell`.
 - Signed out: `/sign-in`, `/sign-up` and `/reset-password`. Sign-up and the reset are two steps on
   one page: the email, which the API sends a code to, then the code with a name and a password, or
   with the new password ([sign-in](../auth.md)). After a reset the user signs in again, since the

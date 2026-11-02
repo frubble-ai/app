@@ -27,7 +27,6 @@ describe("a session, from sign-in to sign-out", () => {
 			id: customer.id,
 			name: customer.name,
 			email,
-			role: "customer",
 		});
 
 		await signOutUseCase({ headers, userId: customer.id });

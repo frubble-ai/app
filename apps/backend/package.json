@@ -11,7 +11,6 @@
 		"start:worker": "APP_PROCESS=worker bun run src/index.ts",
 		"migrate": "bun --env-file=.env.local scripts/migrate.ts",
 		"seed": "bun --env-file=.env.local scripts/seed.ts",
-		"create-admin": "bun --env-file=.env.local scripts/create-admin.ts",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",
 		"typecheck": "tsc --noEmit",

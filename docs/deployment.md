@@ -9,11 +9,11 @@ the registry, the deploy identity) lives in [`platform`](https://github.com/frub
 
 ## Branches and environments
 
-| Trigger | Environment | Deploys |
-|---|---|---|
-| Push to `stg` | `backend-stg` | the API to stg |
+| Trigger                                        | Environment   | Deploys                                                    |
+| ---------------------------------------------- | ------------- | ---------------------------------------------------------- |
+| Push to `stg`                                  | `backend-stg` | the API to stg                                             |
 | Manual run (Actions → Run workflow) from `stg` | `backend-stg` | the API to stg, even if nothing in the path filter changed |
-| Push to `dev` | nothing | |
+| Push to `dev`                                  | nothing       |                                                            |
 
 A push deploys only when it touches `apps/backend`, `packages`, the root manifests, the
 Dockerfile's inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
@@ -64,6 +64,21 @@ The pin stays until the next deploy from `stg`, which moves traffic to the lates
 again. The worker rolls back the same way, with `frubble-stg-worker`. A migration is not
 rolled back: write a new one.
 
+## Resetting the database
+
+[`db-reset.yml`](../.github/workflows/db-reset.yml) drops every table and enum the migrations
+made in stg's database and runs the migrations again from nothing, as one execution of the
+migration job with `--reset` ([`reset-db.sh`](../.github/scripts/deploy/reset-db.sh)), on the image
+the job already has. It is for when the migrations' history is rewritten, as when they are
+squashed into one: a deploy's migration then fails, since the tables it would create exist, until
+the database is reset. Every account and session goes with it.
+
+It runs by hand only (Actions → DB - Reset → Run workflow, from `stg`) and only for `drn1996`: the
+job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never
+runs beside a deploy, and it signs in as the deploy identity, whose trust rule in `platform` names
+the workflow file. The migration script refuses `--reset` in prd, whatever calls it. Locally the
+same is `yarn db:reset`.
+
 ## GitHub configuration
 
 Deploy values live on the environment. Values a job-level `if:` reads cannot come from an
@@ -72,17 +87,17 @@ environment and stay on the repository. A prd deploy would reuse the deploy job 
 places: the branch the build gates on, the `APP_ENV` and `APP_VERSION` it bakes in, and the
 environment name on the job, which the trust rule in `platform` names too.
 
-| Name | Where | Value |
-|---|---|---|
-| `BACKEND_CD_ENABLED` | repository variable | `true` turns the pipeline on |
-| `GCP_WIF_PROVIDER`, `GCP_WIF_AUDIENCE` | repository variable | the identity pool provider and audience, from `platform` |
-| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE` | `backend-stg` variable | the hub the job signs in as and the spoke it becomes, from `platform` |
-| `GCP_PROJECT_ID`, `GCP_REGION` | `backend-stg` variable | `frubble-stg`, `us-central1` |
-| `GCP_REGISTRY` | `backend-stg` variable | `us-central1-docker.pkg.dev/frubble-stg/frubble-stg` |
-| `GCP_RUN_SERVICE` | `backend-stg` variable | `frubble-stg-api` |
-| `GCP_RUN_SERVICE_WORKER` | `backend-stg` variable | `frubble-stg-worker`; unset skips the worker rollout |
-| `GCP_RUN_JOB_MIGRATE` | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration |
-| `API_HOSTNAME` | `backend-stg` variable | `api.stg.frubble.ai` |
+| Name                                   | Where                  | Value                                                                 |
+| -------------------------------------- | ---------------------- | --------------------------------------------------------------------- |
+| `BACKEND_CD_ENABLED`                   | repository variable    | `true` turns the pipeline on                                          |
+| `GCP_WIF_PROVIDER`, `GCP_WIF_AUDIENCE` | repository variable    | the identity pool provider and audience, from `platform`              |
+| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE`   | `backend-stg` variable | the hub the job signs in as and the spoke it becomes, from `platform` |
+| `GCP_PROJECT_ID`, `GCP_REGION`         | `backend-stg` variable | `frubble-stg`, `us-central1`                                          |
+| `GCP_REGISTRY`                         | `backend-stg` variable | `us-central1-docker.pkg.dev/frubble-stg/frubble-stg`                  |
+| `GCP_RUN_SERVICE`                      | `backend-stg` variable | `frubble-stg-api`                                                     |
+| `GCP_RUN_SERVICE_WORKER`               | `backend-stg` variable | `frubble-stg-worker`; unset skips the worker rollout                  |
+| `GCP_RUN_JOB_MIGRATE`                  | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration                      |
+| `API_HOSTNAME`                         | `backend-stg` variable | `api.stg.frubble.ai`                                                  |
 
 The `backend-stg` environment accepts deployments from `stg` only. Its name, the workflow
 file name and the branch are the identity `platform` trusts; renaming any of them stops the
@@ -99,13 +114,13 @@ the traffic. One image serves every environment; nothing is baked in but the cod
 ([app](app/index.md)). Rollback is the service's previous revision, as above, with the app's
 service name.
 
-| Name | Where | Value |
-|---|---|---|
-| `APP_CD_ENABLED` | repository variable | `true` turns the pipeline on |
-| `APP_CODE_QUALITY_ENABLED` | repository variable | `true` turns the app's pull-request checks on |
-| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE` | `app-stg` variable | the same hub and spoke as `backend-stg`, from `platform` |
-| `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_REGISTRY` | `app-stg` variable | as `backend-stg` |
-| `GCP_RUN_SERVICE` | `app-stg` variable | `frubble-stg-app` |
+| Name                                           | Where               | Value                                                    |
+| ---------------------------------------------- | ------------------- | -------------------------------------------------------- |
+| `APP_CD_ENABLED`                               | repository variable | `true` turns the pipeline on                             |
+| `APP_CODE_QUALITY_ENABLED`                     | repository variable | `true` turns the app's pull-request checks on            |
+| `GCP_DEPLOY_HUB`, `GCP_DEPLOY_SPOKE`           | `app-stg` variable  | the same hub and spoke as `backend-stg`, from `platform` |
+| `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_REGISTRY` | `app-stg` variable  | as `backend-stg`                                         |
+| `GCP_RUN_SERVICE`                              | `app-stg` variable  | `frubble-stg-app`                                        |
 
 The `app-stg` environment accepts deployments from `stg` only; its name, the workflow file name
 and the branch are an entry in the deploy hub's trust rule in `platform`.

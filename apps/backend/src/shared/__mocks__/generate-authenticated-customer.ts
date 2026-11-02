@@ -8,13 +8,6 @@ export function generateAuthenticatedCustomer(
 		id: faker.string.alphanumeric(32),
 		name: faker.person.fullName(),
 		email: faker.internet.email().toLowerCase(),
-		role: "customer",
 		...overrides,
 	};
-}
-
-export function generateAuthenticatedSystemAdmin(
-	overrides: Partial<IAuthenticatedUser> = {},
-): IAuthenticatedUser {
-	return generateAuthenticatedCustomer({ role: "system_admin", ...overrides });
 }
