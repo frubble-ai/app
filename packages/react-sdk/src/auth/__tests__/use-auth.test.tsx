@@ -39,6 +39,22 @@ describe("useAuth", () => {
 		expect(result.current.user).toBeNull();
 	});
 
+	it("tells a failed check apart from being signed out, and can ask again", () => {
+		mockUseMeQuery.mockReturnValue({
+			data: undefined,
+			loading: false,
+			error: new Error("offline"),
+			refetch: mockRefetch,
+		});
+
+		const { result } = renderHook(() => useAuth());
+		result.current.retry();
+
+		expect(result.current.isUnknown).toBe(true);
+		expect(result.current.isAuthenticated).toBe(false);
+		expect(mockRefetch).toHaveBeenCalledOnce();
+	});
+
 	it("isAuthenticated is false when no user", () => {
 		const { result } = renderHook(() => useAuth());
 		expect(result.current.isAuthenticated).toBe(false);

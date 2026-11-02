@@ -73,10 +73,16 @@ the job already has. It is for when the migrations' history is rewritten, as whe
 squashed into one: a deploy's migration then fails, since the tables it would create exist, until
 the database is reset. Every account and session goes with it.
 
+The job must already run an image whose migration script knows `--reset`, since the reset runs on
+the job's current image: an older one ignores the argument and only migrates. So the order is the
+deploy first (its migration step moves the job onto the new image, then fails), the reset, then
+the deploy again.
+
 It runs by hand only (Actions → DB - Reset → Run workflow, from `stg`) and only for `drn1996`: the
 job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never
 runs beside a deploy, and it signs in as the deploy identity, whose trust rule in `platform` names
-the workflow file. The migration script refuses `--reset` in prd, whatever calls it. Locally the
+the workflow file. The migration script takes `--reset` only with `APP_ENV` `local` or `stg`, and refuses it otherwise,
+whatever calls it. Locally the
 same is `yarn db:reset`.
 
 ## GitHub configuration

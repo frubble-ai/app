@@ -40,6 +40,18 @@ describe("graphqlClient", () => {
 		expect(sentHeaders()).toMatchObject({ authorization: `Bearer ${token}` });
 	});
 
+	it("keeps a caller's own authorization over the current session's", async () => {
+		vi.mocked(getToken).mockReturnValue(faker.string.alphanumeric(40));
+		answerFetch({ data: { signOut: { signedOut: true } } });
+
+		await graphqlClient.mutate({
+			mutation: SignOutDocument,
+			context: { headers: { Authorization: "Bearer old" } },
+		});
+
+		expect(sentHeaders().authorization).toBe("Bearer old");
+	});
+
 	it("keeps a caller's own authorization when no session is held", async () => {
 		answerFetch({ data: { signOut: { signedOut: true } } });
 

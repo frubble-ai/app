@@ -16,6 +16,7 @@ export function generateAuth(overrides: Partial<TAuth> = {}): TAuth {
 		},
 		isAuthenticated: true,
 		isPending: false,
+		isUnknown: false,
 		...overrides,
 	} as TAuth;
 }

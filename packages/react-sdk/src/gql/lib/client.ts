@@ -53,13 +53,18 @@ const sessionLink = new ErrorLink(({ error, operation }) => {
 });
 
 const headersLink = new SetContextLink((previous) => {
+	// A caller that names its own token (sign-out revokes the session it is leaving) keeps it
+	const explicit: unknown =
+		previous.headers?.Authorization ?? previous.headers?.authorization;
+	if (typeof explicit === "string") {
+		return { sentToken: explicit.replace(/^Bearer /, "") };
+	}
 	const token = getToken();
-	const authorization = token ? `Bearer ${token}` : undefined;
 	return {
 		sentToken: token ?? undefined,
 		headers: {
 			...previous.headers,
-			...(authorization ? { Authorization: authorization } : {}),
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
 		},
 	};
 });

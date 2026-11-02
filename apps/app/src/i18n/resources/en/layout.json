@@ -1,5 +1,7 @@
 {
 	"brand": "Frubble",
 	"loading": "Loading…",
-	"signOut": "Sign out"
+	"signOut": "Sign out",
+	"authUnknown": "Couldn't reach Frubble. Check your connection.",
+	"retry": "Try again"
 }

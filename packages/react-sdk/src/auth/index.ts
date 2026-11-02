@@ -14,7 +14,7 @@ export {
 
 /** The signed-in user, and the actions that start, change and end a session. */
 export function useAuth() {
-	const { data, loading, refetch } = useMeQuery({
+	const { data, loading, error, refetch } = useMeQuery({
 		fetchPolicy: "cache-first",
 	});
 	const me = data?.me ?? null;
@@ -23,6 +23,10 @@ export function useAuth() {
 		user: me,
 		isAuthenticated: me !== null,
 		isPending: loading && data === undefined,
+		/** The API couldn't say who is signed in (a network failure): not the same as signed out. */
+		isUnknown: error !== undefined && data === undefined,
+		/** Asks the API again who is signed in. */
+		retry: () => void refetch().catch(() => undefined),
 		...useCodeActions(),
 		...useSessionActions(refetch),
 	};

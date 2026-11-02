@@ -1,5 +1,6 @@
 import { useAuth } from "@frubble/react-sdk";
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "@/shared/components/auth-guard";
 import {
@@ -56,5 +57,23 @@ describe("AuthGuard", () => {
 		const { location } = renderGuarded("/");
 
 		expect(location().search).toBe("");
+	});
+
+	it("offers to ask again when the API couldn't say who is signed in", async () => {
+		const retry = vi.fn();
+		vi.mocked(useAuth).mockReturnValue(
+			generateAuth({
+				user: null,
+				isAuthenticated: false,
+				isUnknown: true,
+				retry,
+			}),
+		);
+
+		renderGuarded("/");
+		await userEvent.setup().click(screen.getByTestId("auth-unknown-retry"));
+
+		expect(screen.queryByTestId("route-/sign-in")).not.toBeInTheDocument();
+		expect(retry).toHaveBeenCalled();
 	});
 });
