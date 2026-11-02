@@ -57,7 +57,7 @@ const headersLink = new SetContextLink((previous) => {
 	const explicit: unknown =
 		previous.headers?.Authorization ?? previous.headers?.authorization;
 	if (typeof explicit === "string") {
-		return { sentToken: explicit.replace(/^Bearer /, "") };
+		return { sentToken: explicit.replace(/^bearer\s+/i, "").trim() };
 	}
 	const token = getToken();
 	return {
