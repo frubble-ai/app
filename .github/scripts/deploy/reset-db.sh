@@ -5,7 +5,7 @@
 # script itself refuses `--reset` in prd. The services then roll onto that
 # same image, so the revision that serves matches the schema just made.
 set -euo pipefail
-: "${MIGRATE_JOB:?}" "${SERVICE:?}" "${API_HOSTNAME:?}" "${REGION:?}" "${PROJECT:?}"
+: "${MIGRATE_JOB:?}" "${SERVICE:?}" "${WORKER_SERVICE:?}" "${API_HOSTNAME:?}" "${REGION:?}" "${PROJECT:?}"
 
 # The job's image is the one the last deploy built; its tag is that commit.
 IMAGE=$(gcloud run jobs describe "$MIGRATE_JOB" --project "$PROJECT" --region "$REGION" \
@@ -20,8 +20,8 @@ gcloud run jobs execute "$MIGRATE_JOB" --project "$PROJECT" --region "$REGION" \
   --args=--reset --wait --quiet
 echo "✅ $MIGRATE_JOB reset the database and migrated it on $IMAGE"
 
+# The worker first, so it reads what the new API publishes before the API
+# publishes it.
 scripts=$(dirname "$0")
+SERVICE="$WORKER_SERVICE" API_HOSTNAME="" "$scripts/rollout.sh"
 "$scripts/rollout.sh"
-if [ -n "${WORKER_SERVICE:-}" ]; then
-  SERVICE="$WORKER_SERVICE" API_HOSTNAME="" "$scripts/rollout.sh"
-fi

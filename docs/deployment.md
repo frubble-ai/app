@@ -69,8 +69,9 @@ rolled back: write a new one.
 [`db-reset.yml`](../.github/workflows/db-reset.yml) drops every table and enum the migrations
 made in stg's database and runs the migrations again from nothing, as one execution of the
 migration job with `--reset` ([`reset-db.sh`](../.github/scripts/deploy/reset-db.sh)), on the image
-the job already has. It then rolls the API and the worker onto that image, the same way a deploy
-does. It is for when the migrations' history is rewritten, as when they are squashed into one: a
+the job already has. It then rolls the worker, then the API, onto that image with the deploy's
+rollout script, the worker first so it reads what the new API publishes before the API publishes
+it. It is for when the migrations' history is rewritten, as when they are squashed into one: a
 deploy's migration then fails, since the tables it would create exist, until the database is
 reset. Every account and session goes with it.
 
@@ -82,8 +83,10 @@ stay on the previous image), then the reset, which migrates and rolls the servic
 Between the migration and the API's rollout, the previous revision serves on the new schema. A
 schema the previous image cannot write to, such as a changed enum, fails those requests for the
 minute or two the rollout takes. Rolling the services back to an image from before the reset
-leaves them on a schema they do not match, so the way back is another reset on that image's
-deploy, not a traffic rollback.
+leaves them on a schema they do not match, so the way back is a deploy of the older
+commit (its migration step moves the job onto the older image, then fails) followed by another
+reset, which then runs on the older image. An image that predates `--reset` only migrates, so the
+way back stops at the first commit that has it.
 
 It runs by hand only (Actions → DB - Reset → Run workflow, from `stg`) and only for `drn1996`: the
 job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never
