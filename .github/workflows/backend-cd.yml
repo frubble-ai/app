@@ -18,6 +18,7 @@ on:
     branches: [stg]
     paths:
       - apps/backend/**
+      - packages/**
       - package.json
       - yarn.lock
       - .yarnrc.yml
@@ -105,10 +106,12 @@ jobs:
       PROJECT: ${{ vars.GCP_PROJECT_ID }}
       REGION: ${{ vars.GCP_REGION }}
       SERVICE: ${{ vars.GCP_RUN_SERVICE }}
+      # The migration job and the worker service, both on the same image.
+      # Either unset means that step is skipped, for an environment that does
+      # not have it yet.
+      MIGRATE_JOB: ${{ vars.GCP_RUN_JOB_MIGRATE }}
+      WORKER_SERVICE: ${{ vars.GCP_RUN_SERVICE_WORKER }}
       API_HOSTNAME: ${{ vars.API_HOSTNAME }}
-      # Set only while the hostname still points elsewhere: the check then
-      # goes to the load balancer's address directly, certificate included.
-      LB_IP: ${{ vars.GCP_LB_IP }}
       COMMIT: ${{ github.sha }}
     steps:
       # For the scripts only; no credentials are kept.
@@ -150,9 +153,28 @@ jobs:
           IMAGE_TAR: ${{ runner.temp }}/image.tar
         run: .github/scripts/deploy/push-image.sh
 
+      # The schema first: the migration job runs on the new image and the
+      # deploy stops here if it fails, with both services still on the
+      # previous image.
+      - name: Migrate the database
+        run: .github/scripts/deploy/migrate.sh
+
       # A new revision with this image and nothing else changed; the service
       # definition is the platform repository's. Traffic moves only once the
       # revision is healthy, and the public hostname is then asked which
       # commit it serves.
-      - name: Roll out and verify
+      # Without a hostname the script would take the worker's readiness-only
+      # path, so the API step refuses to run without one.
+      - name: Roll out the API and verify
+        run: |
+          : "${API_HOSTNAME:?API_HOSTNAME is required to verify the API rollout}"
+          .github/scripts/deploy/rollout.sh
+
+      # The worker has no public name: its rollout is done once the revision
+      # on the new image is ready and holds the traffic.
+      - name: Roll out the worker
+        if: env.WORKER_SERVICE != ''
+        env:
+          SERVICE: ${{ env.WORKER_SERVICE }}
+          API_HOSTNAME: ""
         run: .github/scripts/deploy/rollout.sh

@@ -11,7 +11,10 @@ export const coverage = {
 		"src/**/__mocks__/**",
 		"src/**/__tests__/**",
 		"src/testing/**",
+		"src/**/__generated__/**",
+		// Entry points: they wire a process together and run under Bun, not vitest.
 		"src/index.ts",
+		"src/services/*/index.ts",
 	],
 	thresholds: {
 		statements: 50,

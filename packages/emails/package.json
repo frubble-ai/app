@@ -1,0 +1,33 @@
+{
+	"name": "@frubble/emails",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"test:coverage": "vitest run --coverage",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint .",
+		"format": "biome check --error-on-warnings .",
+		"format:write": "biome check --write ."
+	},
+	"dependencies": {
+		"@frubble/events": "workspace:*",
+		"react": "^19.2.3",
+		"react-dom": "^19.2.3",
+		"react-email": "^6.11.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.6.3",
+		"@faker-js/faker": "^10.6.0",
+		"@types/react": "^19.2.3",
+		"@vitest/coverage-istanbul": "^5.0.5",
+		"eslint": "^9.0.0",
+		"typescript": "^5.7.2",
+		"vite": "^8.3.5",
+		"vitest": "^5.0.5"
+	}
+}

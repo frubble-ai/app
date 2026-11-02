@@ -1,0 +1,114 @@
+enum UserRole {
+	SYSTEM_ADMIN
+	CUSTOMER
+}
+
+"The signed-in user."
+type Me {
+	id: UserId!
+	name: String!
+	email: String!
+	role: UserRole!
+}
+
+"""
+A session: `token` goes in `Authorization: Bearer <token>` on every later request.
+"""
+type AuthPayload {
+	user: Me!
+	token: String!
+}
+
+type RequestCodePayload {
+	sent: Boolean!
+}
+
+type SignOutPayload {
+	signedOut: Boolean!
+}
+
+type ResetPasswordPayload {
+	reset: Boolean!
+}
+
+"""
+Every session was revoked, the caller's too: `token` replaces the one the
+request was made with.
+"""
+type ChangePasswordPayload {
+	changed: Boolean!
+	token: String!
+}
+
+input RequestSignUpCodeInput {
+	email: String!
+}
+
+"""
+Create the account with the 6-digit code emailed by `requestSignUpCode`.
+"""
+input SignUpInput {
+	email: String!
+	code: String!
+	name: String!
+	password: String!
+}
+
+input SignInInput {
+	email: String!
+	password: String!
+}
+
+input RequestPasswordResetInput {
+	email: String!
+}
+
+"""
+Finish a password reset with the 6-digit code emailed by `requestPasswordReset`.
+Every existing session of the account is revoked.
+"""
+input ResetPasswordInput {
+	email: String!
+	code: String!
+	newPassword: String!
+}
+
+input ChangePasswordInput {
+	currentPassword: String!
+	newPassword: String!
+}
+
+extend type Query {
+	me: Me
+}
+
+extend type Mutation {
+	"""
+	Email a 6-digit sign-up code to an address that has no account yet. A
+	registered address gets `FORBIDDEN` with a generic message, so the app can
+	offer sign-in instead.
+	"""
+	requestSignUpCode(input: RequestSignUpCodeInput!): RequestCodePayload!
+
+	signUp(input: SignUpInput!): AuthPayload!
+	signIn(input: SignInInput!): AuthPayload!
+	signOut: SignOutPayload!
+
+	"""
+	Email a 6-digit password-reset code. Always answers `sent: true`, so the
+	response never says whether an account exists for the address.
+	"""
+	requestPasswordReset(input: RequestPasswordResetInput!): RequestCodePayload!
+
+	"""
+	Set a new password with the code from `requestPasswordReset`. An invalid,
+	expired or locked code answers `BAD_USER_INPUT`.
+	"""
+	resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
+
+	"""
+	Change the calling user's password. Needs the current one; every session is
+	revoked and the payload carries the caller's new token.
+	"""
+	changePassword(input: ChangePasswordInput!): ChangePasswordPayload!
+}

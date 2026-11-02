@@ -18,14 +18,19 @@ and the tests; Bun is the runtime for the API only.
 
 ### Apps
 
-| App               | Path           | Framework | Runtime |
-| ----------------- | -------------- | --------- | ------- |
-| `@frubble/backend` | `apps/backend` | Hono 4    | Bun     |
+| App               | Path           | Framework                     | Runtime |
+| ----------------- | -------------- | ----------------------------- | ------- |
+| `@frubble/backend` | `apps/backend` | Hono 4, GraphQL Yoga, Better Auth | Bun     |
 
 ### Packages
 
 | Package                 | Path                     | Framework               | Runtime                |
 | ----------------------- | ------------------------ | ----------------------- | ---------------------- |
+| `@frubble/db`            | `packages/db`            | Drizzle, node-postgres  | Bun                    |
+| `@frubble/events`        | `packages/events`        | zod, Pub/Sub            | Bun                    |
+| `@frubble/emails`        | `packages/emails`        | react-email             | Bun                    |
+| `@frubble/gql`           | `packages/gql`           | GraphQL schema, codegen | Bun                    |
+| `@frubble/seed`          | `packages/seed`          | the local users         | Bun                    |
 | `@frubble/eslint-plugin` | `packages/eslint-plugin` | ESLint 9 rules (plugin) | Node, loaded by ESLint |
 
 Every package exports its TypeScript source; there is no build step.
@@ -44,6 +49,8 @@ Every package exports its TypeScript source; there is no build step.
 - [`docs/typescript/conventions.md`](./docs/typescript/conventions.md) — type prefixes, names, dates with Luxon.
 - [`docs/dependencies.md`](./docs/dependencies.md) — why each `resolutions` override exists.
 - [`docs/deployment.md`](./docs/deployment.md) — what a push to `stg` does, rollback, and the variables the deploy reads.
+- [`docs/auth.md`](./docs/auth.md) — the sign-in flow, its codes, roles and rate limits.
+- [`docs/environment.md`](./docs/environment.md) — every variable the API, the worker and the migration read.
 
 ## Skills
 
@@ -58,7 +65,8 @@ Each one lists the docs to read and the rules that matter most.
 
 - Follow the monorepo and style-guide rules before changing the structure.
 - Place new code by the [placement rule](./docs/style-guide/placement-rule.md), not wherever is closest.
-- Keep framework-owned entrypoints, such as `apps/backend/src/index.ts`, in the shape the framework expects.
+- Keep framework-owned entrypoints, such as `apps/backend/src/services/api/index.ts`, in the shape the framework expects; `apps/backend/src/index.ts` only picks one by `APP_PROCESS`.
+- Resolvers, scripts and the worker call use cases; only use cases touch the database, Better Auth and the queue.
 - Branch from `dev` and open pull requests against `dev`; `stg` only receives promotions from `dev`.
 - Do not add a `resolutions` entry without its row in [`docs/dependencies.md`](./docs/dependencies.md).
 - Never commit secrets: no keys, tokens or `.env` files.
@@ -74,7 +82,10 @@ From the repository root.
 | Test                      | `yarn test`                                                                                        |
 | Lint                      | `yarn lint`                                                                                        |
 | Format (check)            | `yarn format`; `yarn format:write` to apply                                                        |
-| Run the API in watch mode | `yarn dev`                                                                                         |
+| Local dependencies        | `yarn local:create` (first time), then `yarn local:start` / `yarn local:stop`                     |
+| Migrate and seed locally  | `yarn db:migrate`, `yarn db:seed`                                                                  |
+| Run the API and the worker| `yarn dev`                                                                                         |
+| Generate the GraphQL types| `yarn codegen` (typecheck, lint and test run it first)                                             |
 | Tests with coverage       | `yarn test:coverage`                                                                               |
 | Fallow, as CI runs it     | `yarn fallow --fail-on-issues --coverage coverage/coverage-final.json`, after `yarn test:coverage` |
 

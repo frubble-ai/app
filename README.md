@@ -1,13 +1,13 @@
 # app
 
-Yarn 4 + Turborepo monorepo. One app so far: the API, Bun + Hono, deployed to Cloud Run
-behind a Google load balancer. Infra lives in
-[`platform`](https://github.com/frubble-ai/platform).
+Yarn 4 + Turborepo monorepo. One app: the API and the email worker, Bun + Hono + GraphQL
+Yoga with Better Auth, deployed to Cloud Run behind a Google load balancer, with Postgres and
+Pub/Sub. Infra lives in [`platform`](https://github.com/frubble-ai/platform).
 
 ```
-apps/backend/     @frubble/backend — the API
-packages/         shared code
-docs/             workspace conventions
+apps/backend/     @frubble/backend — the API, the worker, the migrate/seed/create-admin scripts
+packages/         db, events, emails, gql, seed, eslint-plugin
+docs/             workspace conventions, sign-in, environment, deployment
 ```
 
 ## Getting started
@@ -17,8 +17,17 @@ Node 22.18+ for tooling, Bun 1.4.4 for the API.
 ```bash
 corepack enable
 yarn install
-yarn dev            # http://localhost:8080
+cp .env.local.example .env.local
+cp apps/backend/.env.example apps/backend/.env.local
+yarn local:create   # Postgres and the Pub/Sub emulator, with the topic and its push subscription
+yarn db:migrate
+yarn db:seed        # admin@frubble.ai, customer.1@example.com, customer.2@example.com; password123
+yarn dev            # API at http://localhost:8080/graphql, worker on 8081
 ```
+
+The worker sends real email, so `apps/backend/.env.local` needs the provider's key and
+sending domain ([sign-in](docs/auth.md)). Tests run against a Postgres container, so Docker must be
+running.
 
 ```bash
 yarn typecheck

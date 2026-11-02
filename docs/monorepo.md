@@ -8,8 +8,16 @@ from one `yarn.lock`; Turborepo runs their scripts and caches the results.
 ```
 .
 ├── apps/
-│   └── backend/          @frubble/backend — the API
-├── packages/             shared code; none yet
+│   └── backend/          @frubble/backend — the API, the worker, the scripts (one image)
+├── packages/
+│   ├── db/               @frubble/db — the Drizzle schema, client and migrations
+│   ├── events/           @frubble/events — the message catalog, envelope and transports
+│   ├── emails/           @frubble/emails — the email templates
+│   ├── gql/              @frubble/gql — the GraphQL schema and its generated types
+│   ├── seed/             @frubble/seed — the local users
+│   └── eslint-plugin/    @frubble/eslint-plugin — the placement rules
+├── bin/                  local-*.sh: the docker-compose dependencies
+├── docker-compose.yml    Postgres and the Pub/Sub emulator
 ├── docs/
 ├── package.json          the workspace: lists apps/* and packages/*, pins Yarn
 ├── turbo.json            the tasks turbo runs in every workspace
@@ -30,7 +38,14 @@ Root files hold what every workspace shares. A workspace holds only what is its 
 | Name               | `@frubble/<name>`                                 | `@frubble/<name>`                     |
 
 An app depends on packages; a package never depends on an app. If two apps need the same
-code, that code becomes a package rather than one app importing from the other.
+code, that code becomes a package rather than one app importing from the other. A package
+that owns a toolchain of its own (drizzle-kit for `db`, graphql-codegen for `gql`,
+react-email for `emails`) is a package even with one consumer: the tool runs against the
+package, not against the app.
+
+The backend is one app with two processes and three scripts, all in one image: the API
+(`src/services/api`), the worker (`src/services/worker`) and `scripts/{migrate,seed,create-admin}.ts`.
+`src/index.ts` is the image's entrypoint and starts the process `APP_PROCESS` names.
 
 ## Source-first exports
 
@@ -54,8 +69,10 @@ here does.
 
 ## Tasks
 
-`turbo.json` defines `dev`, `typecheck`, `lint`, `format`, `format:write`, `test` and
-`test:coverage`. From the root, `yarn <task>` runs it in every workspace that has a script of
+`turbo.json` defines `codegen`, `dev:api`, `dev:worker`, `typecheck`, `lint`, `format`,
+`format:write`, `test` and `test:coverage`. `codegen` writes the GraphQL types
+(`packages/gql/src/__generated__`, `apps/backend/src/__generated__`), which are never
+committed: `typecheck`, `lint` and `test` depend on it, and the image build runs it. From the root, `yarn <task>` runs it in every workspace that has a script of
 that name; a workspace without the script is skipped.
 
 Turbo caches a task by hashing its inputs. `globalDependencies` lists the root files whose

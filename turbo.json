@@ -7,28 +7,86 @@
 		"vitest.shared.ts",
 		".nvmrc"
 	],
-	"globalEnv": ["NODE_ENV"],
+	"globalEnv": [
+		"NODE_ENV"
+	],
 	"globalPassThroughEnv": [
 		"CI",
 		"FORCE_COLOR",
 		"GITHUB_*",
 		"ACTIONS_*",
-		"TURBO_*"
+		"TURBO_*",
+		"DOCKER_HOST",
+		"TESTCONTAINERS_*"
 	],
 	"tasks": {
+		"codegen": {
+			"outputs": [
+				"src/__generated__/**"
+			],
+			"inputs": [
+				"codegen.yml",
+				"schema/**",
+				"../../packages/gql/schema/**"
+			]
+		},
 		"dev": {
 			"cache": false,
-			"persistent": true
+			"persistent": true,
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			]
 		},
-		"typecheck": {},
-		"lint": {},
+		"dev:api": {
+			"cache": false,
+			"persistent": true,
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			]
+		},
+		"dev:worker": {
+			"cache": false,
+			"persistent": true,
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			],
+			"passThroughEnv": [
+				"WORKER_PORT"
+			]
+		},
+		"typecheck": {
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			]
+		},
+		"lint": {
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			]
+		},
 		"format": {},
 		"format:write": {
 			"cache": false
 		},
-		"test": {},
+		"test": {
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			]
+		},
 		"test:coverage": {
-			"outputs": ["coverage/**"]
+			"dependsOn": [
+				"codegen",
+				"^codegen"
+			],
+			"outputs": [
+				"coverage/**"
+			]
 		}
 	}
 }

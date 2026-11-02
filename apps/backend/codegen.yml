@@ -1,0 +1,13 @@
+# Resolver signatures only; the schema types and the validation come from @frubble/gql.
+schema:
+  - ../../packages/gql/schema/**/*.graphql
+generates:
+  ./src/__generated__/resolvers-types.ts:
+    plugins:
+      - add:
+          content: "import type * as Types from '@frubble/gql/types';"
+      - typescript-resolvers
+    config:
+      namespacedImportName: Types
+      useTypeImports: true
+      contextType: ../services/api/graphql/index#TGraphqlContext
