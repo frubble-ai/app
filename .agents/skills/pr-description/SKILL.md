@@ -9,7 +9,7 @@ description: Write the description for a pull request from the current branch. U
 ## Required reading
 
 - [`.github/pull_request_template.md`](../../../.github/pull_request_template.md) — the sections to fill, in order.
-- [README](../../../README.md) — the CI/CD and deploy flow the _Risk and rollback_ section refers to.
+- [Deployment](../../../docs/deployment.md) — the CI/CD and deploy flow the _Risk and rollback_ section refers to.
 
 ## Key rules
 

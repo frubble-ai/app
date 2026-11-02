@@ -7,7 +7,7 @@ This file is for coding agents working in this repository.
 Read the docs before making assumptions about the architecture or changing the structure.
 Start here:
 
-- [`README.md`](./README.md) — getting started, the commands, CI/CD and the deploy.
+- [`docs/getting-started.md`](./docs/getting-started.md) — running it locally and the commands; [`docs/deployment.md`](./docs/deployment.md) — CI/CD and the deploy.
 - [`docs/index.md`](./docs/index.md) — every doc, one line each.
 - [`docs/monorepo.md`](./docs/monorepo.md) — the workspace layout and how to add an app or a package.
 
