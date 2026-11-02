@@ -1,5 +1,5 @@
 {
-	"id": "a5975c1f-5fba-4cb6-9687-567b3b28082c",
+	"id": "e37166b7-9264-4b40-b3ee-99c79af5f506",
 	"prevId": "00000000-0000-0000-0000-000000000000",
 	"version": "7",
 	"dialect": "postgresql",
@@ -273,7 +273,7 @@
 					"typeSchema": "public",
 					"primaryKey": false,
 					"notNull": true,
-					"default": "'customer'"
+					"default": "'application_user'"
 				}
 			},
 			"indexes": {},
@@ -393,7 +393,7 @@
 		"public.user_role": {
 			"name": "user_role",
 			"schema": "public",
-			"values": ["system_admin", "customer"]
+			"values": ["application_user"]
 		}
 	},
 	"schemas": {},

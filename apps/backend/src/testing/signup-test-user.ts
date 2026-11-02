@@ -1,7 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { TAuth } from "@/better-auth";
 import type { IAuthenticatedUser } from "@/services/api/graphql/shared/lib/guards";
-import { isUserRole } from "@/use-cases/lib/auth/auth-user";
 
 const TEST_USER_PASSWORD = "password123";
 
@@ -22,11 +21,10 @@ export async function signUpTestUser(
 	if (!result.user?.id) {
 		throw new Error(`signUpTestUser: signUpEmail returned no user (${email})`);
 	}
-	const role = (result.user as { role?: unknown }).role;
 	return {
 		id: result.user.id,
 		name: result.user.name,
 		email: result.user.email,
-		role: isUserRole(role) ? role : "customer",
+		role: "application_user",
 	};
 }

@@ -9,7 +9,7 @@ create a package.
    modules of the same app use lives there.
 
 2. **`packages/` is for code two or more apps use, and only once they do.** Do not promote
-   code because it *could* be reused. Promote it when a second app imports it. Repository
+   code because it _could_ be reused. Promote it when a second app imports it. Repository
    tooling is the exception: `@frubble/eslint-plugin` is a package because the root ESLint
    config loads it for every workspace, not because an app imports it.
 

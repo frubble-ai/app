@@ -57,7 +57,7 @@ const createUser = {
 Fix: `mockCreateUserUseCase()` from `__mocks__/`. One line, faker randomizes the data, and an
 override sets the one field the test is about.
 
-**Exception:** a test of a parser or a validator, where the exact payload *is* the thing under
+**Exception:** a test of a parser or a validator, where the exact payload _is_ the thing under
 test. A hardcoded literal is right there.
 
 ## `it.each` instead of copied tests
@@ -66,11 +66,26 @@ Cases that share a body and differ only in their inputs are one table.
 
 ```ts
 it.each([
-	{ label: "a request without an email is refused", body: { email: "" }, status: 400 },
-	{ label: "a request with an invalid email is refused", body: { email: faker.lorem.word() }, status: 400 },
-	{ label: "a request with a valid email is accepted", body: { email: faker.internet.email() }, status: 201 },
+	{
+		label: "a request without an email is refused",
+		body: { email: "" },
+		status: 400,
+	},
+	{
+		label: "a request with an invalid email is refused",
+		body: { email: faker.lorem.word() },
+		status: 400,
+	},
+	{
+		label: "a request with a valid email is accepted",
+		body: { email: faker.internet.email() },
+		status: 201,
+	},
 ])("$label", async ({ body, status }) => {
-	const response = await app.request("/users", { method: "POST", body: JSON.stringify(body) });
+	const response = await app.request("/users", {
+		method: "POST",
+		body: JSON.stringify(body),
+	});
 
 	expect(response.status).toBe(status);
 });
@@ -105,7 +120,9 @@ await app.request("/users", { method: "POST", body: JSON.stringify(input) });
 await vi.waitFor(() => {
 	expect(capture).toHaveBeenCalledTimes(1);
 });
-expect(capture).toHaveBeenCalledWith(expect.objectContaining({ event: "user signed up" }));
+expect(capture).toHaveBeenCalledWith(
+	expect.objectContaining({ event: "user signed up" }),
+);
 ```
 
 ```ts

@@ -18,18 +18,20 @@ and the tests; Bun is the runtime for the API only.
 
 ### Apps
 
-| App               | Path           | Framework                     | Runtime |
-| ----------------- | -------------- | ----------------------------- | ------- |
+| App                | Path           | Framework                         | Runtime |
+| ------------------ | -------------- | --------------------------------- | ------- |
 | `@frubble/backend` | `apps/backend` | Hono 4, GraphQL Yoga, Better Auth | Bun     |
+| `@frubble/app`     | `apps/app`     | Next.js 16 (App Router)           | Node    |
 
 ### Packages
 
-| Package                 | Path                     | Framework               | Runtime                |
-| ----------------------- | ------------------------ | ----------------------- | ---------------------- |
+| Package                  | Path                     | Framework               | Runtime                |
+| ------------------------ | ------------------------ | ----------------------- | ---------------------- |
 | `@frubble/db`            | `packages/db`            | Drizzle, node-postgres  | Bun                    |
 | `@frubble/events`        | `packages/events`        | zod, Pub/Sub            | Bun                    |
 | `@frubble/emails`        | `packages/emails`        | react-email             | Bun                    |
 | `@frubble/gql`           | `packages/gql`           | GraphQL schema, codegen | Bun                    |
+| `@frubble/react-sdk`     | `packages/react-sdk`     | Apollo Client, codegen  | the browser            |
 | `@frubble/seed`          | `packages/seed`          | the local users         | Bun                    |
 | `@frubble/eslint-plugin` | `packages/eslint-plugin` | ESLint 9 rules (plugin) | Node, loaded by ESLint |
 
@@ -49,8 +51,11 @@ Every package exports its TypeScript source; there is no build step.
 - [`docs/typescript/conventions.md`](./docs/typescript/conventions.md) — type prefixes, names, dates with Luxon.
 - [`docs/dependencies.md`](./docs/dependencies.md) — why each `resolutions` override exists.
 - [`docs/deployment.md`](./docs/deployment.md) — what a push to `stg` does, rollback, and the variables the deploy reads.
-- [`docs/auth.md`](./docs/auth.md) — the sign-in flow, its codes, roles and rate limits.
-- [`docs/environment.md`](./docs/environment.md) — every variable the API, the worker and the migration read.
+- [`docs/auth.md`](./docs/auth.md) — the sign-in flow, its codes, its role and rate limits.
+- [`docs/environment.md`](./docs/environment.md) — every variable the API, the worker, the migration and the app read.
+- [`docs/app/index.md`](./docs/app/index.md) — the web app: stack, structure, tests, running it.
+- [`docs/graphql/index.md`](./docs/graphql/index.md) — the schema, codegen and the client SDK.
+- [`docs/style-guide/i18n.md`](./docs/style-guide/i18n.md) — translation namespaces, typed keys, tests render keys.
 
 ## Skills
 
@@ -75,19 +80,19 @@ Each one lists the docs to read and the rules that matter most.
 
 From the repository root.
 
-| Task                      | Command                                                                                            |
-| ------------------------- | -------------------------------------------------------------------------------------------------- |
-| Typecheck all             | `yarn typecheck`                                                                                   |
-| Typecheck one workspace   | `yarn workspace @frubble/backend typecheck`                                                         |
-| Test                      | `yarn test`                                                                                        |
-| Lint                      | `yarn lint`                                                                                        |
-| Format (check)            | `yarn format`; `yarn format:write` to apply                                                        |
-| Local dependencies        | `yarn local:create` (first time), then `yarn local:start` / `yarn local:stop`                     |
-| Migrate and seed locally  | `yarn db:migrate`, `yarn db:seed`                                                                  |
-| Run the API and the worker| `yarn dev`                                                                                         |
-| Generate the GraphQL types| `yarn codegen` (typecheck, lint and test run it first)                                             |
-| Tests with coverage       | `yarn test:coverage`                                                                               |
-| Fallow, as CI runs it     | `yarn fallow --fail-on-issues --coverage coverage/coverage-final.json`, after `yarn test:coverage` |
+| Task                       | Command                                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| Typecheck all              | `yarn typecheck`                                                                                   |
+| Typecheck one workspace    | `yarn workspace @frubble/backend typecheck`                                                        |
+| Test                       | `yarn test`                                                                                        |
+| Lint                       | `yarn lint`                                                                                        |
+| Format (check)             | `yarn format`; `yarn format:write` to apply                                                        |
+| Local dependencies         | `yarn local:create` (first time), then `yarn local:start` / `yarn local:stop`                      |
+| Migrate and seed locally   | `yarn db:migrate`, `yarn db:seed`                                                                  |
+| Run the API and the worker | `yarn dev`                                                                                         |
+| Generate the GraphQL types | `yarn codegen` (typecheck, lint and test run it first)                                             |
+| Tests with coverage        | `yarn test:coverage`                                                                               |
+| Fallow, as CI runs it      | `yarn fallow --fail-on-issues --coverage coverage/coverage-final.json`, after `yarn test:coverage` |
 
 ## Commits
 

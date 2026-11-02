@@ -14,10 +14,7 @@ export type TEmailLinks = {
 };
 
 type TEmailPropsMap = {
-	"signup.code_requested": {
-		code: string;
-		isAdminInvite: boolean;
-	} & TEmailLinks;
+	"signup.code_requested": { code: string } & TEmailLinks;
 	"password.reset_requested": { code: string } & TEmailLinks;
 };
 

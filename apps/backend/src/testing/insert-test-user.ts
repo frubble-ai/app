@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { type TDb, type TUserRole, user as userTable } from "@frubble/db";
+import { type TDb, user as userTable } from "@frubble/db";
 import { DateTime } from "luxon";
 import type { IAuthenticatedUser } from "@/services/api/graphql/shared/lib/guards";
 
@@ -10,7 +10,6 @@ export async function insertTestUser(
 		id: string;
 		name: string;
 		email: string;
-		role: TUserRole;
 		emailVerified: boolean;
 	}> = {},
 ): Promise<IAuthenticatedUser> {
@@ -19,7 +18,6 @@ export async function insertTestUser(
 	const email =
 		options.email ??
 		`test+${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-	const role: TUserRole = options.role ?? "customer";
 	const now = DateTime.utc().toJSDate();
 
 	await db.insert(userTable).values({
@@ -27,10 +25,9 @@ export async function insertTestUser(
 		name,
 		email,
 		emailVerified: options.emailVerified ?? true,
-		role,
 		createdAt: now,
 		updatedAt: now,
 	});
 
-	return { id, name, email, role };
+	return { id, name, email, role: "application_user" };
 }

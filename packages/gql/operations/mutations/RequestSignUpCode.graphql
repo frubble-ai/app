@@ -1,0 +1,5 @@
+mutation RequestSignUpCode($input: RequestSignUpCodeInput!) {
+	requestSignUpCode(input: $input) {
+		sent
+	}
+}

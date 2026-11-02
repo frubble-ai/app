@@ -9,7 +9,6 @@ function generateSignupCodeMessage() {
 		type: "signup.code_requested" as const,
 		email: faker.internet.email(),
 		code: faker.string.numeric(6),
-		isAdminInvite: false,
 	};
 }
 

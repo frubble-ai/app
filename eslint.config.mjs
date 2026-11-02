@@ -9,6 +9,12 @@ export default [
 			"**/coverage/**",
 			"**/.turbo/**",
 			"**/__generated__/**",
+			"**/.next/**",
+			"**/next-env.d.ts",
+			// The SDK's codegen output (packages/react-sdk/codegen.yml)
+			"packages/react-sdk/src/gql/documents.ts",
+			"packages/react-sdk/src/gql/operations.ts",
+			"packages/react-sdk/src/gql/generated.ts",
 		],
 	},
 	{

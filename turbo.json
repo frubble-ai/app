@@ -7,9 +7,7 @@
 		"vitest.shared.ts",
 		".nvmrc"
 	],
-	"globalEnv": [
-		"NODE_ENV"
-	],
+	"globalEnv": ["NODE_ENV"],
 	"globalPassThroughEnv": [
 		"CI",
 		"FORCE_COLOR",
@@ -22,71 +20,56 @@
 	"tasks": {
 		"codegen": {
 			"outputs": [
-				"src/__generated__/**"
+				"src/__generated__/**",
+				"src/gql/documents.ts",
+				"src/gql/operations.ts",
+				"src/gql/generated.ts",
+				"src/testing/__generated__/**"
 			],
 			"inputs": [
 				"codegen.yml",
+				"codegen/**",
 				"schema/**",
-				"../../packages/gql/schema/**"
+				"../../packages/gql/schema/**",
+				"../../packages/gql/operations/**"
 			]
 		},
 		"dev": {
 			"cache": false,
 			"persistent": true,
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			]
+			"dependsOn": ["codegen", "^codegen"]
 		},
 		"dev:api": {
 			"cache": false,
 			"persistent": true,
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			]
+			"dependsOn": ["codegen", "^codegen"]
 		},
 		"dev:worker": {
 			"cache": false,
 			"persistent": true,
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			],
-			"passThroughEnv": [
-				"WORKER_PORT"
-			]
+			"dependsOn": ["codegen", "^codegen"],
+			"passThroughEnv": ["WORKER_PORT"]
 		},
 		"typecheck": {
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			]
+			"dependsOn": ["codegen", "^codegen"]
 		},
 		"lint": {
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			]
+			"dependsOn": ["codegen", "^codegen"]
 		},
 		"format": {},
 		"format:write": {
 			"cache": false
 		},
 		"test": {
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			]
+			"dependsOn": ["codegen", "^codegen"]
 		},
 		"test:coverage": {
-			"dependsOn": [
-				"codegen",
-				"^codegen"
-			],
-			"outputs": [
-				"coverage/**"
-			]
+			"dependsOn": ["codegen", "^codegen"],
+			"outputs": ["coverage/**"]
+		},
+		"build": {
+			"dependsOn": ["codegen", "^codegen"],
+			"outputs": [".next/**", "!.next/cache/**"]
 		}
 	}
 }

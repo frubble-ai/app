@@ -20,7 +20,7 @@ export function toEmail(message: TEmailMessage): TEmail {
 		case "signup.code_requested":
 			return {
 				type: message.type,
-				props: { code: message.code, isAdminInvite: message.isAdminInvite },
+				props: { code: message.code },
 			};
 		case "password.reset_requested":
 			return { type: message.type, props: { code: message.code } };

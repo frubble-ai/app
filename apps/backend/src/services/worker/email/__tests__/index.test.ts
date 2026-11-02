@@ -17,7 +17,7 @@ function setup() {
 
 describe("toEmail", () => {
 	it.each(generateEmailMessageCases())(
-		"builds the email for $message.type (admin invite: $message.isAdminInvite)",
+		"builds the email for $message.type",
 		({ message, email }) => {
 			expect(toEmail(message)).toEqual(email);
 		},

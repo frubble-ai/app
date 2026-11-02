@@ -10,6 +10,7 @@ Rules for every app and package, whatever its framework.
 | [Imports](./imports.md)                                   | `@/` for anything outside the folder, `./` for siblings, never `../`     |
 | [Packages](./packages.md)                                 | when code moves to `packages/`, flat exports, the `testing` subpath      |
 | [Third-Party Integrations](./third-party-integrations.md) | one folder per library, mirroring the app's domains                      |
+| [Internationalization](./i18n.md)                         | one namespace per domain, keys typed, tests render keys                  |
 
 ## Testing
 

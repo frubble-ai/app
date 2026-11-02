@@ -12,7 +12,7 @@ const loadAuthenticatedUserFromRequestArgsSchema = z.object({
 
 /**
  * The signed-in user for a request, through the session cache. An unknown role throws instead of
- * silently downgrading: it means a bug or a tampered session.
+ * passing through: it means a bug or a tampered session.
  */
 export const loadAuthenticatedUserFromRequestUseCase = defineUseCase(
 	async function loadAuthenticatedUserFromRequestUseCase(
