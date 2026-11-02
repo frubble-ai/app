@@ -10,7 +10,7 @@ description: Open a pull request from the current feature branch into dev. Use w
 
 - [`pr-description`](../pr-description/SKILL.md) — how the body is written.
 - [`.github/pull_request_template.md`](../../../.github/pull_request_template.md) — the template the body fills.
-- [README](../../../README.md) — the `dev` → `stg` flow and what the quality workflow checks.
+- [Deployment](../../../docs/deployment.md) — the `dev` → `stg` flow and what the quality workflows check.
 
 ## Key rules
 
