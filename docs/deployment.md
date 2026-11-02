@@ -83,10 +83,10 @@ stay on the previous image), then the reset, which migrates and rolls the servic
 Between the migration and the API's rollout, the previous revision serves on the new schema. A
 schema the previous image cannot write to, such as a changed enum, fails those requests for the
 minute or two the rollout takes. Rolling the services back to an image from before the reset
-leaves them on a schema they do not match, so the way back is a deploy of the older
-commit (its migration step moves the job onto the older image, then fails) followed by another
-reset, which then runs on the older image. An image that predates `--reset` only migrates, so the
-way back stops at the first commit that has it.
+leaves them on a schema they do not match. The way back is a deploy of the older commit, whose
+migration step moves the job onto the older image, then another reset, which runs on that image.
+An image that predates `--reset` only migrates, so the way back stops at the first commit that has
+it.
 
 It runs by hand only (Actions → DB - Reset → Run workflow, from `stg`) and only for `drn1996`: the
 job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never
