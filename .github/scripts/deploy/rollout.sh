@@ -71,13 +71,8 @@ if [ -z "${API_HOSTNAME:-}" ]; then
 fi
 
 # Through the load balancer, under the public name, with the certificate
-# checked. While the hostname still points elsewhere (LB_IP set), the request
-# goes to the balancer's address under that name; the certificate is already
-# issued, since its DNS authorization record is published before this runs.
+# checked.
 curl_args=(-fsS --max-time 20)
-if [ -n "${LB_IP:-}" ]; then
-  curl_args+=(--resolve "$API_HOSTNAME:443:$LB_IP")
-fi
 
 attempts=15
 for attempt in $(seq 1 $attempts); do
