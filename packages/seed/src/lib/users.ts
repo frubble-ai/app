@@ -9,10 +9,10 @@ type TSeedUser = {
 	name: string;
 };
 
-/** Two customers. Re-runs converge: a user that exists is updated, not duplicated. */
+/** Two users. Re-runs converge: a user that exists is updated, not duplicated. */
 const SEED_USERS: TSeedUser[] = [
-	{ email: "customer.1@example.com", name: "Customer One" },
-	{ email: "customer.2@example.com", name: "Customer Two" },
+	{ email: "user.1@example.com", name: "User One" },
+	{ email: "user.2@example.com", name: "User Two" },
 ];
 
 async function upsertAccount(

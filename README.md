@@ -21,7 +21,7 @@ cp .env.local.example .env.local
 cp apps/backend/.env.example apps/backend/.env.local
 yarn local:create   # Postgres and the Pub/Sub emulator, with the topic and its push subscription
 yarn db:migrate
-yarn db:seed        # customer.1@example.com, customer.2@example.com; password123
+yarn db:seed        # user.1@example.com, user.2@example.com; password123
 yarn dev            # API at http://localhost:8080/graphql, worker on 8081, app at http://localhost:3000
 ```
 

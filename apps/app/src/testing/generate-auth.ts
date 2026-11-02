@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import type { useAuth } from "@frubble/react-sdk";
+import { UserRole, type useAuth } from "@frubble/react-sdk";
 
 type TAuth = ReturnType<typeof useAuth>;
 
@@ -13,7 +13,9 @@ export function generateAuth(overrides: Partial<TAuth> = {}): TAuth {
 			id: faker.string.alphanumeric(32),
 			name: faker.person.fullName(),
 			email: faker.internet.email().toLowerCase(),
+			role: UserRole.ApplicationUser,
 		},
+		role: UserRole.ApplicationUser,
 		isAuthenticated: true,
 		isPending: false,
 		isUnknown: false,
@@ -23,10 +25,15 @@ export function generateAuth(overrides: Partial<TAuth> = {}): TAuth {
 
 /** `useAuth` before the API has said who is signed in. */
 export function generatePendingAuth(): TAuth {
-	return generateAuth({ user: null, isAuthenticated: false, isPending: true });
+	return generateAuth({
+		user: null,
+		role: null,
+		isAuthenticated: false,
+		isPending: true,
+	});
 }
 
 /** `useAuth` with nobody signed in. */
 export function generateSignedOutAuth(): TAuth {
-	return generateAuth({ user: null, isAuthenticated: false });
+	return generateAuth({ user: null, role: null, isAuthenticated: false });
 }

@@ -26,14 +26,14 @@ describe("changePasswordUseCase", () => {
 	it("changes the password when the current one is right", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const customer = await signUpTestUser(clone.auth, {
+		const signedUp = await signUpTestUser(clone.auth, {
 			email,
 			password: "current-pw-1",
 		});
 		const headers = await signedInHeaders(email, "current-pw-1");
 
 		await changePasswordUseCase({
-			userId: customer.id,
+			userId: signedUp.id,
 			headers,
 			currentPassword: "current-pw-1",
 			newPassword: "brand-new-pw-2",
@@ -41,20 +41,20 @@ describe("changePasswordUseCase", () => {
 
 		await expect(
 			signInWithEmailPasswordUseCase({ email, password: "brand-new-pw-2" }),
-		).resolves.toMatchObject({ user: { id: customer.id } });
+		).resolves.toMatchObject({ user: { id: signedUp.id } });
 	});
 
 	it("replaces the caller's session: the old token is dead, the returned one lives", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const customer = await signUpTestUser(clone.auth, {
+		const signedUp = await signUpTestUser(clone.auth, {
 			email,
 			password: "current-pw-1",
 		});
 		const headers = await signedInHeaders(email, "current-pw-1");
 
 		const { token } = await changePasswordUseCase({
-			userId: customer.id,
+			userId: signedUp.id,
 			headers,
 			currentPassword: "current-pw-1",
 			newPassword: "brand-new-pw-2",
@@ -65,13 +65,13 @@ describe("changePasswordUseCase", () => {
 			clone.auth.api.getSession({
 				headers: new Headers({ authorization: `Bearer ${token}` }),
 			}),
-		).resolves.toMatchObject({ user: { id: customer.id } });
+		).resolves.toMatchObject({ user: { id: signedUp.id } });
 	});
 
 	it("refuses a wrong current password", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const customer = await signUpTestUser(clone.auth, {
+		const signedUp = await signUpTestUser(clone.auth, {
 			email,
 			password: "current-pw-1",
 		});
@@ -79,7 +79,7 @@ describe("changePasswordUseCase", () => {
 
 		await expect(
 			changePasswordUseCase({
-				userId: customer.id,
+				userId: signedUp.id,
 				headers,
 				currentPassword: "not-the-current-one",
 				newPassword: "brand-new-pw-2",

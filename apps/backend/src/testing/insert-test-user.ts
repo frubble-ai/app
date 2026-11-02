@@ -29,5 +29,5 @@ export async function insertTestUser(
 		updatedAt: now,
 	});
 
-	return { id, name, email };
+	return { id, name, email, role: "application_user" };
 }

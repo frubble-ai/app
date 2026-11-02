@@ -8,7 +8,7 @@ import { Redirect } from "@/shared/components/redirect";
 /** The code's digits (the API's `ONE_TIME_CODE_LENGTH`). */
 const CODE_LENGTH = 6;
 
-/** Creates a customer account: the email first, then the code sent to it, a name and a password. */
+/** Creates an account: the email first, then the code sent to it, a name and a password. */
 export function SignUpScreen() {
 	const { t } = useTranslation("auth");
 	const { isAuthenticated, isPending } = useAuth();

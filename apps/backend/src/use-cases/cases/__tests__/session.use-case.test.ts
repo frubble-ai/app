@@ -16,7 +16,7 @@ describe("a session, from sign-in to sign-out", () => {
 	it("the bearer token identifies the user until they sign out", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const customer = await signUpTestUser(clone.auth, { email });
+		const signedUp = await signUpTestUser(clone.auth, { email });
 		const { sessionToken } = await signInWithEmailPasswordUseCase({
 			email,
 			password: "password123",
@@ -24,12 +24,13 @@ describe("a session, from sign-in to sign-out", () => {
 		const headers = new Headers({ authorization: `Bearer ${sessionToken}` });
 
 		expect(await loadAuthenticatedUserFromRequestUseCase({ headers })).toEqual({
-			id: customer.id,
-			name: customer.name,
+			id: signedUp.id,
+			name: signedUp.name,
 			email,
+			role: "application_user",
 		});
 
-		await signOutUseCase({ headers, userId: customer.id });
+		await signOutUseCase({ headers, userId: signedUp.id });
 
 		expect(
 			await loadAuthenticatedUserFromRequestUseCase({ headers }),

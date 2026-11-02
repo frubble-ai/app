@@ -21,6 +21,7 @@ export function useAuth() {
 
 	return {
 		user: me,
+		role: me?.role ?? null,
 		isAuthenticated: me !== null,
 		isPending: loading && data === undefined,
 		/** The API couldn't say who is signed in (a network failure): not the same as signed out. */

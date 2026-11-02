@@ -9,7 +9,7 @@ from one `yarn.lock`; Turborepo runs their scripts and caches the results.
 .
 ├── apps/
 │   ├── backend/          @frubble/backend — the API, the worker, the scripts (one image)
-│   └── app/              @frubble/app — the customers' web app (Next.js)
+│   └── app/              @frubble/app — the web app (Next.js)
 ├── packages/
 │   ├── db/               @frubble/db — the Drizzle schema, client and migrations
 │   ├── events/           @frubble/events — the message catalog, envelope and transports

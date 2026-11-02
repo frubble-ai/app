@@ -1,6 +1,6 @@
 # App
 
-`apps/app` is the customers' web app, at `app.<env>.frubble.ai`. Today it signs a customer up, in
+`apps/app` is the web app, at `app.<env>.frubble.ai`. Today it signs a user up, in
 and out, resets a forgotten password, and shows a home page.
 
 ## Stack, and why

@@ -1,10 +1,11 @@
 import { faker } from "@faker-js/faker";
+import { UserRole } from "@frubble/gql/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthResolvers } from "@/services/api/graphql/auth";
 import { generateAuthSignInResult } from "@/services/api/graphql/auth/__mocks__/generate-auth-sign-in-result";
 import { generateSignInInput } from "@/services/api/graphql/auth/__mocks__/generate-sign-in-input";
 import { generateSignUpInput } from "@/services/api/graphql/auth/__mocks__/generate-sign-up-input";
-import { generateAuthenticatedCustomer } from "@/shared/__mocks__/generate-authenticated-customer";
+import { generateAuthenticatedUser } from "@/shared/__mocks__/generate-authenticated-user";
 import { callResolver } from "@/testing/call-resolver";
 import { expectGraphqlError } from "@/testing/expect-graphql-error";
 import { generateContext } from "@/testing/generate-context";
@@ -100,13 +101,14 @@ describe("Query.me", () => {
 	});
 
 	it("a signed-in user sees themself", () => {
-		const user = generateAuthenticatedCustomer();
+		const user = generateAuthenticatedUser();
 		const resolve = callResolver(resolvers.Query?.me);
 
 		expect(resolve({}, {}, generateContext({ user }), info)).toEqual({
 			id: user.id,
 			name: user.name,
 			email: user.email,
+			role: UserRole.ApplicationUser,
 		});
 	});
 });
@@ -161,7 +163,7 @@ describe("Mutation.signUp", () => {
 			clientIp: context.clientIp,
 		});
 		expect(result).toEqual({
-			user: signedIn.user,
+			user: { ...signedIn.user, role: UserRole.ApplicationUser },
 			token: signedIn.sessionToken,
 		});
 	});
@@ -206,7 +208,7 @@ describe("Mutation.signIn", () => {
 			clientIp: context.clientIp,
 		});
 		expect(result).toEqual({
-			user: signedIn.user,
+			user: { ...signedIn.user, role: UserRole.ApplicationUser },
 			token: signedIn.sessionToken,
 		});
 	});
@@ -252,7 +254,7 @@ describe("Mutation.signOut", () => {
 	});
 
 	it("a signed-in caller signs out with their request headers", async () => {
-		const user = generateAuthenticatedCustomer();
+		const user = generateAuthenticatedUser();
 		const requestHeaders = new Headers({
 			authorization: `Bearer ${faker.string.alphanumeric(24)}`,
 		});
@@ -350,7 +352,7 @@ describe("Mutation.changePassword", () => {
 	});
 
 	it("a signed-in user changes their password and gets the replacement token", async () => {
-		const user = generateAuthenticatedCustomer();
+		const user = generateAuthenticatedUser();
 		const context = generateContext({ user });
 		const token = faker.string.alphanumeric(32);
 		vi.mocked(changePasswordUseCase).mockResolvedValue({ token });
@@ -375,7 +377,7 @@ describe("Mutation.changePassword", () => {
 			resolve(
 				{},
 				{ input },
-				generateContext({ user: generateAuthenticatedCustomer() }),
+				generateContext({ user: generateAuthenticatedUser() }),
 				info,
 			),
 		).rejects.toBe(failure);

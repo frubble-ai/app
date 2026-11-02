@@ -8,4 +8,5 @@ fragment MeFields on Me {
 	id
 	name
 	email
+	role
 }

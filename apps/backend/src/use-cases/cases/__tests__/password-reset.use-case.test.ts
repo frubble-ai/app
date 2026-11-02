@@ -50,7 +50,7 @@ describe("resetPasswordUseCase", () => {
 	it("sets the new password, signs every session out and burns the code", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const customer = await signUpTestUser(clone.auth, {
+		const signedUp = await signUpTestUser(clone.auth, {
 			email,
 			password: "old-password-1",
 		});
@@ -66,14 +66,14 @@ describe("resetPasswordUseCase", () => {
 		const sessions = await clone.db
 			.select()
 			.from(session)
-			.where(eq(session.userId, customer.id));
+			.where(eq(session.userId, signedUp.id));
 		expect(sessions).toEqual([]);
 		await expect(
 			signInWithEmailPasswordUseCase({ email, password: "old-password-1" }),
 		).rejects.toMatchObject({ name: "BadInputError" });
 		await expect(
 			signInWithEmailPasswordUseCase({ email, password: "new-password-22" }),
-		).resolves.toMatchObject({ user: { id: customer.id } });
+		).resolves.toMatchObject({ user: { id: signedUp.id } });
 		await expect(
 			resetPasswordUseCase({ email, code, newPassword: "another-password" }),
 		).rejects.toThrow(INVALID_RESET_CODE_MESSAGE);

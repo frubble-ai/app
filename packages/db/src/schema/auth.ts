@@ -1,9 +1,21 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+	boolean,
+	index,
+	pgEnum,
+	pgTable,
+	text,
+	timestamp,
+} from "drizzle-orm/pg-core";
 import { DateTime } from "luxon";
 
-// Better Auth's tables. The timestamps are what Better Auth's adapter writes, so they keep its
-// shape (no time zone).
+// Better Auth's tables, plus `user.role`, its additional field. The timestamps are what Better
+// Auth's adapter writes, so they keep its shape (no time zone).
+
+/** Every account is an `application_user` today; the enum is where another role would go. */
+export const userRoleEnum = pgEnum("user_role", ["application_user"]);
+
+export type TUserRole = (typeof userRoleEnum.enumValues)[number];
 
 const updatedAt = () =>
 	timestamp("updated_at")
@@ -19,6 +31,8 @@ export const user = pgTable("user", {
 	image: text("image"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: updatedAt(),
+	// Set by the server only: Better Auth takes it as `input: false`.
+	role: userRoleEnum("role").default("application_user").notNull(),
 });
 
 export const session = pgTable(

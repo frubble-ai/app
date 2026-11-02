@@ -27,7 +27,7 @@ async function codeRowsFor(identifier: string) {
 }
 
 describe("signUpWithEmailUseCase", () => {
-	it("a valid sign-up code creates a verified customer and burns the code", async () => {
+	it("a valid sign-up code creates a verified user and burns the code", async () => {
 		const clone = getClone();
 		const email = newEmail();
 		const name = faker.person.fullName();
@@ -48,6 +48,7 @@ describe("signUpWithEmailUseCase", () => {
 			id: expect.any(String),
 			name,
 			email,
+			role: "application_user",
 		});
 		expect(result.sessionToken).toEqual(expect.any(String));
 		const [row] = await clone.db

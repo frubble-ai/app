@@ -14,12 +14,12 @@ function newEmail(): string {
 }
 
 describe("signInWithEmailPasswordUseCase", () => {
-	it("a customer with valid credentials gets a session token and a persisted session", async () => {
+	it("a user with valid credentials gets a session token and a persisted session", async () => {
 		const clone = getClone();
 		const email = newEmail();
 		const password = `Pw-${faker.string.alphanumeric(12)}`;
 		const name = faker.person.fullName();
-		const customer = await signUpTestUser(clone.auth, {
+		const signedUp = await signUpTestUser(clone.auth, {
 			email,
 			password,
 			name,
@@ -27,18 +27,18 @@ describe("signInWithEmailPasswordUseCase", () => {
 		const before = await clone.db
 			.select()
 			.from(session)
-			.where(eq(session.userId, customer.id));
+			.where(eq(session.userId, signedUp.id));
 
 		const result = await signInWithEmailPasswordUseCase({ email, password });
 
 		expect(result).toEqual({
 			sessionToken: expect.any(String),
-			user: { id: customer.id, name, email },
+			user: { id: signedUp.id, name, email, role: "application_user" },
 		});
 		const after = await clone.db
 			.select()
 			.from(session)
-			.where(eq(session.userId, customer.id));
+			.where(eq(session.userId, signedUp.id));
 		expect(after.length).toBeGreaterThan(before.length);
 		expect(after.some((row) => row.token === result.sessionToken)).toBe(true);
 	});
@@ -46,11 +46,11 @@ describe("signInWithEmailPasswordUseCase", () => {
 	it("wrong credentials are refused and no session is created", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const customer = await signUpTestUser(clone.auth, { email });
+		const signedUp = await signUpTestUser(clone.auth, { email });
 		const before = await clone.db
 			.select()
 			.from(session)
-			.where(eq(session.userId, customer.id));
+			.where(eq(session.userId, signedUp.id));
 
 		await expect(
 			signInWithEmailPasswordUseCase({
@@ -64,7 +64,7 @@ describe("signInWithEmailPasswordUseCase", () => {
 		const after = await clone.db
 			.select()
 			.from(session)
-			.where(eq(session.userId, customer.id));
+			.where(eq(session.userId, signedUp.id));
 		expect(after).toHaveLength(before.length);
 	});
 

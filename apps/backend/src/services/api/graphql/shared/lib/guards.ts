@@ -1,3 +1,4 @@
+import type { TUserRole } from "@frubble/db";
 import {
 	ErrorCode,
 	throwGraphQLError,
@@ -8,6 +9,7 @@ export interface IAuthenticatedUser {
 	id: string;
 	name: string;
 	email: string;
+	role: TUserRole;
 }
 
 /** Gate a resolver on a session: UNAUTHENTICATED without one, else `context.user` is narrowed. */

@@ -1,8 +1,14 @@
+"Every account's role today: `APPLICATION_USER`."
+enum UserRole {
+	APPLICATION_USER
+}
+
 "The signed-in user."
 type Me {
 	id: UserId!
 	name: String!
 	email: String!
+	role: UserRole!
 }
 
 """

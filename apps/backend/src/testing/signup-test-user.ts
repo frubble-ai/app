@@ -25,5 +25,6 @@ export async function signUpTestUser(
 		id: result.user.id,
 		name: result.user.name,
 		email: result.user.email,
+		role: "application_user",
 	};
 }

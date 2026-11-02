@@ -26,10 +26,12 @@ Better Auth's own HTTP routes are not mounted. Resolvers validate input, call us
 use cases call `ctx.auth.api.*`; the session lookup goes through an in-process cache keyed by
 the token's hash (30 s, evicted on sign-out).
 
-## Accounts
+## Roles
 
-Every account is a customer's: there are no roles, and nothing to invite an admin with yet. The
-user has no role column, the schema's `Me` no role field, and the app lets in anyone signed in.
+`user.role` has one value, `application_user`, which every account gets at sign-up: Better Auth
+writes the column's default and takes no role from the client (`input: false`). The schema's
+`Me.role` is `APPLICATION_USER`. There is no admin role, and nothing to invite one with yet; the
+enum is where another role would go.
 
 ## Rate limits
 
@@ -41,5 +43,5 @@ address and then its own, so the client is the entry before the last `TRUSTED_PR
 (default 1) entries, and anything a client put in the header itself is ignored.
 
 Every environment sends real email: the worker needs its provider's key and sending domain to
-start, locally too. The seed creates two local customers, so accounts exist before any code is
+start, locally too. The seed creates two local users, so accounts exist before any code is
 emailed.
