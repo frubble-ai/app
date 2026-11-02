@@ -2,7 +2,8 @@
 
 Yarn 4 + Turborepo. The infrastructure lives in the `platform` repository.
 
-Node 22.18+ for tooling, Bun 1.4.4 for the API.
+Node 22.18+ for tooling, Bun 1.4.4 for the API, and Docker, curl and openssl for the local
+services.
 
 ```bash
 corepack enable
@@ -33,5 +34,7 @@ the message ([Conventional Commits](https://www.conventionalcommits.org)).
 
 ```bash
 docker build -f apps/backend/Dockerfile -t frubble-backend .
-docker run --rm -p 8080:8080 frubble-backend
 ```
+
+The image carries no configuration: running it needs the variables in
+[environment](environment.md), pointing at a Postgres and Pub/Sub the container can reach.

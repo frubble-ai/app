@@ -16,7 +16,7 @@ the registry, the deploy identity) lives in [`platform`](https://github.com/frub
 | Push to `dev`                                  | nothing       |                                                            |
 
 A push deploys only when it touches `apps/backend`, `packages`, the root manifests, the
-Dockerfile's inputs or the pipeline itself. One rollout runs at a time; a newer one waits.
+Dockerfile's inputs, `.github/workflows/backend-cd.yml` or `.github/scripts/deploy/`. One rollout runs at a time; a newer one waits.
 
 ## What a deploy does
 
@@ -97,16 +97,16 @@ same is `yarn db:reset`.
 
 ## Workflows
 
-| Workflow               | Trigger             | Does                                                                                                  |
-| ---------------------- | ------------------- | ----------------------------------------------------------------------------------------------------- |
-| `backend-code-quality` | PR → `dev` / `stg`  | scan, lint, typecheck, tests, docker build                                                            |
-| `backend-cd`           | push → `stg`        | build, trivy scan, push image, migrate, roll out to Cloud Run                                         |
-| `app-code-quality`     | PR → `dev` / `stg`  | the same checks for `apps/app`                                                                        |
-| `app-cd`               | push → `stg`        | build, trivy scan, push image, roll out the web app                                                   |
-| `db-reset`             | by hand, from `stg` | drop and migrate stg's database (Resetting the database, above)                                       |
-| `pr-template`          | every PR, and edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
+| Workflow               | Trigger                                  | Does                                                                                                  |
+| ---------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `backend-code-quality` | PR → `dev` / `stg`                       | scan, lint, typecheck, tests, docker build                                                            |
+| `backend-cd`           | push → `stg`, or by hand from `stg`      | build, trivy scan, push image, migrate, roll out to Cloud Run                                         |
+| `app-code-quality`     | PR → `dev` / `stg`                       | the same checks for `apps/app`                                                                        |
+| `app-cd`               | push → `stg`, or by hand from `stg`      | build, trivy scan, push image, roll out the web app                                                   |
+| `db-reset`             | by hand, from `stg`                      | drop and migrate stg's database (Resetting the database, above)                                       |
+| `pr-template`          | PR opened, edited, reopened or pushed to | conventional title on every PR; every template section filled and checklist answered, except for bots |
 
-`Backend - Code Quality Summary` and `Quality — PR Template` are the required checks. Backend deploys run in the `backend-stg`
+`Backend - Code Quality Summary`, `App - Code Quality Summary` and `Quality — PR Template` are the required checks. Backend deploys run in the `backend-stg`
 environment and app deploys in `app-stg`, which accept deployments from `stg` only and whose names are part of the
 identity `platform` trusts. They use OIDC, no keys. Which variables the deploy
 reads, and where each lives, is the table in GitHub configuration, below.
