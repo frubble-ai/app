@@ -69,14 +69,21 @@ rolled back: write a new one.
 [`db-reset.yml`](../.github/workflows/db-reset.yml) drops every table and enum the migrations
 made in stg's database and runs the migrations again from nothing, as one execution of the
 migration job with `--reset` ([`reset-db.sh`](../.github/scripts/deploy/reset-db.sh)), on the image
-the job already has. It is for when the migrations' history is rewritten, as when they are
-squashed into one: a deploy's migration then fails, since the tables it would create exist, until
-the database is reset. Every account and session goes with it.
+the job already has. It then rolls the API and the worker onto that image, the same way a deploy
+does. It is for when the migrations' history is rewritten, as when they are squashed into one: a
+deploy's migration then fails, since the tables it would create exist, until the database is
+reset. Every account and session goes with it.
 
 The job must already run an image whose migration script knows `--reset`, since the reset runs on
 the job's current image: an older one ignores the argument and only migrates. So the order is the
-deploy first (its migration step moves the job onto the new image, then fails), the reset, then
-the deploy again.
+deploy first (its migration step moves the job onto the new image, then fails, and the services
+stay on the previous image), then the reset, which migrates and rolls the services forward.
+
+Between the migration and the API's rollout, the previous revision serves on the new schema. A
+schema the previous image cannot write to, such as a changed enum, fails those requests for the
+minute or two the rollout takes. Rolling the services back to an image from before the reset
+leaves them on a schema they do not match, so the way back is another reset on that image's
+deploy, not a traffic rollback.
 
 It runs by hand only (Actions → DB - Reset → Run workflow, from `stg`) and only for `drn1996`: the
 job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never

@@ -2,8 +2,9 @@ name: DB - Reset (drop + migrate)
 
 # Wipes stg's database and migrates it again: every table and enum the
 # migrations made is dropped, then the migration job runs them from nothing,
-# on the image it already has. For when the schema's history is rewritten
-# (a squashed migration), never as part of a deploy.
+# on the image it already has, and the API and worker roll onto that image.
+# For when the schema's history is rewritten (a squashed migration), never as
+# part of a deploy.
 #
 # Run by hand only (Actions → DB - Reset → Run workflow, from `stg`), and only
 # by drn1996: the job refuses anyone else and any other branch. It runs in
@@ -32,6 +33,9 @@ jobs:
       PROJECT: ${{ vars.GCP_PROJECT_ID }}
       REGION: ${{ vars.GCP_REGION }}
       MIGRATE_JOB: ${{ vars.GCP_RUN_JOB_MIGRATE }}
+      SERVICE: ${{ vars.GCP_RUN_SERVICE }}
+      WORKER_SERVICE: ${{ vars.GCP_RUN_SERVICE_WORKER }}
+      API_HOSTNAME: ${{ vars.API_HOSTNAME }}
     steps:
       # For the script only; no credentials are kept.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,5 +55,5 @@ jobs:
       - name: Impersonate the deploy spoke
         run: gcloud config set auth/impersonate_service_account "${{ vars.GCP_DEPLOY_SPOKE }}"
 
-      - name: Drop the database's tables and migrate
+      - name: Drop the database's tables, migrate and roll out
         run: .github/scripts/deploy/reset-db.sh
