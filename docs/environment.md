@@ -9,38 +9,50 @@ on the worker service and nothing else about how the image starts.
 
 ## API (`src/services/api`)
 
-| Variable | Required | Stg source | Notes |
-| --- | --- | --- | --- |
-| `APP_ENV` | yes | Terraform | `local`, `stg` or `prd` |
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | yes | Terraform | the private Cloud SQL instance |
-| `DB_PASSWORD` | yes | Secret Manager | |
-| `DB_CA_PEM` | outside local | Terraform | the instance's CA; the connection is TLS against it |
-| `BETTER_AUTH_URL` | yes | Terraform | the API's public origin |
-| `BETTER_AUTH_SECRET` | yes, 32+ chars | Secret Manager | |
-| `CORS_ORIGIN` | no | Terraform | comma-separated browser origins, no wildcards; empty means none |
-| `PUBSUB_EMAILS_TOPIC` | yes | Terraform | locally the emulator's topic, with `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` |
-| `TRUSTED_PROXIES` | no | | proxies appending to `X-Forwarded-For`, at least 1; default 1, the load balancer |
-| `HOST`, `PORT` | no | Cloud Run sets `PORT` | default `0.0.0.0:8080` |
-| `LOG_LEVEL`, `LOG_FORMAT` | no | | `json` when `NODE_ENV=production`, else pretty |
+| Variable                                   | Required       | Stg source            | Notes                                                                             |
+| ------------------------------------------ | -------------- | --------------------- | --------------------------------------------------------------------------------- |
+| `APP_ENV`                                  | yes            | Terraform             | `local`, `stg` or `prd`                                                           |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | yes            | Terraform             | the private Cloud SQL instance                                                    |
+| `DB_PASSWORD`                              | yes            | Secret Manager        |                                                                                   |
+| `DB_CA_PEM`                                | outside local  | Terraform             | the instance's CA; the connection is TLS against it                               |
+| `BETTER_AUTH_URL`                          | yes            | Terraform             | the API's public origin                                                           |
+| `BETTER_AUTH_SECRET`                       | yes, 32+ chars | Secret Manager        |                                                                                   |
+| `CORS_ORIGIN`                              | no             | Terraform             | comma-separated browser origins, no wildcards; empty means none                   |
+| `PUBSUB_EMAILS_TOPIC`                      | yes            | Terraform             | locally the emulator's topic, with `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` |
+| `TRUSTED_PROXIES`                          | no             |                       | proxies appending to `X-Forwarded-For`, at least 1; default 1, the load balancer  |
+| `HOST`, `PORT`                             | no             | Cloud Run sets `PORT` | default `0.0.0.0:8080`                                                            |
+| `LOG_LEVEL`, `LOG_FORMAT`                  | no             |                       | `json` when `NODE_ENV=production`, else pretty                                    |
 
 ## Worker (`src/services/worker`)
 
-| Variable | Required | Stg source | Notes |
-| --- | --- | --- | --- |
-| `APP_ENV` | yes | Terraform | |
-| `EMAIL_PROVIDER` | yes | Terraform | `mailgun` or `resend` |
-| `EMAIL_API_KEY` | yes | Secret Manager | the provider's sending key |
-| `EMAIL_DOMAIN` | yes | Terraform | the sending domain registered at the provider |
-| `EMAIL_API_URL` | no | | the provider's API origin, for a stand-in; https outside local |
-| `EMAIL_FROM`, `EMAIL_FROM_NAME` | no | Terraform | defaults `noreply@<EMAIL_DOMAIN>`, `Frubble` |
-| `PUSH_TOKEN` | local only | `yarn local:create` | 32+ chars; every push must carry it as `?token=`, since nothing else guards the port locally. Cloud Run's invoker check and internal ingress do that in stg |
-| `EMAIL_SUPPORT_URL` | no | | the footer link |
-| `HOST`, `PORT` | no | Cloud Run sets `PORT` | |
+| Variable                        | Required   | Stg source            | Notes                                                                                                                                                       |
+| ------------------------------- | ---------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_ENV`                       | yes        | Terraform             |                                                                                                                                                             |
+| `EMAIL_PROVIDER`                | yes        | Terraform             | `mailgun` or `resend`                                                                                                                                       |
+| `EMAIL_API_KEY`                 | yes        | Secret Manager        | the provider's sending key                                                                                                                                  |
+| `EMAIL_DOMAIN`                  | yes        | Terraform             | the sending domain registered at the provider                                                                                                               |
+| `EMAIL_API_URL`                 | no         |                       | the provider's API origin, for a stand-in; https outside local                                                                                              |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME` | no         | Terraform             | defaults `noreply@<EMAIL_DOMAIN>`, `Frubble`                                                                                                                |
+| `PUSH_TOKEN`                    | local only | `yarn local:create`   | 32+ chars; every push must carry it as `?token=`, since nothing else guards the port locally. Cloud Run's invoker check and internal ingress do that in stg |
+| `EMAIL_SUPPORT_URL`             | no         |                       | the footer link                                                                                                                                             |
+| `HOST`, `PORT`                  | no         | Cloud Run sets `PORT` |                                                                                                                                                             |
 
 ## Migration (`scripts/migrate.ts`)
 
 `SHOULD_RUN_MIGRATION=true` exactly, plus `APP_ENV` and the `DB_*` variables. Any other
 value is a logged no-op, so the script run anywhere but the migration job changes nothing.
+
+## App
+
+Locally from `apps/app/.env.local` (copy `.env.local.example`); in stg Terraform sets them on the
+app's Cloud Run service. The server reads them at request time, so one image serves every
+environment.
+
+| Variable      | Required      | Stg source        | Notes                                                                                                                    |
+| ------------- | ------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `APP_ENV`     | no            | Terraform         | `local` (the default), `stg` or `prd`                                                                                    |
+| `GRAPHQL_URL` | outside local | Terraform         | the API's GraphQL URL; locally `http://localhost:8080/graphql` unless set. Its `CORS_ORIGIN` must allow the app's origin |
+| `PORT`        | no            | Cloud Run sets it | default 3000                                                                                                             |
 
 ## Build arguments
 

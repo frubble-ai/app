@@ -1,6 +1,6 @@
+"Every account's role today: `APPLICATION_USER`."
 enum UserRole {
-	SYSTEM_ADMIN
-	CUSTOMER
+	APPLICATION_USER
 }
 
 "The signed-in user."

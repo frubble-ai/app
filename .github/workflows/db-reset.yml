@@ -1,0 +1,59 @@
+name: DB - Reset (drop + migrate)
+
+# Wipes stg's database and migrates it again: every table and enum the
+# migrations made is dropped, then the migration job runs them from nothing,
+# on the image it already has, and the worker, then the API, roll onto that image.
+# For when the schema's history is rewritten (a squashed migration), never as
+# part of a deploy.
+#
+# Run by hand only (Actions → DB - Reset → Run workflow, from `stg`), and only
+# by drn1996: the job refuses anyone else and any other branch. It runs in
+# `backend-stg` as the deploy identity, whose trust rule in `platform` names
+# this file; the migration script refuses `--reset` in prd whatever calls it.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: backend-cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    name: reset
+    if: github.ref == 'refs/heads/stg' && github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
+    runs-on: ubuntu-latest
+    environment: backend-stg
+    permissions:
+      contents: read
+      id-token: write # the OIDC token Workload Identity Federation exchanges
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      MIGRATE_JOB: ${{ vars.GCP_RUN_JOB_MIGRATE }}
+      SERVICE: ${{ vars.GCP_RUN_SERVICE }}
+      WORKER_SERVICE: ${{ vars.GCP_RUN_SERVICE_WORKER }}
+      API_HOSTNAME: ${{ vars.API_HOSTNAME }}
+    steps:
+      # For the script only; no credentials are kept.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Signs in as the hub, which holds no permissions of its own. Its only
+      # capability is impersonating the spoke, which is what is set next.
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_HUB }}
+          audience: ${{ vars.GCP_WIF_AUDIENCE }}
+
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Impersonate the deploy spoke
+        run: gcloud config set auth/impersonate_service_account "${{ vars.GCP_DEPLOY_SPOKE }}"
+
+      - name: Drop the database's tables, migrate and roll out
+        run: .github/scripts/deploy/reset-db.sh

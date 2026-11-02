@@ -32,7 +32,11 @@ export function createAuth(db: TDb, config: TConfig) {
 		plugins: [bearer()],
 		user: {
 			additionalFields: {
-				role: { type: "string", defaultValue: "customer", input: false },
+				role: {
+					type: "string",
+					defaultValue: "application_user",
+					input: false,
+				},
 			},
 		},
 	});

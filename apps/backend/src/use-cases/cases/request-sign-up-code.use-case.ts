@@ -45,7 +45,6 @@ export const requestSignUpCodeUseCase = defineUseCase(
 			type: "signup.code_requested",
 			email,
 			code,
-			isAdminInvite: false,
 		});
 	},
 );

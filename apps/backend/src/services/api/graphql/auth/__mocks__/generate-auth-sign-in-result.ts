@@ -9,8 +9,8 @@ export function generateAuthSignInResult(
 		user: {
 			id: faker.string.alphanumeric(32),
 			name: faker.person.fullName(),
+			role: "application_user",
 			email: faker.internet.email().toLowerCase(),
-			role: "customer",
 		},
 		...overrides,
 	};

@@ -28,9 +28,10 @@ the token's hash (30 s, evicted on sign-out).
 
 ## Roles
 
-`user.role` is `customer` or `system_admin`, set by the server only. An admin is invited with
-`yarn workspace @frubble/backend create-admin <email>`, which emails a code with 72 hours to
-live under a different prefix; signing up with it creates a `system_admin`.
+`user.role` has one value, `application_user`, which every account gets at sign-up: Better Auth
+writes the column's default and takes no role from the client (`input: false`). The schema's
+`Me.role` is `APPLICATION_USER`. There is no admin role, and nothing to invite one with yet; the
+enum is where another role would go.
 
 ## Rate limits
 
@@ -42,5 +43,5 @@ address and then its own, so the client is the entry before the last `TRUSTED_PR
 (default 1) entries, and anything a client put in the header itself is ignored.
 
 Every environment sends real email: the worker needs its provider's key and sending domain to
-start, locally too. The seed creates the local admin, so a local account exists before any
-code is emailed.
+start, locally too. The seed creates two local users, so accounts exist before any code is
+emailed.

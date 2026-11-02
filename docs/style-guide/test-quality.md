@@ -23,7 +23,7 @@ bug and the test passes, the test is bad.
 
 - Internal state values.
 - Implementation details: which helper was called, the order of internal calls.
-- That a library works. Test that *our code* behaves correctly, not that Hono routes or Luxon
+- That a library works. Test that _our code_ behaves correctly, not that Hono routes or Luxon
   adds days.
 - Snapshots as the main strategy. They break on every refactor, and people approve the new
   snapshot without reading it.

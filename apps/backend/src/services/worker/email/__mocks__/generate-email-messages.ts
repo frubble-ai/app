@@ -21,7 +21,6 @@ export function generateSignupCodeMessage(): TEmailMessage {
 		type: "signup.code_requested",
 		email: faker.internet.email().toLowerCase(),
 		code: faker.string.numeric(6),
-		isAdminInvite: false,
 	};
 }
 
@@ -47,23 +46,10 @@ export function generateEmailMessageCases(): Array<{
 				type: "signup.code_requested",
 				email: address,
 				code,
-				isAdminInvite: false,
 			},
 			email: {
 				type: "signup.code_requested",
-				props: { code, isAdminInvite: false },
-			},
-		},
-		{
-			message: {
-				type: "signup.code_requested",
-				email: address,
-				code,
-				isAdminInvite: true,
-			},
-			email: {
-				type: "signup.code_requested",
-				props: { code, isAdminInvite: true },
+				props: { code },
 			},
 		},
 		{

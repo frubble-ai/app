@@ -2,8 +2,7 @@ import type { TUserRole } from "@frubble/db";
 import { type Me, UserRole } from "@frubble/gql/types";
 
 const ROLE_TO_GQL: Record<TUserRole, UserRole> = {
-	system_admin: UserRole.SystemAdmin,
-	customer: UserRole.Customer,
+	application_user: UserRole.ApplicationUser,
 };
 
 /** The signed-in user as the schema's `Me`. */

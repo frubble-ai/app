@@ -8,7 +8,7 @@ set -euo pipefail
 : "${IMAGE:?registry path and tag}" "${LOCAL_IMAGE:?tag the build job used}" "${IMAGE_TAR:?path to the image tarball}"
 
 # IMAGE is composed in the workflow from GCP_REGISTRY; unset, it still passes
-# the guard above as "/frubble-backend:<sha>" and fails later with an empty host.
+# the guard above as "/frubble-<app>:<sha>" and fails later with an empty host.
 registry="${IMAGE%%/*}"
 if [ -z "$registry" ] || [ "$registry" = "$IMAGE" ]; then
   echo "::error::IMAGE has no registry host: '$IMAGE'. Is GCP_REGISTRY set on the environment?"

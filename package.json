@@ -10,7 +10,7 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "turbo run dev:api dev:worker",
+		"dev": "turbo run dev:api dev:worker dev",
 		"test": "turbo run test",
 		"test:coverage": "turbo run test:coverage && node bin/merge-coverage.mjs",
 		"typecheck": "turbo run typecheck",
@@ -21,6 +21,7 @@
 		"codegen": "turbo run codegen",
 		"db:generate": "yarn workspace @frubble/db db:generate",
 		"db:migrate": "SHOULD_RUN_MIGRATION=true yarn workspace @frubble/backend migrate",
+		"db:reset": "SHOULD_RUN_MIGRATION=true yarn workspace @frubble/backend migrate --reset",
 		"db:seed": "yarn workspace @frubble/backend seed",
 		"local:create": "bin/local-create.sh",
 		"local:start": "bin/local-start.sh",

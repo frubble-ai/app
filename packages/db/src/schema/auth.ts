@@ -12,7 +12,8 @@ import { DateTime } from "luxon";
 // Better Auth's tables, plus `user.role`, its additional field. The timestamps are what Better
 // Auth's adapter writes, so they keep its shape (no time zone).
 
-export const userRoleEnum = pgEnum("user_role", ["system_admin", "customer"]);
+/** Every account is an `application_user` today; the enum is where another role would go. */
+export const userRoleEnum = pgEnum("user_role", ["application_user"]);
 
 export type TUserRole = (typeof userRoleEnum.enumValues)[number];
 
@@ -30,8 +31,8 @@ export const user = pgTable("user", {
 	image: text("image"),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: updatedAt(),
-	// Set by the server only: the admin invite code grants `system_admin` at sign-up.
-	role: userRoleEnum("role").default("customer").notNull(),
+	// Set by the server only: Better Auth takes it as `input: false`.
+	role: userRoleEnum("role").default("application_user").notNull(),
 });
 
 export const session = pgTable(

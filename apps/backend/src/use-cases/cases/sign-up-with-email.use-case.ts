@@ -34,8 +34,8 @@ const signUpWithEmailArgsSchema = z.object({
 });
 
 /**
- * Finish an email sign-up with a code. The code's prefix (set server-side) decides the role. The
- * code is burned only after Better Auth creates the account, so a rejected password can retry.
+ * Finish an email sign-up with a code. The code is burned only after Better Auth creates the
+ * account, so a rejected password can retry.
  */
 export const signUpWithEmailUseCase = defineUseCase(
 	async function signUpWithEmailUseCase(
@@ -59,26 +59,10 @@ export const signUpWithEmailUseCase = defineUseCase(
 			}),
 		);
 
-		// A customer code and an admin invite can be live for the same address; each keeps its
-		// own attempt count.
-		let flow = ctx.config.authSignup;
-		let result = await verifyOneTimeCode(ctx.db, flow, email, code);
-		if (result !== "valid") {
-			const invite = await verifyOneTimeCode(
-				ctx.db,
-				ctx.config.adminSignup,
-				email,
-				code,
-			);
-			if (invite === "valid") {
-				flow = ctx.config.adminSignup;
-				result = invite;
-			}
-		}
-		if (result !== "valid") {
+		const flow = ctx.config.authSignup;
+		if ((await verifyOneTimeCode(ctx.db, flow, email, code)) !== "valid") {
 			throw badInput(INVALID_SIGN_UP_CODE_MESSAGE);
 		}
-		const isAdmin = flow === ctx.config.adminSignup;
 
 		const rawResult = await ctx.auth.api
 			.signUpEmail({ body: { name, email, password } })
@@ -111,12 +95,8 @@ export const signUpWithEmailUseCase = defineUseCase(
 		try {
 			await ctx.db
 				.update(user)
-				// The role is assigned here, never from client input.
-				.set(
-					isAdmin
-						? { emailVerified: true, role: "system_admin" }
-						: { emailVerified: true },
-				)
+				// The code proved the address
+				.set({ emailVerified: true })
 				.where(eq(user.id, formatted.user.id));
 			await deleteOneTimeCode(ctx.db, flow, email);
 		} catch (error) {
@@ -130,8 +110,6 @@ export const signUpWithEmailUseCase = defineUseCase(
 			throw error;
 		}
 
-		return isAdmin
-			? { ...formatted, user: { ...formatted.user, role: "system_admin" } }
-			: formatted;
+		return formatted;
 	},
 );
