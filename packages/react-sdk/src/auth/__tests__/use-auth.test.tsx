@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 import { faker } from "@faker-js/faker";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { generateAuthPayload } from "../../gql/__mocks__/generate-auth-payload";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MeDocument } from "../../gql/documents";
 import { graphqlClient } from "../../gql/lib/client";
+import { mockConsoleWarn } from "../../shared/__mocks__/mock-console-warn";
+import { createMockToken } from "../../shared/__mocks__/mock-token";
+import { generateAuthPayload } from "../__mocks__/generate-auth-payload";
 import {
 	createMockGenerated,
 	mockMutate,
 	mockRefetch,
 	mockUseMeQuery,
 } from "../__mocks__/mock-generated";
-import { createMockToken } from "../__mocks__/mock-token";
 import { useAuth } from "../index";
 
 vi.mock("../../gql/generated", () => createMockGenerated());
@@ -21,6 +22,10 @@ vi.mock("../../gql/lib/client", async () =>
 );
 
 describe("useAuth", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	beforeEach(async () => {
 		mockMutate.mockReset();
 		mockRefetch.mockReset().mockResolvedValue(undefined);
@@ -97,7 +102,7 @@ describe("useAuth", () => {
 	});
 
 	it("keeps the session when refreshing the user afterwards fails", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = mockConsoleWarn();
 		const payload = generateAuthPayload();
 		mockMutate.mockResolvedValueOnce({ data: { signIn: payload } });
 		mockRefetch.mockRejectedValueOnce(new Error("offline"));
@@ -114,7 +119,6 @@ describe("useAuth", () => {
 		});
 
 		await vi.waitFor(() => expect(warn).toHaveBeenCalled());
-		warn.mockRestore();
 	});
 
 	it("signUp calls mutation, sets token, refetches me query", async () => {

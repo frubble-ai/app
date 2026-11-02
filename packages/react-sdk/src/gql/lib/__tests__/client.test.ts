@@ -11,7 +11,7 @@ import { MeDocument, SignOutDocument } from "../../documents";
 import { configureGraphql, graphqlClient } from "../client";
 
 vi.mock("../../../auth/lib/token", async () =>
-	(await import("../../../auth/__mocks__/mock-token")).createMockToken(),
+	(await import("../../../shared/__mocks__/mock-token")).createMockToken(),
 );
 vi.stubGlobal("fetch", mockFetch);
 
