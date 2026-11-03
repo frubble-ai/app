@@ -22,7 +22,7 @@ export function IntegrationPreview({
 	const items = data?.integrationPreview ?? [];
 
 	return (
-		<div data-testid={`integration-preview-${slug}`}>
+		<div className="preview" data-testid={`integration-preview-${slug}`}>
 			<button
 				type="button"
 				disabled={loading}

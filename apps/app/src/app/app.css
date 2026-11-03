@@ -1,24 +1,309 @@
-/* Layout only: the browser's own fonts and colors, no theme */
+/* One stylesheet: tokens, then the frame, then the few components the screens share */
+
+:root {
+	--bg: #f6f7f9;
+	--surface: #ffffff;
+	--text: #1c1f24;
+	--muted: #5f6672;
+	--border: #dde1e7;
+	--accent: #2f5bd3;
+	--accent-text: #ffffff;
+	--danger: #b42318;
+	--danger-bg: #fdecea;
+	--success: #1f7a3f;
+	--success-bg: #e7f5ec;
+	--radius: 8px;
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #121417;
+		--surface: #1b1e23;
+		--text: #e6e8eb;
+		--muted: #9aa1ac;
+		--border: #2e333a;
+		--accent: #6b8ff0;
+		--accent-text: #0f1115;
+		--danger: #f2877d;
+		--danger-bg: #3a1d1b;
+		--success: #6fcf8f;
+		--success-bg: #17301f;
+		color-scheme: dark;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
 body {
 	margin: 0;
-	font-family: system-ui, sans-serif;
+	background: var(--bg);
+	color: var(--text);
+	font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+	font-size: 15px;
 	line-height: 1.5;
 }
 
-main {
-	max-width: 32rem;
-	margin: 0 auto;
-	padding: 2rem 1rem;
+h1 {
+	margin: 0 0 0.25rem;
+	font-size: 1.5rem;
 }
+
+h2 {
+	margin: 0 0 1rem;
+	font-size: 1.1rem;
+}
+
+h3 {
+	margin: 1.25rem 0 0.5rem;
+	font-size: 0.95rem;
+	color: var(--muted);
+}
+
+p {
+	margin: 0 0 0.75rem;
+}
+
+a {
+	color: var(--accent);
+}
+
+/* Frame */
+
+.app-header {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: 0.75rem 1.5rem;
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+}
+
+.app-header__brand {
+	font-weight: 700;
+	color: var(--text);
+	text-decoration: none;
+}
+
+.app-header__account {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	color: var(--muted);
+}
+
+main {
+	max-width: 44rem;
+	margin: 0 auto;
+	padding: 2rem 1rem 4rem;
+}
+
+/* The signed-out pages: one narrow card */
+main.auth {
+	max-width: 26rem;
+	margin-top: 4rem;
+	padding: 2rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.page-head {
+	margin-bottom: 1.5rem;
+}
+
+.page-head p {
+	color: var(--muted);
+}
+
+section {
+	margin-bottom: 1.25rem;
+	padding: 1.25rem 1.5rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+/* Forms */
 
 form {
 	display: flex;
 	flex-direction: column;
-	gap: 0.75rem;
+	gap: 0.85rem;
 }
 
 label {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: 0.3rem;
+	font-weight: 500;
+	font-size: 0.9rem;
+}
+
+input,
+select {
+	font: inherit;
+	padding: 0.5rem 0.65rem;
+	color: var(--text);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+/* Several fields on one line, wrapping on a narrow screen */
+.inline-form {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: flex-end;
+}
+
+.inline-form label {
+	flex: 1 1 12rem;
+}
+
+/* Buttons: secondary by default, the form's submit is the primary action */
+
+button {
+	font: inherit;
+	font-weight: 500;
+	padding: 0.45rem 0.9rem;
+	color: var(--text);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+	border-color: var(--muted);
+}
+
+button[type="submit"],
+button.primary {
+	color: var(--accent-text);
+	background: var(--accent);
+	border-color: var(--accent);
+}
+
+button.danger {
+	color: var(--danger);
+}
+
+button:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+/* Messages */
+
+[role="alert"] {
+	padding: 0.6rem 0.8rem;
+	color: var(--danger);
+	background: var(--danger-bg);
+	border-radius: 6px;
+}
+
+[role="status"]:not([aria-busy]) {
+	padding: 0.6rem 0.8rem;
+	color: var(--success);
+	background: var(--success-bg);
+	border-radius: 6px;
+}
+
+[aria-busy="true"] {
+	color: var(--muted);
+}
+
+/* Rows: a list of things with their actions on the right */
+
+.rows {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rows > li {
+	padding: 0.85rem 0;
+	border-top: 1px solid var(--border);
+}
+
+.rows > li:first-child {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 0.75rem;
+}
+
+.row__actions {
+	margin-left: auto;
+	display: flex;
+	gap: 0.5rem;
+}
+
+.muted {
+	color: var(--muted);
+}
+
+.badge {
+	padding: 0.1rem 0.55rem;
+	font-size: 0.8rem;
+	color: var(--muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+}
+
+.badge--on {
+	color: var(--success);
+	background: var(--success-bg);
+	border-color: transparent;
+}
+
+/* A connected tool's live read, under its row */
+.preview {
+	margin-top: 0.75rem;
+}
+
+.preview ul {
+	margin: 0.5rem 0 0;
+	padding-left: 1.1rem;
+	color: var(--muted);
+}
+
+.toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 0.75rem;
+}
+
+.toolbar label {
+	flex: 1 1 14rem;
+}
+
+.inline-form > p {
+	flex-basis: 100%;
+	margin: 0;
+}
+
+main.auth h1 {
+	margin-bottom: 1.25rem;
+}
+
+main.auth > p:last-of-type {
+	margin-bottom: 0;
 }

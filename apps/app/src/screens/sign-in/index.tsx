@@ -54,7 +54,7 @@ export function SignInScreen() {
 	}
 
 	return (
-		<main data-testid="sign-in">
+		<main className="auth" data-testid="sign-in">
 			<h1>{t("signIn.title")}</h1>
 			{wasReset ? <p data-testid="sign-in-reset">{t("signIn.reset")}</p> : null}
 			<form onSubmit={submit}>
