@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { returnPath } from "@/screens/sign-in/lib/return-path";
+import { returnPath } from "@/shared/return-path";
 
 describe("returnPath", () => {
 	it("goes back to a page on this site", () => {

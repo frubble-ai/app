@@ -1,9 +1,11 @@
 import { useAuth } from "@frubble/react-sdk";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useSignUp } from "@/screens/sign-up/hooks/use-sign-up";
 import { CodeFlowError } from "@/shared/components/code-flow-error";
 import { Redirect } from "@/shared/components/redirect";
+import { returnPath, withFrom } from "@/shared/return-path";
 
 /** The code's digits (the API's `ONE_TIME_CODE_LENGTH`). */
 const CODE_LENGTH = 6;
@@ -12,7 +14,8 @@ const CODE_LENGTH = 6;
 export function SignUpScreen() {
 	const { t } = useTranslation("auth");
 	const { isAuthenticated, isPending } = useAuth();
-	const signUp = useSignUp();
+	const from = useSearchParams().get("from");
+	const signUp = useSignUp(returnPath(from));
 
 	if (!isPending && isAuthenticated) return <Redirect to="/" />;
 
@@ -91,7 +94,7 @@ export function SignUpScreen() {
 				</form>
 			)}
 			<p>
-				<Link data-testid="sign-up-sign-in" href="/sign-in">
+				<Link data-testid="sign-up-sign-in" href={withFrom("/sign-in", from)}>
 					{t("signUp.signIn")}
 				</Link>
 			</p>

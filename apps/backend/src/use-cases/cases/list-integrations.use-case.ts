@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
+import { settlePendingConnections } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
 	requireMembership,
@@ -13,7 +14,10 @@ const listIntegrationsArgsSchema = z.object({
 	organizationId: betterAuthIdSchema,
 });
 
-/** The providers an organization has connected; any member may see them. */
+/**
+ * The providers an organization has connected; any member may see them. Pending attempts are
+ * settled first, so one that went live after its callback shows here.
+ */
 export const listIntegrationsUseCase = defineUseCase(
 	async function listIntegrationsUseCase(
 		ctx,
@@ -21,6 +25,7 @@ export const listIntegrationsUseCase = defineUseCase(
 	): Promise<Array<{ provider: TIntegrationProvider; connectedAt: DateTime }>> {
 		const { userId, organizationId } = listIntegrationsArgsSchema.parse(args);
 		await requireMembership(ctx, { userId, organizationId });
+		await settlePendingConnections(ctx, organizationId);
 		const rows = await ctx.db
 			.select({
 				provider: integrationConnection.provider,

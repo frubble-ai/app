@@ -59,6 +59,46 @@ describe("SignUpScreen", () => {
 		expect(await screen.findByTestId("route-/")).toBeInTheDocument();
 	});
 
+	it("goes back to the page sign-in was asked for, such as an invitation", async () => {
+		signedOut();
+		renderWithProviders(<SignUpScreen />, {
+			path: "/sign-up?from=%2Finvitations%2Fabc",
+			routes: ["/invitations/abc"],
+		});
+
+		const user = await requestCode(faker.internet.email());
+		await screen.findByTestId("sign-up-sent");
+		await user.type(
+			screen.getByTestId("sign-up-code"),
+			faker.string.numeric(6),
+		);
+		await user.type(
+			screen.getByTestId("sign-up-name"),
+			faker.person.fullName(),
+		);
+		await user.type(
+			screen.getByTestId("sign-up-password"),
+			faker.internet.password({ length: 12 }),
+		);
+		await user.click(screen.getByTestId("sign-up-submit"));
+
+		expect(
+			await screen.findByTestId("route-/invitations/abc"),
+		).toBeInTheDocument();
+	});
+
+	it("keeps the page to return to on the link to sign-in", () => {
+		signedOut();
+		renderWithProviders(<SignUpScreen />, {
+			path: "/sign-up?from=%2Finvitations%2Fabc",
+		});
+
+		expect(screen.getByTestId("sign-up-sign-in")).toHaveAttribute(
+			"href",
+			"/sign-in?from=%2Finvitations%2Fabc",
+		);
+	});
+
 	it("shows the API's reason when the code is refused", async () => {
 		const message = faker.lorem.sentence();
 		signedOut({

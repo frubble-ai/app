@@ -5,9 +5,9 @@ import { useCodeFlow } from "@/shared/code-flow";
 
 /**
  * Signing up in two steps: the email, which the API sends a code to; then the code with a name and a
- * password, which creates the account and signs in.
+ * password, which creates the account, signs in and goes to `destination`.
  */
-export function useSignUp() {
+export function useSignUp(destination = "/") {
 	const { requestSignUpCode, signUp } = useAuth();
 	const router = useRouter();
 	const { run, ...flow } = useCodeFlow(requestSignUpCode);
@@ -22,7 +22,7 @@ export function useSignUp() {
 				name: String(form.get("name") ?? ""),
 				password: String(form.get("password") ?? ""),
 			});
-			router.replace("/");
+			router.replace(destination);
 		});
 	}
 

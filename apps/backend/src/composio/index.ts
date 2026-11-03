@@ -69,7 +69,12 @@ export function createIntegrationsClient(
 		},
 
 		async remove(connectedAccountId) {
-			await composio.connectedAccounts.delete(connectedAccountId);
+			try {
+				await composio.connectedAccounts.delete(connectedAccountId);
+			} catch (err) {
+				// Already gone is what removing asks for.
+				if ((err as { status?: unknown }).status !== 404) throw err;
+			}
 		},
 
 		async preview({ organizationId, provider, connectedAccountId }) {

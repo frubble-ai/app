@@ -11,7 +11,11 @@ export function AcceptInvitationScreen() {
 	const { t } = useTranslation("invitations");
 	const { id } = useParams<{ id: string }>();
 	const router = useRouter();
-	const [accept, { loading }] = useAcceptOrganizationInvitationMutation();
+	// The home page's list must include the organization just joined, or it falls back to another.
+	const [accept, { loading }] = useAcceptOrganizationInvitationMutation({
+		refetchQueries: ["MyOrganizations"],
+		awaitRefetchQueries: true,
+	});
 	const [failure, setFailure] = useState<"notYours" | "invalid" | null>(null);
 
 	async function submit() {

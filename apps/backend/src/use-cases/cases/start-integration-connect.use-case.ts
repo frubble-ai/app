@@ -5,7 +5,7 @@ import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
 import {
 	integrationProviderSchema,
-	removeConnectedAccounts,
+	retireConnections,
 } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -42,20 +42,19 @@ export const startIntegrationConnectUseCase = defineUseCase(
 		});
 
 		const stale = await ctx.db
-			.delete(integrationConnection)
+			.select({ id: integrationConnection.id })
+			.from(integrationConnection)
 			.where(
 				and(
 					eq(integrationConnection.organizationId, organizationId),
 					eq(integrationConnection.provider, provider),
 					eq(integrationConnection.status, "pending"),
 				),
-			)
-			.returning({
-				connectedAccountId: integrationConnection.composioConnectedAccountId,
-			});
-		await removeConnectedAccounts(
+			);
+		await retireConnections(
 			ctx,
-			stale.map((row) => row.connectedAccountId),
+			organizationId,
+			stale.map((row) => row.id),
 		);
 
 		const id = randomUUID();

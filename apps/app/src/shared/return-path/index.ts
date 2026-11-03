@@ -18,3 +18,8 @@ export function returnPath(from: string | null): string {
 		? "/"
 		: path;
 }
+
+/** `path` carrying the page to return to, so it survives a hop between sign-in and sign-up. */
+export function withFrom(path: string, from: string | null): string {
+	return from ? `${path}?${new URLSearchParams({ from })}` : path;
+}

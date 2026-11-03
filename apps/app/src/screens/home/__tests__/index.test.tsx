@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
-import { useAuth } from "@frubble/react-sdk";
+import { useAuth, useIntegrationPreviewLazyQuery } from "@frubble/react-sdk";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen } from "@/screens/home";
 import { generateAuth } from "@/testing/generate-auth";
@@ -93,14 +94,25 @@ describe("HomeScreen", () => {
 		const organization = generateOrganization(OrganizationRole.Member);
 		mockMyOrganizations([organization]);
 		mockIntegrations([IntegrationProvider.Slack]);
-		const { loadPreview } = mockOrganizationActions({
-			integrationPreview: [
-				{ id: "C1", name: "general" },
-				{ id: "C2", name: "design" },
-			],
+		const items = [
+			{ id: "C1", name: "general" },
+			{ id: "C2", name: "design" },
+		];
+		const loadPreview = vi.fn();
+		// Like Apollo: no data until the query has been run.
+		vi.mocked(useIntegrationPreviewLazyQuery).mockImplementation(() => {
+			const [data, setData] = useState<{ integrationPreview: typeof items }>();
+			loadPreview.mockImplementation(() =>
+				setData({ integrationPreview: items }),
+			);
+			return [
+				loadPreview,
+				{ data, loading: false, called: Boolean(data) },
+			] as never;
 		});
 		renderWithProviders(<HomeScreen />);
 
+		expect(screen.queryByTestId("integration-preview-items-slack")).toBeNull();
 		await userEvent.click(screen.getByTestId("integration-preview-load-slack"));
 
 		expect(loadPreview).toHaveBeenCalledWith({
@@ -112,7 +124,7 @@ describe("HomeScreen", () => {
 			},
 		});
 		expect(
-			screen.getByTestId("integration-preview-items-slack"),
+			await screen.findByTestId("integration-preview-items-slack"),
 		).toHaveTextContent("generaldesign");
 	});
 

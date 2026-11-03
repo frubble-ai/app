@@ -171,6 +171,67 @@ describe("connecting a provider", () => {
 		);
 	});
 
+	it("keeps a replaced account until Composio confirms its removal, then retries", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		const first = await connected(clone, args);
+		clone.integrations.remove.mockRejectedValueOnce(new Error("Composio down"));
+
+		await connected(clone, args);
+		const retiring = await clone.db
+			.select()
+			.from(integrationConnection)
+			.where(eq(integrationConnection.status, "retiring"));
+		expect(retiring.map((row) => row.composioConnectedAccountId)).toEqual([
+			first.connectedAccountId,
+		]);
+
+		await listIntegrationsUseCase(args);
+
+		const left = await clone.db
+			.select()
+			.from(integrationConnection)
+			.where(eq(integrationConnection.organizationId, organizationId));
+		expect(left.map((row) => row.status)).toEqual(["active"]);
+	});
+
+	it("shows a connection that went live after its callback once the list is read", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		const { connectionId } = await startConnecting(clone, args);
+		clone.integrations.getState.mockResolvedValueOnce("pending");
+		await expect(
+			completeIntegrationConnectUseCase({ connectionId }),
+		).resolves.toEqual({
+			redirectUrl:
+				"http://localhost:3000/?integration=github&integration_status=pending",
+		});
+		clone.integrations.getState.mockResolvedValueOnce("active");
+
+		await expect(listIntegrationsUseCase(args)).resolves.toEqual([
+			{ provider: "github", connectedAt: expect.anything() },
+		]);
+	});
+
+	it("still sends the browser back to the app when Composio cannot be reached", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const { connectionId } = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.integrations.getState.mockRejectedValueOnce(new Error("timeout"));
+
+		await expect(
+			completeIntegrationConnectUseCase({ connectionId }),
+		).resolves.toEqual({
+			redirectUrl:
+				"http://localhost:3000/?integration=github&integration_status=pending",
+		});
+	});
+
 	it("answers a missing, malformed or unknown connection id with a failure", async () => {
 		getClone();
 

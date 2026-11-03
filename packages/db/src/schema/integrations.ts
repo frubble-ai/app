@@ -21,10 +21,14 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
 export type TIntegrationProvider =
 	(typeof integrationProviderEnum.enumValues)[number];
 
-/** `pending` until the provider's consent finishes; then `active`. */
+/**
+ * `pending` until the provider's consent finishes, then `active`. `retiring`: replaced, failed or
+ * abandoned, kept until Composio confirms the account is removed, so its tokens are never orphaned.
+ */
 export const integrationStatusEnum = pgEnum("integration_status", [
 	"pending",
 	"active",
+	"retiring",
 ]);
 
 /** One attempt or connection of an organization to a provider; the tokens stay at Composio. */

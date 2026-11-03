@@ -1,5 +1,5 @@
 CREATE TYPE "public"."integration_provider" AS ENUM('github', 'linear', 'slack');--> statement-breakpoint
-CREATE TYPE "public"."integration_status" AS ENUM('pending', 'active');--> statement-breakpoint
+CREATE TYPE "public"."integration_status" AS ENUM('pending', 'active', 'retiring');--> statement-breakpoint
 CREATE TABLE "integration_connection" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,

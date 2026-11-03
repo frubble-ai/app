@@ -1,5 +1,5 @@
 {
-	"id": "8843e26f-1641-4f6d-9f35-cb6a6d211ece",
+	"id": "6ca09520-c238-4093-b117-74144c600077",
 	"prevId": "e37166b7-9264-4b40-b3ee-99c79af5f506",
 	"version": "7",
 	"dialect": "postgresql",
@@ -821,7 +821,7 @@
 		"public.integration_status": {
 			"name": "integration_status",
 			"schema": "public",
-			"values": ["pending", "active"]
+			"values": ["pending", "active", "retiring"]
 		}
 	},
 	"schemas": {},
