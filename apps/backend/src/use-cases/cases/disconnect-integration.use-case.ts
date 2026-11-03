@@ -1,5 +1,5 @@
 import { integrationConnection, type TIntegrationProvider } from "@frubble/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
 import { retireIntegrationConnectionsUseCase } from "@/use-cases/cases/retire-integration-connections.use-case";
@@ -58,10 +58,17 @@ export const disconnectIntegrationUseCase = defineUseCase(
 			connectionIds: ids,
 		});
 
+		// A row still without an account is an attempt Composio has not answered: its connect
+		// records the account when the answer comes and removes it, so it is not ours to confirm.
 		const unconfirmed = await ctx.db
 			.select({ id: integrationConnection.id })
 			.from(integrationConnection)
-			.where(inArray(integrationConnection.id, ids));
+			.where(
+				and(
+					inArray(integrationConnection.id, ids),
+					isNotNull(integrationConnection.composioConnectedAccountId),
+				),
+			);
 		if (unconfirmed.length > 0) {
 			throw internalError(
 				`${provider} did not confirm the disconnect yet; it is retried automatically.`,

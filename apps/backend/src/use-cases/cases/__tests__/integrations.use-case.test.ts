@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import type { TTestClone } from "@/testing/integration-bootstrap";
 import {
 	answerAccountMadeForLastAttempt,
+	answerAccountPages,
 	answerConnectedAccount,
+	answerConnectedAccountInTurn,
 	answerExecute,
 	answerInitiate,
 	answerTool,
@@ -170,28 +172,111 @@ describe("connecting a provider", () => {
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("keeps a connection another settle activated when a later answer says it failed", async () => {
+	it("finds a lost answer's account on a later page of Composio's listing", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		failInitiate();
+		answerAccountPages([
+			[{ id: "ca_other" }],
+			[{ id: "ca_lost", madeForLastAttempt: true }],
+		]);
+
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).rejects.toThrow();
+
+		expect(deletedAccounts()).toEqual(["ca_lost"]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("keeps looking for a lost answer's account until Composio lists it", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		failInitiate();
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).rejects.toThrow();
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "retiring", account: null },
+		]);
+
+		answerAccountMadeForLastAttempt("ca_late");
+		await listIntegrationsUseCase({ userId: owner.id, organizationId });
+
+		expect(deletedAccounts()).toEqual(["ca_late"]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("stops looking for a lost answer's account after an hour", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		failInitiate();
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).rejects.toThrow();
+		await clone.db
+			.update(integrationConnection)
+			.set({ createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) })
+			.where(eq(integrationConnection.organizationId, organizationId));
+
+		await listIntegrationsUseCase({ userId: owner.id, organizationId });
+
+		expect(deletedAccounts()).toEqual([]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("keeps a connection active when a later answer from Composio says it failed", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		// The second answer arrives after the first settle has activated the connection.
-		answerConnectedAccount(attempt.connectedAccountId, "FAILED", {
-			once: true,
-			delayMs: 500,
+		answerConnectedAccountInTurn(attempt.connectedAccountId, [
+			"ACTIVE",
+			"FAILED",
+		]);
+
+		await completeIntegrationConnectUseCase({
+			connectionId: attempt.connectionId,
 		});
-		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE", {
-			once: true,
+		await completeIntegrationConnectUseCase({
+			connectionId: attempt.connectionId,
 		});
+
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "active", account: attempt.connectedAccountId },
+		]);
+		expect(deletedAccounts()).toEqual([]);
+	});
+
+	it("asks Composio one settle at a time, whichever answer comes first", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		const reads = answerConnectedAccountInTurn(attempt.connectedAccountId, [
+			"FAILED",
+			"ACTIVE",
+		]);
 
 		await Promise.all([
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
 		]);
 
-		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
-			{ status: "active", account: attempt.connectedAccountId },
-		]);
-		expect(deletedAccounts()).toEqual([]);
+		// The first answer decided; the second settle found the row already settled and never asked.
+		expect(reads.mostAtOnce).toBe(1);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+		expect(deletedAccounts()).toEqual([attempt.connectedAccountId]);
 	});
 
 	it("activates the connection when Composio says it is live", async () => {

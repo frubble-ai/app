@@ -32,8 +32,8 @@ COPY packages/seed/package.json packages/seed/
 RUN yarn workspaces focus @frubble/backend --production
 
 # ---- builder: the full install, for the code generators ----
-# The GraphQL types and the resolver signatures are generated, never
-# committed. Only their output leaves this stage.
+# The GraphQL types, the resolver signatures and the Composio tool types are
+# generated, never committed. Only their output leaves this stage.
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS builder
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -53,7 +53,12 @@ COPY packages/seed/package.json packages/seed/
 RUN yarn install --immutable --mode=skip-build
 COPY packages/gql packages/gql/
 COPY apps/backend/codegen.yml apps/backend/
-RUN yarn workspace @frubble/gql codegen && yarn workspace @frubble/backend codegen
+# The Composio tool types come from Composio's schemas: the key arrives as a build secret, never
+# in a layer, with the schema patches they share with the runtime check.
+COPY apps/backend/codegen apps/backend/codegen/
+COPY apps/backend/src/use-cases/lib/composio apps/backend/src/use-cases/lib/composio/
+RUN --mount=type=secret,id=composio_api_key,env=COMPOSIO_API_KEY \
+    yarn workspace @frubble/gql codegen && yarn workspace @frubble/backend codegen
 
 # ---- runtime ----
 FROM oven/bun:1.4.4-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS runtime

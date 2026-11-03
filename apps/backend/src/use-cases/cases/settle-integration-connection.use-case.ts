@@ -31,25 +31,12 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 		if (!row || row.status === "retiring") return "failed";
 		if (row.status === "active") return "active";
 		// Composio is still creating the account.
-		if (!row.composioConnectedAccountId) return "pending";
+		const accountId = row.composioConnectedAccountId;
+		if (!accountId) return "pending";
 
-		let state: TConnectedAccountState;
-		try {
-			const account = await ctx.composio.connectedAccounts.get(
-				row.composioConnectedAccountId,
-			);
-			state = accountState(account.status);
-		} catch (err) {
-			ctx.logger.warn(
-				{ err, connectionId },
-				"Composio state unknown; the connection stays pending",
-			);
-			return "pending";
-		}
-		if (state === "pending") return "pending";
-
-		// Lock the row and look again: a newer connect, a disconnect or another settle may have
-		// changed it since it was read, and only a row still pending may change here.
+		// Composio is asked under the organization's lock, so answers are read one at a time and each
+		// acts on the row as the previous one left it: a later "failed" never retires a connection
+		// an earlier "live" activated, whichever settle asked first.
 		const settled = await ctx.db.transaction(async (tx) => {
 			// One settle per organization at a time, so two never lock its rows in opposite order.
 			await tx
@@ -65,6 +52,19 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 			// Another settle got here first: active is its success, retiring or gone is a failure.
 			if (current?.status === "active") return "active" as const;
 			if (current?.status !== "pending") return "failed" as const;
+
+			let state: TConnectedAccountState;
+			try {
+				const account = await ctx.composio.connectedAccounts.get(accountId);
+				state = accountState(account.status);
+			} catch (err) {
+				ctx.logger.warn(
+					{ err, connectionId },
+					"Composio state unknown; the connection stays pending",
+				);
+				return "pending" as const;
+			}
+			if (state === "pending") return "pending" as const;
 			if (state === "failed") {
 				await tx
 					.update(integrationConnection)
@@ -88,6 +88,7 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 				.where(eq(integrationConnection.id, row.id));
 			return "active" as const;
 		});
+		if (settled === "pending") return "pending";
 		await sweepRetiringIntegrationsUseCase({
 			organizationId: row.organizationId,
 		});

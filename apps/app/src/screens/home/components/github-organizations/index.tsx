@@ -15,7 +15,7 @@ export function GithubOrganizations({
 	const organizations = data?.githubOrganizations ?? [];
 
 	return (
-		<div className="preview" data-testid="github-organizations">
+		<div className="provider-read" data-testid="github-organizations">
 			<button
 				type="button"
 				disabled={loading}

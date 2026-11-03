@@ -286,11 +286,11 @@ button:disabled {
 }
 
 /* A connected tool's live read, under its row */
-.preview {
+.provider-read {
 	margin-top: 0.75rem;
 }
 
-.preview ul {
+.provider-read ul {
 	margin: 0.5rem 0 0;
 	padding-left: 1.1rem;
 	color: var(--muted);

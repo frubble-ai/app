@@ -10,7 +10,7 @@ export function LinearTeams({ organizationId }: { organizationId: string }) {
 	const teams = data?.linearTeams ?? [];
 
 	return (
-		<div className="preview" data-testid="linear-teams">
+		<div className="provider-read" data-testid="linear-teams">
 			<button
 				type="button"
 				disabled={loading}

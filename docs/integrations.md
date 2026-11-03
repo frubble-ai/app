@@ -42,6 +42,16 @@ the account stays there. One active row per organization and provider.
 4. Listing the organization's tools settles every pending row again, so a connection that went
    live after its callback shows.
 
+The callback is public: whoever holds the link can only make the API look again. The connection
+id is a random UUID that finds one row; the callback never takes a provider state or an account
+id from the request, and asks Composio instead. Opening it again after the row settled answers
+the same outcome and changes nothing.
+
+A row whose account id never arrived (Composio's answer to `initiate` was lost) is looked up at
+Composio by its alias, the row id, across every page of the organization's accounts, for an hour
+after the attempt; then it is dropped. Composio documents no expiry for an unfinished connection,
+so the hour is ours.
+
 Disconnecting retires every row for that provider, an unfinished attempt included, so an
 earlier consent's callback cannot bring the connection back. It answers success only once Composio
 confirms each removal; otherwise it fails, the provider is already off for the organization, and
@@ -57,6 +67,12 @@ Every result is checked against the tool's own output schema, fetched from Compo
 into Zod with `@composio/json-schema-to-zod` (`use-cases/lib/composio/lib/output-schema.ts`); a
 response the schema refuses fails the read. Where Composio's schema is wrong, the provider's
 folder in `use-cases/lib/composio/` patches only that schema, with the date and the reason.
+
+The same schemas, with the same patches, generate each tool's `data` type
+(`codegen/composio-tools.ts`, part of the backend's `codegen`, into `src/__generated__/composio/`,
+not committed). `executeTool` returns that type for its slug, so the reads use no hand-written
+shapes. Codegen needs `COMPOSIO_API_KEY`: locally from `apps/backend/.env.local`, in CI the
+repository secret, in the image build a BuildKit secret. A new tool is one line in its `TOOLS`.
 
 ## Composio setup
 

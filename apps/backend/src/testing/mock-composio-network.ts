@@ -133,20 +133,16 @@ export function answerExecute(
 	);
 }
 
-/**
- * `connectedAccounts.get` answers the account with `status` (every time, or `once`), after
- * `delayMs` when a test needs one answer to arrive after another.
- */
+/** `connectedAccounts.get` answers the account with `status` (every time, or `once`). */
 export function answerConnectedAccount(
 	connectedAccountId: string,
 	status: "INITIATED" | "ACTIVE" | "FAILED",
-	options: { once?: boolean; delayMs?: number } = {},
+	options: { once?: boolean } = {},
 ) {
 	composioNetwork.use(
 		http.get(
 			`${API}/connected_accounts/${connectedAccountId}`,
 			async () => {
-				if (options.delayMs) await delay(options.delayMs);
 				return HttpResponse.json(
 					generateComposioConnectedAccount(connectedAccountId, status),
 				);
@@ -168,26 +164,34 @@ export function failInitiate() {
 }
 
 /**
- * The organization's accounts at Composio include `connectedAccountId`, made for the last
- * `initiate` attempt (its alias is that attempt's), as when Composio's answer was lost.
+ * The organization's accounts at Composio, a page per entry: an entry with `madeForLastAttempt`
+ * is an account made for the last `initiate` (its alias is that attempt's), as when Composio's
+ * answer was lost. Every page but the last points to the next one.
  */
-export function answerAccountMadeForLastAttempt(connectedAccountId: string) {
+export function answerAccountPages(
+	pages: Array<Array<{ id: string; madeForLastAttempt?: boolean }>>,
+) {
 	composioNetwork.use(
-		http.get(`${API}/connected_accounts`, () => {
-			const alias = lastInitiateRequest()?.connection?.alias ?? null;
-			return HttpResponse.json(
-				accountList([
-					{
-						...generateComposioConnectedAccount(
-							connectedAccountId,
-							"INITIATED",
-						),
-						alias,
-					},
-				]),
+		http.get(`${API}/connected_accounts`, ({ request }) => {
+			const index = Number(
+				new URL(request.url).searchParams.get("cursor") ?? 0,
 			);
+			const alias = lastInitiateRequest()?.connection?.alias ?? null;
+			const items = (pages[index] ?? []).map((account) => ({
+				...generateComposioConnectedAccount(account.id, "INITIATED"),
+				alias: account.madeForLastAttempt ? alias : null,
+			}));
+			return HttpResponse.json({
+				...accountList(items),
+				next_cursor: index + 1 < pages.length ? String(index + 1) : null,
+			});
 		}),
 	);
+}
+
+/** The organization's accounts at Composio include one made for the last `initiate`. */
+export function answerAccountMadeForLastAttempt(connectedAccountId: string) {
+	answerAccountPages([[{ id: connectedAccountId, madeForLastAttempt: true }]]);
 }
 
 /** `connectedAccounts.get` fails once, as Composio would when unreachable. */
@@ -234,4 +238,29 @@ export function answerTool(tool: ReturnType<typeof generateComposioTool>) {
 	composioNetwork.use(
 		http.get(`${API}/tools/${tool.slug}`, () => HttpResponse.json(tool)),
 	);
+}
+
+/**
+ * `connectedAccounts.get` answers `statuses` in turn, each held briefly, and counts how many
+ * were in flight at once: what a test reads to prove settles ask Composio one at a time.
+ */
+export function answerConnectedAccountInTurn(
+	connectedAccountId: string,
+	statuses: Array<"INITIATED" | "ACTIVE" | "FAILED">,
+) {
+	const reads = { inFlight: 0, mostAtOnce: 0 };
+	const queue = [...statuses];
+	composioNetwork.use(
+		http.get(`${API}/connected_accounts/${connectedAccountId}`, async () => {
+			reads.inFlight += 1;
+			reads.mostAtOnce = Math.max(reads.mostAtOnce, reads.inFlight);
+			const status = queue.shift() ?? "ACTIVE";
+			await delay(50);
+			reads.inFlight -= 1;
+			return HttpResponse.json(
+				generateComposioConnectedAccount(connectedAccountId, status),
+			);
+		}),
+	);
+	return reads;
 }

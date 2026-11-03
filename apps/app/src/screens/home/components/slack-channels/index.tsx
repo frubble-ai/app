@@ -10,7 +10,7 @@ export function SlackChannels({ organizationId }: { organizationId: string }) {
 	const channels = data?.slackChannels ?? [];
 
 	return (
-		<div className="preview" data-testid="slack-channels">
+		<div className="provider-read" data-testid="slack-channels">
 			<button
 				type="button"
 				disabled={loading}

@@ -66,6 +66,8 @@ jobs:
           # The repository root, where the lockfile and workspace manifest live.
           context: .
           file: apps/backend/Dockerfile
+          secrets: |
+            composio_api_key=${{ secrets.COMPOSIO_API_KEY }}
           tags: frubble-backend:${{ github.sha }}
           build-args: |
             APP_VERSION=stg-${{ github.run_number }}

@@ -19,6 +19,7 @@
 	],
 	"tasks": {
 		"codegen": {
+			"passThroughEnv": ["COMPOSIO_API_KEY"],
 			"outputs": [
 				"src/__generated__/**",
 				"src/gql/documents.ts",
