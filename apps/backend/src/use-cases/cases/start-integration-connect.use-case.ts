@@ -67,15 +67,17 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			connectedById: userId,
 		});
 
-		const session = await openSession(ctx.composio, {
+		// No account exists until `authorize` answers: a failure up to then only drops our row.
+		const request = await openSession(ctx.composio, {
 			organizationId,
 			toolkit: provider,
 			authConfigId: ctx.config.composio.authConfigIds[provider],
-		});
-		const request = await session
-			.authorize(provider, {
-				callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
-			})
+		})
+			.then((session) =>
+				session.authorize(provider, {
+					callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
+				}),
+			)
 			.catch(async (err: unknown) => {
 				await ctx.db
 					.delete(integrationConnection)

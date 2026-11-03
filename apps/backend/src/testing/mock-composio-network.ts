@@ -163,3 +163,12 @@ export function answerTool(tool: ReturnType<typeof generateComposioTool>) {
 		http.get(`${API}/tools/${tool.slug}`, () => HttpResponse.json(tool)),
 	);
 }
+
+/** Opening a session fails, as Composio would when down. */
+export function failSessions() {
+	composioNetwork.use(
+		http.post(`${API}/tool_router/session`, () =>
+			HttpResponse.json({ error: "down" }, { status: 400 }),
+		),
+	);
+}

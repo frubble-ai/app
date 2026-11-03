@@ -43,7 +43,8 @@
 			"empty": "No channels to show.",
 			"private": "private",
 			"public": "public",
-			"members": "{{count}} members"
+			"members_one": "{{count}} member",
+			"members_other": "{{count}} members"
 		}
 	},
 	"members": {

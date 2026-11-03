@@ -12,6 +12,7 @@ import {
 	deletedAccounts,
 	failConnectedAccount,
 	failDelete,
+	failSessions,
 	lastCallbackUrl,
 	restoreDelete,
 } from "@/testing/mock-composio-network";
@@ -145,6 +146,22 @@ describe("connecting a provider", () => {
 		).rejects.toThrow();
 
 		expect(deletedAccounts()).toEqual(["ca_no_page"]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("drops its pending row when Composio cannot open the session", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		failSessions();
+
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).rejects.toThrow();
+
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
