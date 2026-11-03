@@ -2,7 +2,7 @@ import { integrationConnection } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import { settleConnection } from "@/use-cases/lib/integrations/connections";
+import { settleIntegrationConnectionUseCase } from "@/use-cases/cases/settle-integration-connection.use-case";
 
 const connectionIdSchema = z.uuid();
 
@@ -37,7 +37,9 @@ export const completeIntegrationConnectUseCase = defineUseCase(
 			.limit(1);
 		if (!row) return back({ integration_status: "failed" });
 
-		const state = await settleConnection(ctx, row);
+		const state = await settleIntegrationConnectionUseCase({
+			connectionId: row.id,
+		});
 		return back({
 			integration: row.provider,
 			integration_status: OUTCOMES[state],

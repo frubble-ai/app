@@ -56,12 +56,13 @@ async function startConnecting(
 	args: { userId: string; organizationId: string },
 ) {
 	const connectedAccountId = `ca_${faker.string.alphanumeric(10)}`;
-	clone.integrations.link.mockResolvedValueOnce({
-		connectedAccountId,
+	clone.composio.connectedAccounts.initiate.mockResolvedValueOnce({
+		id: connectedAccountId,
 		redirectUrl: "https://consent.example/github",
 	});
 	await startIntegrationConnectUseCase({ ...args, provider: "github" });
-	const callbackUrl = clone.integrations.link.mock.lastCall?.[0].callbackUrl;
+	const callbackUrl =
+		clone.composio.connectedAccounts.initiate.mock.lastCall?.[2].callbackUrl;
 	return {
 		connectionId:
 			new URL(callbackUrl ?? "").searchParams.get("connection") ?? "",
@@ -74,7 +75,9 @@ async function connected(
 	args: { userId: string; organizationId: string },
 ) {
 	const attempt = await startConnecting(clone, args);
-	clone.integrations.getState.mockResolvedValueOnce("active");
+	clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+		status: "ACTIVE",
+	});
 	await completeIntegrationConnectUseCase({
 		connectionId: attempt.connectionId,
 	});
@@ -85,8 +88,8 @@ describe("connecting a provider", () => {
 	it("links the organization at Composio with our callback, connected only once it finishes", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		clone.integrations.link.mockResolvedValueOnce({
-			connectedAccountId: "ca_1",
+		clone.composio.connectedAccounts.initiate.mockResolvedValueOnce({
+			id: "ca_1",
 			redirectUrl: "https://consent.example/github",
 		});
 
@@ -97,13 +100,16 @@ describe("connecting a provider", () => {
 		});
 
 		expect(result).toEqual({ redirectUrl: "https://consent.example/github" });
-		expect(clone.integrations.link).toHaveBeenCalledWith({
+		expect(clone.composio.connectedAccounts.initiate).toHaveBeenCalledWith(
 			organizationId,
-			provider: "github",
-			callbackUrl: expect.stringMatching(
-				/^http:\/\/localhost:8080\/integrations\/callback\?connection=[0-9a-f-]{36}$/,
-			),
-		});
+			"ac_test_github",
+			{
+				callbackUrl: expect.stringMatching(
+					/^http:\/\/localhost:8080\/integrations\/callback\?connection=[0-9a-f-]{36}$/,
+				),
+				allowMultiple: true,
+			},
+		);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
 		).resolves.toEqual([]);
@@ -116,7 +122,9 @@ describe("connecting a provider", () => {
 			userId: owner.id,
 			organizationId,
 		});
-		clone.integrations.getState.mockResolvedValueOnce("active");
+		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+			status: "ACTIVE",
+		});
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId }),
@@ -139,7 +147,7 @@ describe("connecting a provider", () => {
 
 		const second = await connected(clone, args);
 
-		expect(clone.integrations.remove).toHaveBeenCalledWith(
+		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
 			first.connectedAccountId,
 		);
 		const rows = await clone.db
@@ -158,7 +166,9 @@ describe("connecting a provider", () => {
 			userId: owner.id,
 			organizationId,
 		});
-		clone.integrations.getState.mockResolvedValueOnce("failed");
+		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+			status: "FAILED",
+		});
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -166,7 +176,7 @@ describe("connecting a provider", () => {
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=failed",
 		});
-		expect(clone.integrations.remove).toHaveBeenCalledWith(
+		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
 			attempt.connectedAccountId,
 		);
 	});
@@ -176,7 +186,9 @@ describe("connecting a provider", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		const first = await connected(clone, args);
-		clone.integrations.remove.mockRejectedValueOnce(new Error("Composio down"));
+		clone.composio.connectedAccounts.delete.mockRejectedValueOnce(
+			new Error("Composio down"),
+		);
 
 		await connected(clone, args);
 		const retiring = await clone.db
@@ -201,14 +213,18 @@ describe("connecting a provider", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		const { connectionId } = await startConnecting(clone, args);
-		clone.integrations.getState.mockResolvedValueOnce("pending");
+		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+			status: "INITIATED",
+		});
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId }),
 		).resolves.toEqual({
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=pending",
 		});
-		clone.integrations.getState.mockResolvedValueOnce("active");
+		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+			status: "ACTIVE",
+		});
 
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([
 			{ provider: "github", connectedAt: expect.anything() },
@@ -222,7 +238,9 @@ describe("connecting a provider", () => {
 			userId: owner.id,
 			organizationId,
 		});
-		clone.integrations.getState.mockRejectedValueOnce(new Error("timeout"));
+		clone.composio.connectedAccounts.get.mockRejectedValueOnce(
+			new Error("timeout"),
+		);
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId }),
@@ -264,7 +282,7 @@ describe("connecting a provider", () => {
 				provider: "slack",
 			}),
 		).rejects.toMatchObject({ name: "NotFoundError" });
-		expect(clone.integrations.link).not.toHaveBeenCalled();
+		expect(clone.composio.connectedAccounts.initiate).not.toHaveBeenCalled();
 	});
 });
 
@@ -277,8 +295,11 @@ describe("using a connection", () => {
 			organizationId,
 		});
 		const joined = await plainMember(clone, owner, organizationId);
-		const items = [{ id: "1", name: "frubble-ai" }];
-		clone.integrations.preview.mockResolvedValueOnce(items);
+		clone.composio.tools.execute.mockResolvedValueOnce({
+			successful: true,
+			error: null,
+			data: { details: [{ id: 1, login: "frubble-ai" }] },
+		});
 
 		await expect(
 			previewIntegrationUseCase({
@@ -286,12 +307,16 @@ describe("using a connection", () => {
 				organizationId,
 				provider: "github",
 			}),
-		).resolves.toEqual(items);
-		expect(clone.integrations.preview).toHaveBeenCalledWith({
-			organizationId,
-			provider: "github",
-			connectedAccountId,
-		});
+		).resolves.toEqual([{ id: "1", name: "frubble-ai" }]);
+		expect(clone.composio.tools.execute).toHaveBeenCalledWith(
+			"GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER",
+			{
+				userId: organizationId,
+				connectedAccountId,
+				version: "20261023_00",
+				arguments: { per_page: 50 },
+			},
+		);
 	});
 
 	it("says a provider that is not connected is not found", async () => {
@@ -315,7 +340,9 @@ describe("using a connection", () => {
 		const attempt = await startConnecting(clone, args);
 
 		await disconnectIntegrationUseCase({ ...args, provider: "github" });
-		clone.integrations.getState.mockResolvedValueOnce("active");
+		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+			status: "ACTIVE",
+		});
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -323,7 +350,7 @@ describe("using a connection", () => {
 			redirectUrl: "http://localhost:3000/?integration_status=failed",
 		});
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
-		expect(clone.integrations.remove).toHaveBeenCalledWith(
+		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
 			attempt.connectedAccountId,
 		);
 	});
@@ -335,7 +362,9 @@ describe("using a connection", () => {
 			userId: owner.id,
 			organizationId,
 		});
-		clone.integrations.getState.mockResolvedValue("active");
+		clone.composio.connectedAccounts.get.mockResolvedValue({
+			status: "ACTIVE",
+		});
 
 		const outcomes = await Promise.all([
 			completeIntegrationConnectUseCase({ connectionId }),
@@ -360,11 +389,15 @@ describe("using a connection", () => {
 		const args = { userId: owner.id, organizationId };
 		await connected(clone, args);
 		const attempt = await startConnecting(clone, args);
-		clone.integrations.remove.mockRejectedValue(new Error("Composio down"));
+		clone.composio.connectedAccounts.delete.mockRejectedValue(
+			new Error("Composio down"),
+		);
 		await expect(
 			disconnectIntegrationUseCase({ ...args, provider: "github" }),
 		).rejects.toMatchObject({ name: "InternalServerError" });
-		clone.integrations.getState.mockResolvedValueOnce("active");
+		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
+			status: "ACTIVE",
+		});
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -384,19 +417,23 @@ describe("using a connection", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		await connected(clone, args);
-		clone.integrations.link.mockImplementationOnce(async () => {
-			await disconnectIntegrationUseCase({ ...args, provider: "github" });
-			return {
-				connectedAccountId: "ca_overtaken",
-				redirectUrl: "https://consent.example/github",
-			};
-		});
+		clone.composio.connectedAccounts.initiate.mockImplementationOnce(
+			async () => {
+				await disconnectIntegrationUseCase({ ...args, provider: "github" });
+				return {
+					id: "ca_overtaken",
+					redirectUrl: "https://consent.example/github",
+				};
+			},
+		);
 
 		await expect(
 			startIntegrationConnectUseCase({ ...args, provider: "github" }),
 		).rejects.toMatchObject({ name: "BadInputError" });
 
-		expect(clone.integrations.remove).toHaveBeenCalledWith("ca_overtaken");
+		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
+			"ca_overtaken",
+		);
 		const left = await clone.db
 			.select()
 			.from(integrationConnection)
@@ -409,16 +446,18 @@ describe("using a connection", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		await connected(clone, args);
-		clone.integrations.link.mockImplementationOnce(async () => {
-			await disconnectIntegrationUseCase({ ...args, provider: "github" });
-			clone.integrations.remove.mockRejectedValueOnce(
-				new Error("Composio down"),
-			);
-			return {
-				connectedAccountId: "ca_overtaken",
-				redirectUrl: "https://consent.example/github",
-			};
-		});
+		clone.composio.connectedAccounts.initiate.mockImplementationOnce(
+			async () => {
+				await disconnectIntegrationUseCase({ ...args, provider: "github" });
+				clone.composio.connectedAccounts.delete.mockRejectedValueOnce(
+					new Error("Composio down"),
+				);
+				return {
+					id: "ca_overtaken",
+					redirectUrl: "https://consent.example/github",
+				};
+			},
+		);
 
 		await expect(
 			startIntegrationConnectUseCase({ ...args, provider: "github" }),
@@ -435,7 +474,7 @@ describe("using a connection", () => {
 
 		await listIntegrationsUseCase(args);
 
-		const removals = clone.integrations.remove.mock.calls.filter(
+		const removals = clone.composio.connectedAccounts.delete.mock.calls.filter(
 			([accountId]) => accountId === "ca_overtaken",
 		);
 		expect(removals).toHaveLength(2);
@@ -452,7 +491,9 @@ describe("using a connection", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		await connected(clone, args);
-		clone.integrations.remove.mockRejectedValueOnce(new Error("Composio down"));
+		clone.composio.connectedAccounts.delete.mockRejectedValueOnce(
+			new Error("Composio down"),
+		);
 
 		await expect(
 			disconnectIntegrationUseCase({ ...args, provider: "github" }),
@@ -480,7 +521,9 @@ describe("using a connection", () => {
 			provider: "github",
 		});
 
-		expect(clone.integrations.remove).toHaveBeenCalledWith(connectedAccountId);
+		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
+			connectedAccountId,
+		);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
 		).resolves.toEqual([]);

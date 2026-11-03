@@ -4,7 +4,7 @@ import { buildApp } from "@/services/api/app";
 import { buildYoga } from "@/services/api/graphql";
 import { stopOnSignal } from "@/shared/shutdown";
 import { initUseCaseContext } from "@/use-cases";
-import { buildUseCaseContext } from "@/use-cases/lib/shared/build-use-case-context";
+import { buildUseCaseContext } from "@/use-cases/build-use-case-context";
 
 // Validates env at boot, so a missing key fails startup rather than a request.
 const config = getConfig();

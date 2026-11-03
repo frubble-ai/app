@@ -2,7 +2,7 @@ import { runSeed } from "@frubble/seed";
 import { z } from "zod";
 import { envVar } from "@/shared/env";
 import { initUseCaseContext } from "@/use-cases";
-import { buildUseCaseContext } from "@/use-cases/lib/shared/build-use-case-context";
+import { buildUseCaseContext } from "@/use-cases/build-use-case-context";
 
 // Seeds the local database through the API's own Better Auth, so seeded users are real sign-ups.
 //   yarn db:seed

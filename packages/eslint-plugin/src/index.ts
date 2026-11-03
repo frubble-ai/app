@@ -3,6 +3,7 @@ import folderStructure from "./rules/folder-structure.ts";
 import kebabCaseFolders from "./rules/kebab-case-folders.ts";
 import noRelativeParentImports from "./rules/no-relative-parent-imports.ts";
 import placement from "./rules/placement.ts";
+import useCaseLib from "./rules/use-case-lib.ts";
 
 interface FrubblePlugin {
 	meta: { name: string; version: string };
@@ -20,6 +21,7 @@ const plugin: FrubblePlugin = {
 		"folder-structure": folderStructure,
 		"kebab-case-folders": kebabCaseFolders,
 		"no-relative-parent-imports": noRelativeParentImports,
+		"use-case-lib": useCaseLib,
 	},
 	configs: {},
 };
@@ -31,6 +33,7 @@ plugin.configs.recommended = {
 		"@frubble/folder-structure": "error",
 		"@frubble/kebab-case-folders": "error",
 		"@frubble/no-relative-parent-imports": "error",
+		"@frubble/use-case-lib": "error",
 	},
 };
 

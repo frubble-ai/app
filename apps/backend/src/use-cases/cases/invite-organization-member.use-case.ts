@@ -37,7 +37,7 @@ export const inviteOrganizationMemberUseCase = defineUseCase(
 		expiresAt: DateTime;
 	}> {
 		const parsed = inviteOrganizationMemberArgsSchema.parse(args);
-		const membership = await requireMembership(ctx, {
+		const membership = await requireMembership(ctx.db, {
 			userId: parsed.userId,
 			organizationId: parsed.organizationId,
 			roles: MANAGER_ROLES,

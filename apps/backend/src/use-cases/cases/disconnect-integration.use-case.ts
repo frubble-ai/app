@@ -2,10 +2,10 @@ import { integrationConnection, type TIntegrationProvider } from "@frubble/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
+import { retireIntegrationConnectionsUseCase } from "@/use-cases/cases/retire-integration-connections.use-case";
 import {
 	integrationProviderSchema,
 	requireActiveConnection,
-	retireConnections,
 } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -37,12 +37,12 @@ export const disconnectIntegrationUseCase = defineUseCase(
 	): Promise<void> {
 		const { userId, organizationId, provider } =
 			disconnectIntegrationArgsSchema.parse(args);
-		await requireMembership(ctx, {
+		await requireMembership(ctx.db, {
 			userId,
 			organizationId,
 			roles: MANAGER_ROLES,
 		});
-		await requireActiveConnection(ctx, { organizationId, provider });
+		await requireActiveConnection(ctx.db, { organizationId, provider });
 		const rows = await ctx.db
 			.select({ id: integrationConnection.id })
 			.from(integrationConnection)
@@ -53,7 +53,10 @@ export const disconnectIntegrationUseCase = defineUseCase(
 				),
 			);
 		const ids = rows.map((row) => row.id);
-		await retireConnections(ctx, organizationId, ids);
+		await retireIntegrationConnectionsUseCase({
+			organizationId,
+			connectionIds: ids,
+		});
 
 		const unconfirmed = await ctx.db
 			.select({ id: integrationConnection.id })

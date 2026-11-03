@@ -5,10 +5,7 @@ import {
 	createCapturedMessages,
 	type TCapturedMessages,
 } from "./capture-messages";
-import {
-	createMockIntegrationsClient,
-	type TMockIntegrationsClient,
-} from "./mock-integrations-client";
+import { createMockComposio, type TMockComposio } from "./mock-composio";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -31,7 +28,7 @@ export type TTestClone = {
 	sessionCache: ReturnType<typeof buildTestAuth>["sessionCache"];
 	captured: TCapturedMessages;
 	/** Composio: never called for real in tests. */
-	integrations: TMockIntegrationsClient;
+	composio: TMockComposio;
 	cleanup: () => Promise<void>;
 };
 
@@ -66,7 +63,7 @@ export async function cloneForTest(
 	const config: TConfig = { ...buildTestConfig(), ...options.config };
 	const { auth, sessionCache } = buildTestAuth(clone.db, config);
 	const captured = createCapturedMessages();
-	const integrations = createMockIntegrationsClient();
+	const composio = createMockComposio();
 
 	setConfigForTests(config);
 	setCtxForTests({
@@ -75,7 +72,7 @@ export async function cloneForTest(
 		messages: captured.messages,
 		auth,
 		sessionCache,
-		integrations,
+		composio: composio.client,
 		logger: testLogger,
 	});
 
@@ -84,7 +81,7 @@ export async function cloneForTest(
 		auth,
 		sessionCache,
 		captured,
-		integrations,
+		composio,
 		async cleanup() {
 			resetCtx();
 			await clone.cleanup();

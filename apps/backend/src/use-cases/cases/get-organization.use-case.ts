@@ -40,7 +40,10 @@ export const getOrganizationUseCase = defineUseCase(
 		args: { userId: string; organizationId: string },
 	): Promise<TOrganizationDetails> {
 		const { userId, organizationId } = getOrganizationArgsSchema.parse(args);
-		const membership = await requireMembership(ctx, { userId, organizationId });
+		const membership = await requireMembership(ctx.db, {
+			userId,
+			organizationId,
+		});
 
 		const members = await ctx.db
 			.select({

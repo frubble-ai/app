@@ -41,7 +41,11 @@ export const changePasswordUseCase = defineUseCase(
 		const { userId, headers, currentPassword, newPassword } =
 			changePasswordArgsSchema.parse(args);
 		// Proving the current password counts as a sign-in attempt.
-		await enforceSignInAgainLimit(ctx, userId);
+		await enforceSignInAgainLimit(
+			ctx.db,
+			ctx.config.authRateLimits.perEmail,
+			userId,
+		);
 
 		const result = await ctx.auth.api
 			.changePassword({

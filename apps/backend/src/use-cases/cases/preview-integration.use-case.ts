@@ -1,7 +1,11 @@
 import type { TIntegrationProvider } from "@frubble/db";
 import { z } from "zod";
-import type { TIntegrationPreviewItem } from "@/composio";
+
 import { defineUseCase } from "@/use-cases";
+import {
+	PREVIEWS,
+	type TIntegrationPreviewItem,
+} from "@/use-cases/lib/composio";
 import {
 	integrationProviderSchema,
 	requireActiveConnection,
@@ -32,14 +36,13 @@ export const previewIntegrationUseCase = defineUseCase(
 	): Promise<TIntegrationPreviewItem[]> {
 		const { userId, organizationId, provider } =
 			previewIntegrationArgsSchema.parse(args);
-		await requireMembership(ctx, { userId, organizationId });
-		const connection = await requireActiveConnection(ctx, {
+		await requireMembership(ctx.db, { userId, organizationId });
+		const connection = await requireActiveConnection(ctx.db, {
 			organizationId,
 			provider,
 		});
-		return ctx.integrations.preview({
+		return PREVIEWS[provider](ctx.composio, {
 			organizationId,
-			provider,
 			connectedAccountId: connection.composioConnectedAccountId,
 		});
 	},

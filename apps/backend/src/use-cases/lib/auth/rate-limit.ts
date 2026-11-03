@@ -62,13 +62,14 @@ export async function enforceRateLimits(
 
 /** A signed-in user's attempt to prove their password again (changing it), under the per-email rule. */
 export async function enforceSignInAgainLimit(
-	ctx: { db: TDb; config: { authRateLimits: { perEmail: TRateLimitRule } } },
+	db: TDb,
+	perEmail: TRateLimitRule,
 	userId: string,
 ): Promise<void> {
-	await enforceRateLimits(ctx.db, [
+	await enforceRateLimits(db, [
 		{
 			key: `sign-in-again:user:${userId}`,
-			rule: ctx.config.authRateLimits.perEmail,
+			rule: perEmail,
 		},
 	]);
 }

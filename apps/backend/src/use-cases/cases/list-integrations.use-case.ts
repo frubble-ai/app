@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import { settlePendingConnections } from "@/use-cases/lib/integrations/connections";
+import { settlePendingIntegrationsUseCase } from "@/use-cases/cases/settle-pending-integrations.use-case";
 import {
 	betterAuthIdSchema,
 	requireMembership,
@@ -24,8 +24,8 @@ export const listIntegrationsUseCase = defineUseCase(
 		args: { userId: string; organizationId: string },
 	): Promise<Array<{ provider: TIntegrationProvider; connectedAt: DateTime }>> {
 		const { userId, organizationId } = listIntegrationsArgsSchema.parse(args);
-		await requireMembership(ctx, { userId, organizationId });
-		await settlePendingConnections(ctx, organizationId);
+		await requireMembership(ctx.db, { userId, organizationId });
+		await settlePendingIntegrationsUseCase({ organizationId });
 		const rows = await ctx.db
 			.select({
 				provider: integrationConnection.provider,

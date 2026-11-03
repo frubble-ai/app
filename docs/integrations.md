@@ -18,8 +18,9 @@ address it went to can accept it, once verified.
 ## Integrations
 
 Composio connects each organization's GitHub, Linear and Slack and keeps their tokens fresh.
-`src/composio/` is the only code that imports its SDK; use cases reach it as
-`ctx.integrations`. Each connected account belongs to the organization id at Composio.
+Use cases call it through `ctx.composio`, the SDK client set up with the project's key
+([use cases](style-guide/use-cases.md)); `use-cases/lib/composio/` holds each provider's tools.
+Each connected account belongs to the organization id at Composio.
 
 `integration_connection` records which connected account an organization uses per provider:
 `pending` while the provider's consent is open, `active` after it, `retiring` once replaced,
@@ -47,7 +48,7 @@ the removal is retried.
 
 `integrationPreview` runs one read per provider to prove a connection works: GitHub
 organizations, Linear teams, Slack channels. The tools' versions are pinned in
-`src/composio/lib/preview-tools.ts`.
+each provider's folder in `use-cases/lib/composio/`.
 
 ## Composio setup
 

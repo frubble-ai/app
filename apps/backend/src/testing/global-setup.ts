@@ -9,7 +9,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { setConfigForTests } from "@/config";
 import { resetCtx, setCtxForTests } from "@/use-cases";
 import { createCapturedMessages } from "./capture-messages";
-import { createMockIntegrationsClient } from "./mock-integrations-client";
+import { createMockComposio } from "./mock-composio";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -55,7 +55,7 @@ export async function setup(): Promise<void> {
 		messages: captured.messages,
 		auth,
 		sessionCache,
-		integrations: createMockIntegrationsClient(),
+		composio: createMockComposio().client,
 		logger: testLogger,
 	});
 
