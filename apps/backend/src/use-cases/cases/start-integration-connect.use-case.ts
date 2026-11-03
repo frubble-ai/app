@@ -91,7 +91,17 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			.where(eq(integrationConnection.id, id))
 			.returning({ status: integrationConnection.status });
 		if (row?.status !== "pending") {
-			if (!row) await ctx.integrations.remove(connectedAccountId);
+			// Gone already: a retiring row records the account, so a failed removal is retried.
+			if (!row) {
+				await ctx.db.insert(integrationConnection).values({
+					id,
+					organizationId,
+					provider,
+					status: "retiring",
+					composioConnectedAccountId: connectedAccountId,
+					connectedById: userId,
+				});
+			}
 			await sweepRetiring(ctx, organizationId);
 			throw badInput(
 				`${provider} was disconnected while connecting; start again.`,
