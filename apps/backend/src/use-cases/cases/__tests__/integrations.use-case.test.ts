@@ -434,7 +434,17 @@ describe("using a connection", () => {
 		expect(left).toEqual([{ status: "retiring", account: "ca_overtaken" }]);
 
 		await listIntegrationsUseCase(args);
-		expect(clone.integrations.remove).toHaveBeenLastCalledWith("ca_overtaken");
+
+		const removals = clone.integrations.remove.mock.calls.filter(
+			([accountId]) => accountId === "ca_overtaken",
+		);
+		expect(removals).toHaveLength(2);
+		await expect(
+			clone.db
+				.select()
+				.from(integrationConnection)
+				.where(eq(integrationConnection.organizationId, organizationId)),
+		).resolves.toEqual([]);
 	});
 
 	it("does not report a disconnect Composio has not confirmed, and keeps retrying it", async () => {
