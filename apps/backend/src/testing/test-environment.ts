@@ -29,6 +29,15 @@ export function buildTestConfig(): TConfig {
 		},
 		cors: { origin: ["http://localhost:3000"] },
 		publicUrl: "http://localhost:8080",
+		appUrl: "http://localhost:3000",
+		composio: {
+			apiKey: "test-composio-key",
+			authConfigIds: {
+				github: "ac_test_github",
+				linear: "ac_test_linear",
+				slack: "ac_test_slack",
+			},
+		},
 		pubsub: { emailsTopic: "emails" },
 		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },
 		...staticConfigSections(),

@@ -1,4 +1,54 @@
 {
 	"title": "Hi, {{name}}",
-	"description": "Welcome to Frubble."
+	"description": "Connect your team's tools to Frubble.",
+	"organizations": {
+		"firstTitle": "Create your organization",
+		"firstDescription": "Your organization holds your team and the tools it connects.",
+		"nameLabel": "Organization name",
+		"create": "Create organization",
+		"createFailed": "We couldn't create the organization. Try again.",
+		"current": "Organization",
+		"new": "New organization"
+	},
+	"integrations": {
+		"title": "Connected tools",
+		"names": {
+			"github": "GitHub",
+			"linear": "Linear",
+			"slack": "Slack"
+		},
+		"checking": "Checking…",
+		"connected": "Connected",
+		"notConnected": "Not connected",
+		"connect": "Connect",
+		"reconnect": "Reconnect",
+		"disconnect": "Disconnect",
+		"actionFailed": "That didn't work. Try again.",
+		"previewAction": {
+			"github": "List GitHub organizations",
+			"linear": "List Linear teams",
+			"slack": "List Slack channels"
+		},
+		"previewFailed": "We couldn't read from this tool. Reconnect it and try again.",
+		"previewEmpty": "Nothing to show.",
+		"outcome": {
+			"connected": "Connected.",
+			"pending": "Still connecting. Refresh in a moment.",
+			"failed": "The connection didn't go through. Try again."
+		}
+	},
+	"members": {
+		"title": "People",
+		"invited": "Invited",
+		"emailLabel": "Email",
+		"roleLabel": "Role",
+		"invite": "Send invitation",
+		"inviteFailed": "We couldn't send the invitation. Try again.",
+		"sent": "Invitation sent."
+	},
+	"roles": {
+		"OWNER": "Owner",
+		"ADMIN": "Admin",
+		"MEMBER": "Member"
+	}
 }

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { logger } from "@/logger";
+import { buildHttp } from "@/services/api/http";
 
 /** What the deploy reads from `GET /` to know which commit serves. */
 export const meta = {
@@ -10,7 +11,7 @@ export const meta = {
 
 type TYogaLike = { handle: (request: Request) => Promise<Response> | Response };
 
-/** The HTTP app: the meta route, the dependency-free health check and GraphQL. */
+/** The HTTP app: the meta route, the dependency-free health check, GraphQL and `http/`'s routes. */
 export function buildApp({ yoga }: { yoga: TYogaLike }) {
 	const app = new Hono();
 
@@ -22,6 +23,8 @@ export function buildApp({ yoga }: { yoga: TYogaLike }) {
 	);
 
 	app.all("/graphql", (context) => yoga.handle(context.req.raw));
+
+	app.route("/", buildHttp());
 
 	app.notFound((context) =>
 		context.json({ error: "not_found", path: context.req.path }, 404),

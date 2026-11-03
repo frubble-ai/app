@@ -1,0 +1,5 @@
+mutation AcceptOrganizationInvitation($invitationId: String!) {
+	acceptOrganizationInvitation(invitationId: $invitationId) {
+		organizationId
+	}
+}

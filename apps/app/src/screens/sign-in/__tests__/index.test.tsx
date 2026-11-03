@@ -118,4 +118,17 @@ describe("SignInScreen", () => {
 			"/reset-password",
 		);
 	});
+
+	it("keeps the page to return to on the link to sign-up", () => {
+		signedOut();
+
+		renderWithProviders(<SignInScreen />, {
+			path: "/sign-in?from=%2Finvitations%2Fabc",
+		});
+
+		expect(screen.getByTestId("sign-in-sign-up")).toHaveAttribute(
+			"href",
+			"/sign-up?from=%2Finvitations%2Fabc",
+		);
+	});
 });

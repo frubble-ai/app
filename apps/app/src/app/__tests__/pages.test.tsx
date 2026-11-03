@@ -1,6 +1,7 @@
 import { useAuth } from "@frubble/react-sdk";
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import AcceptInvitationPage from "@/app/(signed-in)/invitations/[id]/page";
 import HomePage from "@/app/(signed-in)/page";
 import ResetPasswordPage from "@/app/reset-password/page";
 import SignInPage from "@/app/sign-in/page";
@@ -14,6 +15,7 @@ vi.mock("@/screens/sign-in");
 vi.mock("@/screens/sign-up");
 vi.mock("@/screens/reset-password");
 vi.mock("@/screens/home");
+vi.mock("@/screens/accept-invitation");
 
 describe("pages", () => {
 	beforeEach(() => {
@@ -25,6 +27,7 @@ describe("pages", () => {
 		["/sign-up", SignUpPage, "sign-up-screen"],
 		["/reset-password", ResetPasswordPage, "reset-password-screen"],
 		["/", HomePage, "home-screen"],
+		["/invitations/abc", AcceptInvitationPage, "accept-invitation-screen"],
 	])("%s renders its screen", (path, Page, testId) => {
 		renderWithProviders(<Page />, { path });
 

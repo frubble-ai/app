@@ -1,0 +1,7 @@
+query MyOrganizations {
+	myOrganizations {
+		id
+		name
+		role
+	}
+}
