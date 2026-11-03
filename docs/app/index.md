@@ -1,7 +1,9 @@
 # App
 
-`apps/app` is the web app, at `app.<env>.frubble.ai`. Today it signs a user up, in
-and out, resets a forgotten password, and shows a home page.
+`apps/app` is the web app, at `app.<env>.frubble.ai`. It signs a user up, in
+and out, resets a forgotten password, and on the home page creates or picks the organization,
+connects its tools and invites people ([integrations](../integrations.md)); `/invitations/[id]`
+accepts an invitation.
 
 ## Stack, and why
 

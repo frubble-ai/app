@@ -89,6 +89,33 @@ describe("HomeScreen", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("reads through a connected tool on demand and lists what it returned", async () => {
+		const organization = generateOrganization(OrganizationRole.Member);
+		mockMyOrganizations([organization]);
+		mockIntegrations([IntegrationProvider.Slack]);
+		const { loadPreview } = mockOrganizationActions({
+			integrationPreview: [
+				{ id: "C1", name: "general" },
+				{ id: "C2", name: "design" },
+			],
+		});
+		renderWithProviders(<HomeScreen />);
+
+		await userEvent.click(screen.getByTestId("integration-preview-load-slack"));
+
+		expect(loadPreview).toHaveBeenCalledWith({
+			variables: {
+				input: {
+					organizationId: organization.id,
+					provider: IntegrationProvider.Slack,
+				},
+			},
+		});
+		expect(
+			screen.getByTestId("integration-preview-items-slack"),
+		).toHaveTextContent("generaldesign");
+	});
+
 	it("gives a plain member no connect or invite controls", () => {
 		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
 

@@ -14,8 +14,11 @@ vi.mock("next/navigation", async (importOriginal) => ({
 	useParams: vi.fn(),
 }));
 
-function accepting(result: Promise<unknown>) {
-	const accept = vi.fn().mockReturnValue(result);
+function accepting(result: { data: unknown } | Error) {
+	const accept =
+		result instanceof Error
+			? vi.fn().mockRejectedValue(result)
+			: vi.fn().mockResolvedValue(result);
 	vi.mocked(useAcceptOrganizationInvitationMutation).mockReturnValue([
 		accept,
 		{ loading: false },
@@ -31,11 +34,9 @@ describe("AcceptInvitationScreen", () => {
 	});
 
 	it("accepts and lands in the organization", async () => {
-		const accept = accepting(
-			Promise.resolve({
-				data: { acceptOrganizationInvitation: { organizationId: "org-9" } },
-			}),
-		);
+		const accept = accepting({
+			data: { acceptOrganizationInvitation: { organizationId: "org-9" } },
+		});
 		renderWithProviders(<AcceptInvitationScreen />, {
 			path: "/invitations/invite-123",
 			routes: ["/"],
@@ -52,11 +53,9 @@ describe("AcceptInvitationScreen", () => {
 
 	it("says when the invitation went to another address", async () => {
 		accepting(
-			Promise.reject(
-				new CombinedGraphQLErrors({
-					errors: [{ message: "no", extensions: { code: "FORBIDDEN" } }],
-				}),
-			),
+			new CombinedGraphQLErrors({
+				errors: [{ message: "no", extensions: { code: "FORBIDDEN" } }],
+			}),
 		);
 		renderWithProviders(<AcceptInvitationScreen />, {
 			path: "/invitations/invite-123",
