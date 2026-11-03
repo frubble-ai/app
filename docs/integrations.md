@@ -28,12 +28,13 @@ failed or abandoned. A retiring row stays until Composio confirms the account is
 every list of the organization's tools tries the removal again; while Composio keeps failing,
 the account stays there. One active row per organization and provider.
 
-1. `startIntegrationConnect` writes a pending row, then asks Composio for an account and a link
-   back to `<API>/integrations/callback?connection=<row id>`, and records the account on the row.
+1. `startIntegrationConnect` writes a pending row, opens the organization's Composio session on
+   our auth config and calls `session.authorize`, with a callback to
+   `<API>/integrations/callback?connection=<row id>`, and records the account on the row.
    The row comes first, so a disconnect meanwhile retires it; the connect then fails and the
    new account is removed.
-2. The browser goes straight to the provider's consent for our OAuth app (`initiate`, not
-   `link`, which would show Composio's hosted page first), and Composio sends it to that callback.
+2. The browser goes through Composio's Connect Link to the provider's consent for our OAuth app,
+   and Composio sends it to that callback.
 3. The callback asks Composio for the account's state: live replaces any previous connection to
    that provider (which retires), failed retires the attempt, and still pending or Composio
    unreachable leaves it pending. Either way it redirects to
@@ -46,9 +47,16 @@ earlier consent's callback cannot bring the connection back. It answers success 
 confirms each removal; otherwise it fails, the provider is already off for the organization, and
 the removal is retried.
 
-`integrationPreview` runs one read per provider to prove a connection works: GitHub
-organizations, Linear teams, Slack channels. The tools' versions are pinned in
-each provider's folder in `use-cases/lib/composio/`.
+## Reading
+
+Each provider has its own read: `githubOrganizations`, `linearTeams`, `slackChannels`, each a
+use case that opens the organization's session with its connected account and runs one
+Composio tool through `session.execute`. Sessions choose the toolkit version.
+
+Every result is checked against the tool's own output schema, fetched from Composio and built
+into Zod with `@composio/json-schema-to-zod` (`use-cases/lib/composio/lib/output-schema.ts`); a
+response the schema refuses fails the read. Where Composio's schema is wrong, the provider's
+folder in `use-cases/lib/composio/` patches only that schema, with the date and the reason.
 
 ## Composio setup
 
@@ -57,4 +65,4 @@ app with the redirect URI `https://backend.composio.dev/api/v3/toolkits/auth/cal
 reads the project key as `COMPOSIO_API_KEY` and the auth configs as `COMPOSIO_AUTH_CONFIG_IDS`
 ([environment](environment.md#api-srcservicesapi)). A new provider needs its auth config, its
 pair in that variable, a row in the constants migration's `integration_provider`
-([migrations](style-guide/migrations.md#constants)), `INTEGRATION_PROVIDERS` and a preview tool.
+([migrations](style-guide/migrations.md#constants)), `INTEGRATION_PROVIDERS`, and its own read.
