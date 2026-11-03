@@ -5,7 +5,7 @@ import type { TUseCaseContext } from "@/use-cases";
 import { forbidden, notFound } from "@/use-cases/lib/shared/domain-errors";
 
 /** The organization plugin's default roles. */
-export const ORGANIZATION_ROLES = ["owner", "admin", "member"] as const;
+const ORGANIZATION_ROLES = ["owner", "admin", "member"] as const;
 export type TOrganizationRole = (typeof ORGANIZATION_ROLES)[number];
 
 /** Who may connect, disconnect and invite. */
