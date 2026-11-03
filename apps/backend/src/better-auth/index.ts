@@ -1,7 +1,7 @@
 import type { TDb } from "@frubble/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer } from "better-auth/plugins";
+import { bearer, organization } from "better-auth/plugins";
 import type { TConfig } from "@/config";
 import { createDatabaseHooks } from "./lib/database-hooks";
 import { createSessionCache, type TSessionCache } from "./lib/session-cache";
@@ -29,7 +29,17 @@ export function createAuth(db: TDb, config: TConfig) {
 			disableOriginCheck: false,
 		},
 		databaseHooks,
-		plugins: [bearer()],
+		plugins: [
+			bearer(),
+			organization({
+				creatorRole: "owner",
+				invitationExpiresIn: 7 * 24 * 60 * 60,
+				cancelPendingInvitationsOnReInvite: true,
+				// Only the address the invitation went to may accept it, once it is verified.
+				requireEmailVerificationOnInvitation: true,
+				// No `sendInvitationEmail`: the invite use case queues the email itself.
+			}),
+		],
 		user: {
 			additionalFields: {
 				role: {

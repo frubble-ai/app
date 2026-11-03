@@ -12,6 +12,10 @@ function generateEnv(overrides: Record<string, string | undefined> = {}) {
 		BETTER_AUTH_URL: "http://localhost:8080/",
 		BETTER_AUTH_SECRET: faker.string.alphanumeric(48),
 		PUBSUB_EMAILS_TOPIC: "emails",
+		APP_URL: "http://localhost:3000/",
+		COMPOSIO_API_KEY: faker.string.alphanumeric(32),
+		COMPOSIO_AUTH_CONFIG_IDS:
+			"github=ac_github1, linear=ac_linear1,slack=ac_slack1",
 		...overrides,
 	};
 }
@@ -43,6 +47,15 @@ describe("buildConfig", () => {
 				caPem: undefined,
 			},
 			publicUrl: "http://localhost:8080",
+			appUrl: "http://localhost:3000",
+			composio: {
+				apiKey: env.COMPOSIO_API_KEY,
+				authConfigIds: {
+					github: "ac_github1",
+					linear: "ac_linear1",
+					slack: "ac_slack1",
+				},
+			},
 			cors: { origin: [] },
 			api: { host: "0.0.0.0", port: 8080, trustedProxies: 1 },
 			pubsub: { emailsTopic: "emails" },
@@ -88,6 +101,14 @@ describe("buildConfig", () => {
 		withEnv(generateEnv(env));
 
 		expect(() => buildConfig()).toThrow(message);
+	});
+
+	it("refuses auth configs missing a provider or not shaped provider=ac_…", () => {
+		withEnv(
+			generateEnv({ COMPOSIO_AUTH_CONFIG_IDS: "github=ac_x,linear=oops" }),
+		);
+
+		expect(() => buildConfig()).toThrow(/linear.*ac_|slack/);
 	});
 
 	it("names every missing variable at once", () => {

@@ -1,0 +1,9 @@
+{
+	"title": "Join the organization",
+	"description": "You were invited to an organization on Frubble.",
+	"accept": "Accept the invitation",
+	"errors": {
+		"notYours": "This invitation was sent to another address. Sign in with that address to accept it.",
+		"invalid": "This invitation has expired or was already used. Ask for a new one."
+	}
+}

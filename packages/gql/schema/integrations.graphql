@@ -1,0 +1,58 @@
+"The outside tools an organization can connect."
+enum IntegrationProvider {
+	GITHUB
+	LINEAR
+	SLACK
+}
+
+"A provider the organization has connected."
+type Integration {
+	provider: IntegrationProvider!
+	connectedAt: DateTime!
+}
+
+"""
+One row of a provider's preview: a GitHub organization, a Linear team, a Slack
+channel.
+"""
+type IntegrationPreviewItem {
+	id: String!
+	name: String!
+}
+
+type StartIntegrationConnectPayload {
+	"Send the browser here; it comes back to the app's home with the outcome."
+	redirectUrl: String!
+}
+
+type DisconnectIntegrationPayload {
+	disconnected: Boolean!
+}
+
+input IntegrationTarget {
+	organizationId: String!
+	provider: IntegrationProvider!
+}
+
+extend type Query {
+	"The providers one of the caller's organizations has connected."
+	integrations(organizationId: String!): [Integration!]!
+
+	"""
+	A live read through a connection, proving it works. `NOT_FOUND` when the
+	provider is not connected.
+	"""
+	integrationPreview(input: IntegrationTarget!): [IntegrationPreviewItem!]!
+}
+
+extend type Mutation {
+	"Begin connecting a provider (owners and admins only)."
+	startIntegrationConnect(
+		input: IntegrationTarget!
+	): StartIntegrationConnectPayload!
+
+	"Disconnect a provider (owners and admins only); its tokens are revoked."
+	disconnectIntegration(
+		input: IntegrationTarget!
+	): DisconnectIntegrationPayload!
+}

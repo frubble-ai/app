@@ -19,6 +19,9 @@ on the worker service and nothing else about how the image starts.
 | `BETTER_AUTH_SECRET`                       | yes, 32+ chars | Secret Manager        |                                                                                   |
 | `CORS_ORIGIN`                              | no             | Terraform             | comma-separated browser origins, no wildcards; empty means none                   |
 | `PUBSUB_EMAILS_TOPIC`                      | yes            | Terraform             | locally the emulator's topic, with `PUBSUB_EMULATOR_HOST` and `PUBSUB_PROJECT_ID` |
+| `APP_URL`                                  | yes            | Terraform             | the web app's origin: invitation links and the redirect after connecting a tool   |
+| `COMPOSIO_API_KEY`                         | yes            | Secret Manager        | the environment's Composio project key                                            |
+| `COMPOSIO_AUTH_CONFIG_IDS`                 | yes            | Terraform             | `github=ac_…,linear=ac_…,slack=ac_…`, every provider ([integrations](integrations.md)) |
 | `TRUSTED_PROXIES`                          | no             |                       | proxies appending to `X-Forwarded-For`, at least 1; default 1, the load balancer  |
 | `HOST`, `PORT`                             | no             | Cloud Run sets `PORT` | default `0.0.0.0:8080`                                                            |
 | `LOG_LEVEL`, `LOG_FORMAT`                  | no             |                       | `json` when `NODE_ENV=production`, else pretty                                    |

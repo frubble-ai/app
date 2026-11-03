@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { returnPath } from "@/screens/sign-in/lib/return-path";
+import { returnPath } from "@/shared/return-path";
 
 describe("returnPath", () => {
 	it("goes back to a page on this site", () => {
@@ -24,5 +24,9 @@ describe("returnPath", () => {
 		["a relative path", "sandbox"],
 	])("goes home for %s", (_case, from) => {
 		expect(returnPath(from)).toBe("/");
+	});
+
+	it("goes home for a value that is not a URL at all", () => {
+		expect(returnPath("//[")).toBe("/");
 	});
 });

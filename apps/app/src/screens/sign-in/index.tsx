@@ -5,7 +5,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "@/shared/components/redirect";
 import { graphqlErrorCode } from "@/shared/graphql-error";
-import { returnPath } from "./lib/return-path";
+import { returnPath, withFrom } from "@/shared/return-path";
 
 /** The error to show for a failed sign-in, by the API's code. */
 function errorKey(error: unknown) {
@@ -92,7 +92,10 @@ export function SignInScreen() {
 				</button>
 			</form>
 			<p>
-				<Link data-testid="sign-in-sign-up" href="/sign-up">
+				<Link
+					data-testid="sign-in-sign-up"
+					href={withFrom("/sign-up", searchParams.get("from"))}
+				>
 					{t("signIn.signUp")}
 				</Link>
 			</p>

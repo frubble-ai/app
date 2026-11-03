@@ -1,0 +1,6 @@
+query Integrations($organizationId: String!) {
+	integrations(organizationId: $organizationId) {
+		provider
+		connectedAt
+	}
+}
