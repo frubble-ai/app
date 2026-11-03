@@ -48,8 +48,10 @@ export function createIntegrationsClient(
 
 	return {
 		async link({ organizationId, provider, callbackUrl }) {
+			// `initiate`, not `link`: on our own OAuth apps it answers the provider's consent page
+			// itself, where `link` sends the user through Composio's hosted page first.
 			// allowMultiple: a reconnect starts while the old connection still works.
-			const request = await composio.connectedAccounts.link(
+			const request = await composio.connectedAccounts.initiate(
 				organizationId,
 				config.authConfigIds[provider],
 				{ callbackUrl, allowMultiple: true },

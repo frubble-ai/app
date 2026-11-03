@@ -58,7 +58,7 @@ export function HomeScreen() {
 			) : null}
 			{current ? (
 				<>
-					<section data-testid="organization">
+					<section className="toolbar" data-testid="organization">
 						<label>
 							{t("organizations.current")}
 							<select

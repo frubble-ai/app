@@ -21,7 +21,7 @@ export function SignUpScreen() {
 	if (!isPending && isAuthenticated) return <Redirect to={destination} />;
 
 	return (
-		<main data-testid="sign-up">
+		<main className="auth" data-testid="sign-up">
 			<h1>{t("signUp.title")}</h1>
 			{signUp.email === null ? (
 				<form data-testid="sign-up-email-step" onSubmit={signUp.requestCode}>
