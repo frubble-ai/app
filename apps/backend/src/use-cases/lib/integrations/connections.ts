@@ -18,7 +18,7 @@ type TConnectionRow = typeof integrationConnection.$inferSelect;
 export async function requireActiveConnection(
 	ctx: TUseCaseContext,
 	args: { organizationId: string; provider: TIntegrationProvider },
-): Promise<TConnectionRow> {
+): Promise<TConnectionRow & { composioConnectedAccountId: string }> {
 	const [row] = await ctx.db
 		.select()
 		.from(integrationConnection)
@@ -30,15 +30,17 @@ export async function requireActiveConnection(
 			),
 		)
 		.limit(1);
-	if (!row) throw notFound(`${args.provider} is not connected.`);
-	return row;
+	if (!row?.composioConnectedAccountId) {
+		throw notFound(`${args.provider} is not connected.`);
+	}
+	return { ...row, composioConnectedAccountId: row.composioConnectedAccountId };
 }
 
 /**
  * Remove the organization's retiring accounts at Composio, deleting each row only once Composio
  * confirms. One that fails stays and is tried again on the next sweep.
  */
-async function sweepRetiring(
+export async function sweepRetiring(
 	ctx: TUseCaseContext,
 	organizationId: string,
 ): Promise<void> {
@@ -53,7 +55,10 @@ async function sweepRetiring(
 		);
 	for (const row of rows) {
 		try {
-			await ctx.integrations.remove(row.composioConnectedAccountId);
+			// No account id: Composio never created one, or its connect records it and sweeps.
+			if (row.composioConnectedAccountId) {
+				await ctx.integrations.remove(row.composioConnectedAccountId);
+			}
 			await ctx.db
 				.delete(integrationConnection)
 				.where(eq(integrationConnection.id, row.id));
@@ -93,6 +98,9 @@ export async function settleConnection(
 	if (row.status !== "pending") {
 		return row.status === "active" ? "active" : "failed";
 	}
+
+	// Composio is still creating the account.
+	if (!row.composioConnectedAccountId) return "pending";
 
 	let state: TConnectedAccountState;
 	try {

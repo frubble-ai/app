@@ -379,6 +379,31 @@ describe("using a connection", () => {
 		expect(rows.map((row) => row.status)).toEqual(["retiring", "retiring"]);
 	});
 
+	it("fails a connect that a disconnect overtook while Composio created the account", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		await connected(clone, args);
+		clone.integrations.link.mockImplementationOnce(async () => {
+			await disconnectIntegrationUseCase({ ...args, provider: "github" });
+			return {
+				connectedAccountId: "ca_overtaken",
+				redirectUrl: "https://consent.example/github",
+			};
+		});
+
+		await expect(
+			startIntegrationConnectUseCase({ ...args, provider: "github" }),
+		).rejects.toMatchObject({ name: "BadInputError" });
+
+		expect(clone.integrations.remove).toHaveBeenCalledWith("ca_overtaken");
+		const left = await clone.db
+			.select()
+			.from(integrationConnection)
+			.where(eq(integrationConnection.organizationId, organizationId));
+		expect(left).toEqual([]);
+	});
+
 	it("does not report a disconnect Composio has not confirmed, and keeps retrying it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);

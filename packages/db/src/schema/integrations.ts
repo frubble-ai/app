@@ -51,9 +51,9 @@ export const integrationConnection = pgTable(
 			.default("pending")
 			.notNull()
 			.references(() => integrationStatus.key),
-		composioConnectedAccountId: text("composio_connected_account_id")
-			.notNull()
-			.unique(),
+		// Null while Composio is still creating the account: the row exists first, so a disconnect
+		// in the meantime sees and retires it.
+		composioConnectedAccountId: text("composio_connected_account_id").unique(),
 		connectedById: text("connected_by_id").references(() => user.id, {
 			onDelete: "set null",
 		}),

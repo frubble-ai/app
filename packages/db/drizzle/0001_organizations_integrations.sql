@@ -3,7 +3,7 @@ CREATE TABLE "integration_connection" (
 	"organization_id" text NOT NULL,
 	"provider" varchar(32) NOT NULL,
 	"status" varchar(32) DEFAULT 'pending' NOT NULL,
-	"composio_connected_account_id" text NOT NULL,
+	"composio_connected_account_id" text,
 	"connected_by_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,

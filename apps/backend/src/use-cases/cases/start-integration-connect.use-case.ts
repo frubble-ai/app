@@ -6,12 +6,14 @@ import { defineUseCase } from "@/use-cases";
 import {
 	integrationProviderSchema,
 	retireConnections,
+	sweepRetiring,
 } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
 	MANAGER_ROLES,
 	requireMembership,
 } from "@/use-cases/lib/organizations/membership";
+import { badInput } from "@/use-cases/lib/shared/domain-errors";
 
 const startIntegrationConnectArgsSchema = z.object({
 	userId: z.string().min(1),
@@ -22,7 +24,8 @@ const startIntegrationConnectArgsSchema = z.object({
 /**
  * Begin connecting a provider for an organization (owners and admins only): the provider's
  * consent page to send the browser to. It comes back to `/integrations/callback`, which
- * finishes. An unfinished earlier attempt for the same provider is dropped.
+ * finishes. An unfinished earlier attempt for the same provider is dropped; a disconnect while
+ * Composio creates the account fails this connect.
  */
 export const startIntegrationConnectUseCase = defineUseCase(
 	async function startIntegrationConnectUseCase(
@@ -57,29 +60,42 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			stale.map((row) => row.id),
 		);
 
+		// The row comes first, so a disconnect while Composio is creating the account retires it.
 		const id = randomUUID();
-		const { connectedAccountId, redirectUrl } = await ctx.integrations.link({
+		await ctx.db.insert(integrationConnection).values({
+			id,
 			organizationId,
 			provider,
-			callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
+			connectedById: userId,
 		});
+
+		let linked: { connectedAccountId: string; redirectUrl: string };
 		try {
-			await ctx.db.insert(integrationConnection).values({
-				id,
+			linked = await ctx.integrations.link({
 				organizationId,
 				provider,
-				composioConnectedAccountId: connectedAccountId,
-				connectedById: userId,
+				callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
 			});
 		} catch (err) {
-			// No row would ever point at this account: remove it before failing.
-			await ctx.integrations.remove(connectedAccountId).catch((removeErr) => {
-				ctx.logger.error(
-					{ err: removeErr, connectedAccountId },
-					"Composio account left without a row",
-				);
-			});
+			await ctx.db
+				.delete(integrationConnection)
+				.where(eq(integrationConnection.id, id));
 			throw err;
+		}
+		const { connectedAccountId, redirectUrl } = linked;
+
+		// Recorded whatever the row's status, so a retired row still leads the sweep to the account.
+		const [row] = await ctx.db
+			.update(integrationConnection)
+			.set({ composioConnectedAccountId: connectedAccountId })
+			.where(eq(integrationConnection.id, id))
+			.returning({ status: integrationConnection.status });
+		if (row?.status !== "pending") {
+			if (!row) await ctx.integrations.remove(connectedAccountId);
+			await sweepRetiring(ctx, organizationId);
+			throw badInput(
+				`${provider} was disconnected while connecting; start again.`,
+			);
 		}
 		return { redirectUrl };
 	},

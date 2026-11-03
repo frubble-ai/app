@@ -1,6 +1,6 @@
 {
-	"id": "ecff070a-12d0-4874-acbe-0b749cf17e15",
-	"prevId": "5ea59701-fd81-4e4e-b2b7-c7a2caf7cf00",
+	"id": "d917298a-fbb1-459e-bce8-cfb7d8ac3324",
+	"prevId": "c056ba26-ae7c-43af-9495-3aa6b0f1ea6d",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -396,7 +396,7 @@
 					"name": "composio_connected_account_id",
 					"type": "text",
 					"primaryKey": false,
-					"notNull": true
+					"notNull": false
 				},
 				"connected_by_id": {
 					"name": "connected_by_id",
