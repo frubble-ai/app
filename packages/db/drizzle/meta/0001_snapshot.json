@@ -1,5 +1,5 @@
 {
-	"id": "6ca09520-c238-4093-b117-74144c600077",
+	"id": "5ea59701-fd81-4e4e-b2b7-c7a2caf7cf00",
 	"prevId": "e37166b7-9264-4b40-b3ee-99c79af5f506",
 	"version": "7",
 	"dialect": "postgresql",
@@ -381,15 +381,13 @@
 				},
 				"provider": {
 					"name": "provider",
-					"type": "integration_provider",
-					"typeSchema": "public",
+					"type": "varchar(32)",
 					"primaryKey": false,
 					"notNull": true
 				},
 				"status": {
 					"name": "status",
-					"type": "integration_status",
-					"typeSchema": "public",
+					"type": "varchar(32)",
 					"primaryKey": false,
 					"notNull": true,
 					"default": "'pending'"
@@ -470,6 +468,24 @@
 					"onDelete": "cascade",
 					"onUpdate": "no action"
 				},
+				"integration_connection_provider_integration_provider_key_fk": {
+					"name": "integration_connection_provider_integration_provider_key_fk",
+					"tableFrom": "integration_connection",
+					"tableTo": "integration_provider",
+					"columnsFrom": ["provider"],
+					"columnsTo": ["key"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
+				"integration_connection_status_integration_status_key_fk": {
+					"name": "integration_connection_status_integration_status_key_fk",
+					"tableFrom": "integration_connection",
+					"tableTo": "integration_status",
+					"columnsFrom": ["status"],
+					"columnsTo": ["key"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
 				"integration_connection_connected_by_id_user_id_fk": {
 					"name": "integration_connection_connected_by_id_user_id_fk",
 					"tableFrom": "integration_connection",
@@ -488,6 +504,44 @@
 					"columns": ["composio_connected_account_id"]
 				}
 			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.integration_provider": {
+			"name": "integration_provider",
+			"schema": "",
+			"columns": {
+				"key": {
+					"name": "key",
+					"type": "varchar(32)",
+					"primaryKey": true,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.integration_status": {
+			"name": "integration_status",
+			"schema": "",
+			"columns": {
+				"key": {
+					"name": "key",
+					"type": "varchar(32)",
+					"primaryKey": true,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
 			"policies": {},
 			"checkConstraints": {},
 			"isRLSEnabled": false
@@ -812,16 +866,6 @@
 			"name": "user_role",
 			"schema": "public",
 			"values": ["application_user"]
-		},
-		"public.integration_provider": {
-			"name": "integration_provider",
-			"schema": "public",
-			"values": ["github", "linear", "slack"]
-		},
-		"public.integration_status": {
-			"name": "integration_status",
-			"schema": "public",
-			"values": ["pending", "active", "retiring"]
 		}
 	},
 	"schemas": {},

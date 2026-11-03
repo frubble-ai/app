@@ -56,6 +56,7 @@ Every package exports its TypeScript source; there is no build step.
 - [`docs/environment.md`](./docs/environment.md) — every variable the API, the worker, the migration and the app read.
 - [`docs/app/index.md`](./docs/app/index.md) — the web app: stack, structure, tests, running it.
 - [`docs/graphql/index.md`](./docs/graphql/index.md) — the schema, codegen and the client SDK.
+- [`docs/style-guide/migrations.md`](./docs/style-guide/migrations.md) — never edit a generated migration; constants live in the last one.
 - [`docs/style-guide/i18n.md`](./docs/style-guide/i18n.md) — translation namespaces, typed keys, tests render keys.
 
 ## Skills

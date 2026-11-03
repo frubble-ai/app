@@ -1,7 +1,4 @@
-import {
-	integrationProviderEnum,
-	type TIntegrationProvider,
-} from "@frubble/db";
+import { INTEGRATION_PROVIDERS, type TIntegrationProvider } from "@frubble/db";
 import { dbEnvSchema } from "@frubble/db/env";
 import { z } from "zod";
 import { envVar, listenEnvFields, parseEnv } from "@/shared/env";
@@ -131,7 +128,7 @@ function parseCorsOrigins(raw: string, context: z.RefinementCtx): string[] {
 
 const authConfigIdsSchema = z.object(
 	Object.fromEntries(
-		integrationProviderEnum.enumValues.map((provider) => [
+		INTEGRATION_PROVIDERS.map((provider) => [
 			provider,
 			z.string().startsWith("ac_", `${provider} needs an ac_ auth config id`),
 		]),

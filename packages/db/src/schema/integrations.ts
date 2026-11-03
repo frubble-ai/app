@@ -1,35 +1,38 @@
 import { sql } from "drizzle-orm";
 import {
 	index,
-	pgEnum,
 	pgTable,
 	text,
 	timestamp,
 	uniqueIndex,
+	varchar,
 } from "drizzle-orm/pg-core";
 import { DateTime } from "luxon";
 import { user } from "./auth";
 import { organization } from "./organizations";
 
-/** The outside tools an organization can connect. */
-export const integrationProviderEnum = pgEnum("integration_provider", [
-	"github",
-	"linear",
-	"slack",
-]);
+/** The outside tools an organization can connect: rows of `integration_provider`. */
+export const INTEGRATION_PROVIDERS = ["github", "linear", "slack"] as const;
 
-export type TIntegrationProvider =
-	(typeof integrationProviderEnum.enumValues)[number];
+export type TIntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
 
 /**
  * `pending` until the provider's consent finishes, then `active`. `retiring`: replaced, failed or
- * abandoned, kept until Composio confirms the account is removed, so its tokens are never orphaned.
+ * abandoned, kept until Composio confirms the account is removed. Rows of `integration_status`.
  */
-export const integrationStatusEnum = pgEnum("integration_status", [
-	"pending",
-	"active",
-	"retiring",
-]);
+export const INTEGRATION_STATUSES = ["pending", "active", "retiring"] as const;
+
+export type TIntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
+
+// Reference tables: their rows live in the constants migration (docs/style-guide/migrations.md).
+
+export const integrationProvider = pgTable("integration_provider", {
+	key: varchar("key", { length: 32 }).primaryKey(),
+});
+
+export const integrationStatus = pgTable("integration_status", {
+	key: varchar("key", { length: 32 }).primaryKey(),
+});
 
 /** One attempt or connection of an organization to a provider; the tokens stay at Composio. */
 export const integrationConnection = pgTable(
@@ -39,8 +42,15 @@ export const integrationConnection = pgTable(
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
-		provider: integrationProviderEnum("provider").notNull(),
-		status: integrationStatusEnum("status").default("pending").notNull(),
+		provider: varchar("provider", { length: 32 })
+			.$type<TIntegrationProvider>()
+			.notNull()
+			.references(() => integrationProvider.key),
+		status: varchar("status", { length: 32 })
+			.$type<TIntegrationStatus>()
+			.default("pending")
+			.notNull()
+			.references(() => integrationStatus.key),
 		composioConnectedAccountId: text("composio_connected_account_id")
 			.notNull()
 			.unique(),

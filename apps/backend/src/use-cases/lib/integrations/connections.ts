@@ -1,6 +1,6 @@
 import {
+	INTEGRATION_PROVIDERS,
 	integrationConnection,
-	integrationProviderEnum,
 	organization,
 	type TIntegrationProvider,
 } from "@frubble/db";
@@ -10,9 +10,7 @@ import type { TConnectedAccountState } from "@/composio";
 import type { TUseCaseContext } from "@/use-cases";
 import { notFound } from "@/use-cases/lib/shared/domain-errors";
 
-export const integrationProviderSchema = z.enum(
-	integrationProviderEnum.enumValues,
-);
+export const integrationProviderSchema = z.enum(INTEGRATION_PROVIDERS);
 
 type TConnectionRow = typeof integrationConnection.$inferSelect;
 

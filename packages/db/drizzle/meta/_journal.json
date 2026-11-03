@@ -12,8 +12,15 @@
 		{
 			"idx": 1,
 			"version": "7",
-			"when": 1793670821673,
+			"when": 1793673554644,
 			"tag": "0001_organizations_integrations",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1793673555503,
+			"tag": "0002_constants",
 			"breakpoints": true
 		}
 	]

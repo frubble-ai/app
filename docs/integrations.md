@@ -50,4 +50,5 @@ Per environment, a Composio project with one auth config per provider, each on o
 app with the redirect URI `https://backend.composio.dev/api/v3/toolkits/auth/callback`. The API
 reads the project key as `COMPOSIO_API_KEY` and the auth configs as `COMPOSIO_AUTH_CONFIG_IDS`
 ([environment](environment.md#api-srcservicesapi)). A new provider needs its auth config, its
-pair in that variable, a value in the `integration_provider` enum and a preview tool.
+pair in that variable, a row in the constants migration's `integration_provider`
+([migrations](style-guide/migrations.md#constants)), `INTEGRATION_PROVIDERS` and a preview tool.
