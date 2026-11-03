@@ -1,5 +1,5 @@
 import { integrationConnection, type TIntegrationProvider } from "@frubble/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
 import {
@@ -12,6 +12,7 @@ import {
 	MANAGER_ROLES,
 	requireMembership,
 } from "@/use-cases/lib/organizations/membership";
+import { internalError } from "@/use-cases/lib/shared/domain-errors";
 
 const disconnectIntegrationArgsSchema = z.object({
 	userId: z.string().min(1),
@@ -21,8 +22,9 @@ const disconnectIntegrationArgsSchema = z.object({
 
 /**
  * Disconnect a provider (owners and admins only). Every row for it retires, an unfinished attempt
- * too, so no earlier consent can bring the connection back; Composio removes each account, and
- * one it fails to remove is retried until it confirms.
+ * too, so no earlier consent can bring the connection back. Done only once Composio confirms each
+ * account removed; otherwise this fails, the provider stays off for the organization, and the
+ * removal is retried on every later look at its tools.
  */
 export const disconnectIntegrationUseCase = defineUseCase(
 	async function disconnectIntegrationUseCase(
@@ -50,10 +52,17 @@ export const disconnectIntegrationUseCase = defineUseCase(
 					eq(integrationConnection.provider, provider),
 				),
 			);
-		await retireConnections(
-			ctx,
-			organizationId,
-			rows.map((row) => row.id),
-		);
+		const ids = rows.map((row) => row.id);
+		await retireConnections(ctx, organizationId, ids);
+
+		const unconfirmed = await ctx.db
+			.select({ id: integrationConnection.id })
+			.from(integrationConnection)
+			.where(inArray(integrationConnection.id, ids));
+		if (unconfirmed.length > 0) {
+			throw internalError(
+				`${provider} did not confirm the disconnect yet; it is retried automatically.`,
+			);
+		}
 	},
 );

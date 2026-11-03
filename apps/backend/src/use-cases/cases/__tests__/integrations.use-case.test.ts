@@ -361,7 +361,9 @@ describe("using a connection", () => {
 		await connected(clone, args);
 		const attempt = await startConnecting(clone, args);
 		clone.integrations.remove.mockRejectedValue(new Error("Composio down"));
-		await disconnectIntegrationUseCase({ ...args, provider: "github" });
+		await expect(
+			disconnectIntegrationUseCase({ ...args, provider: "github" }),
+		).rejects.toMatchObject({ name: "InternalServerError" });
 		clone.integrations.getState.mockResolvedValueOnce("active");
 
 		await expect(
@@ -375,6 +377,25 @@ describe("using a connection", () => {
 			.from(integrationConnection)
 			.where(eq(integrationConnection.organizationId, organizationId));
 		expect(rows.map((row) => row.status)).toEqual(["retiring", "retiring"]);
+	});
+
+	it("does not report a disconnect Composio has not confirmed, and keeps retrying it", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		await connected(clone, args);
+		clone.integrations.remove.mockRejectedValueOnce(new Error("Composio down"));
+
+		await expect(
+			disconnectIntegrationUseCase({ ...args, provider: "github" }),
+		).rejects.toMatchObject({ name: "InternalServerError" });
+
+		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
+		const left = await clone.db
+			.select()
+			.from(integrationConnection)
+			.where(eq(integrationConnection.organizationId, organizationId));
+		expect(left).toEqual([]);
 	});
 
 	it("disconnects: Composio revokes it and the organization no longer has it", async () => {

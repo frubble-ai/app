@@ -38,7 +38,9 @@ the account stays there. One active row per organization and provider.
    live after its callback shows.
 
 Disconnecting retires every row for that provider, an unfinished attempt included, so an
-earlier consent's callback cannot bring the connection back.
+earlier consent's callback cannot bring the connection back. It answers success only once Composio
+confirms each removal; otherwise it fails, the provider is already off for the organization, and
+the removal is retried.
 
 `integrationPreview` runs one read per provider to prove a connection works: GitHub
 organizations, Linear teams, Slack channels. The tools' versions are pinned in
