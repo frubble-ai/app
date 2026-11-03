@@ -1,6 +1,7 @@
 import {
 	integrationConnection,
 	integrationProviderEnum,
+	organization,
 	type TIntegrationProvider,
 } from "@frubble/db";
 import { and, eq, inArray, ne } from "drizzle-orm";
@@ -109,11 +110,19 @@ export async function settleConnection(
 	// Lock the row and look again: a newer connect or a disconnect may have retired it since it
 	// was read, and only a row still pending may change here.
 	const settled = await ctx.db.transaction(async (tx) => {
+		// One settle per organization at a time, so two never lock its rows in opposite order.
+		await tx
+			.select({ id: organization.id })
+			.from(organization)
+			.where(eq(organization.id, row.organizationId))
+			.for("update");
 		const [current] = await tx
 			.select({ status: integrationConnection.status })
 			.from(integrationConnection)
 			.where(eq(integrationConnection.id, row.id))
 			.for("update");
+		// Another settle got here first: active is its success, retiring or gone is a failure.
+		if (current?.status === "active") return "active" as const;
 		if (current?.status !== "pending") return "failed" as const;
 		if (state === "failed") {
 			await tx

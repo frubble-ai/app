@@ -328,6 +328,32 @@ describe("using a connection", () => {
 		);
 	});
 
+	it("reports connected to both callbacks when two settle the same attempt at once", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const { connectionId } = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.integrations.getState.mockResolvedValue("active");
+
+		const outcomes = await Promise.all([
+			completeIntegrationConnectUseCase({ connectionId }),
+			completeIntegrationConnectUseCase({ connectionId }),
+		]);
+
+		expect(outcomes).toEqual([
+			{
+				redirectUrl:
+					"http://localhost:3000/?integration=github&integration_status=connected",
+			},
+			{
+				redirectUrl:
+					"http://localhost:3000/?integration=github&integration_status=connected",
+			},
+		]);
+	});
+
 	it("never activates an attempt that was retired, even while Composio still holds it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
