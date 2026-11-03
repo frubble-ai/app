@@ -2,13 +2,14 @@ import type { TDb } from "@frubble/db";
 import { createAuth, type TAuth, type TAuthSessionCache } from "@/better-auth";
 import { staticConfigSections, type TConfig } from "@/config";
 import { githubConfig } from "@/config/integrations/github";
+import { testLogger } from "./test-logger";
 
 /** createAuth for tests. */
 export function buildTestAuth(
 	db: TDb,
 	config: TConfig,
 ): { auth: TAuth; sessionCache: TAuthSessionCache } {
-	const result = createAuth(db, config);
+	const result = createAuth(db, config, testLogger);
 	return { auth: result.auth, sessionCache: result.sessionCache };
 }
 
