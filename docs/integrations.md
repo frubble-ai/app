@@ -37,6 +37,9 @@ tokens. One active row per organization and provider.
 4. Listing the organization's tools settles every pending row again, so a connection that went
    live after its callback shows.
 
+Disconnecting retires every row for that provider, an unfinished attempt included, so an
+earlier consent's callback cannot bring the connection back.
+
 `integrationPreview` runs one read per provider to prove a connection works: GitHub
 organizations, Linear teams, Slack channels. The tools' versions are pinned in
 `src/composio/lib/preview-tools.ts`.

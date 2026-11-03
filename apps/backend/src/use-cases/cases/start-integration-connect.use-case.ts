@@ -63,13 +63,24 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			provider,
 			callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
 		});
-		await ctx.db.insert(integrationConnection).values({
-			id,
-			organizationId,
-			provider,
-			composioConnectedAccountId: connectedAccountId,
-			connectedById: userId,
-		});
+		try {
+			await ctx.db.insert(integrationConnection).values({
+				id,
+				organizationId,
+				provider,
+				composioConnectedAccountId: connectedAccountId,
+				connectedById: userId,
+			});
+		} catch (err) {
+			// No row would ever point at this account: remove it before failing.
+			await ctx.integrations.remove(connectedAccountId).catch((removeErr) => {
+				ctx.logger.error(
+					{ err: removeErr, connectedAccountId },
+					"Composio account left without a row",
+				);
+			});
+			throw err;
+		}
 		return { redirectUrl };
 	},
 );

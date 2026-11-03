@@ -307,6 +307,27 @@ describe("using a connection", () => {
 		).rejects.toMatchObject({ name: "NotFoundError" });
 	});
 
+	it("disconnecting also retires an unfinished attempt, so its callback cannot reconnect", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		await connected(clone, args);
+		const attempt = await startConnecting(clone, args);
+
+		await disconnectIntegrationUseCase({ ...args, provider: "github" });
+		clone.integrations.getState.mockResolvedValueOnce("active");
+
+		await expect(
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+		).resolves.toEqual({
+			redirectUrl: "http://localhost:3000/?integration_status=failed",
+		});
+		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
+		expect(clone.integrations.remove).toHaveBeenCalledWith(
+			attempt.connectedAccountId,
+		);
+	});
+
 	it("disconnects: Composio revokes it and the organization no longer has it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
