@@ -3,6 +3,7 @@ import { databaseUrl } from "@frubble/db/env";
 import { createPubSubTransport } from "@frubble/events/pubsub";
 import { PubSub } from "@google-cloud/pubsub";
 import { createAuth } from "@/better-auth";
+import { createIntegrationsClient } from "@/composio";
 import { getConfig } from "@/config";
 import { createAppMessageBus } from "@/events";
 import { logger } from "@/logger";
@@ -41,5 +42,7 @@ export async function buildUseCaseContext(): Promise<TUseCaseContext> {
 
 	const { auth, sessionCache } = createAuth(db, config);
 
-	return { config, db, messages, auth, sessionCache, logger };
+	const integrations = createIntegrationsClient(config.composio);
+
+	return { config, db, messages, auth, sessionCache, integrations, logger };
 }

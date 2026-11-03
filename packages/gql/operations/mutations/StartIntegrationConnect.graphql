@@ -1,0 +1,5 @@
+mutation StartIntegrationConnect($input: IntegrationTarget!) {
+	startIntegrationConnect(input: $input) {
+		redirectUrl
+	}
+}

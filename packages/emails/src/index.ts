@@ -1,6 +1,7 @@
 import type { TEmailMessage } from "@frubble/events";
 import type { ReactElement } from "react";
 import { render } from "react-email";
+import { OrganizationInvitationEmail } from "./templates/organization-invitation";
 import { PasswordResetEmail } from "./templates/password-reset";
 import { SignupCodeEmail } from "./templates/signup-code";
 
@@ -16,6 +17,11 @@ export type TEmailLinks = {
 type TEmailPropsMap = {
 	"signup.code_requested": { code: string } & TEmailLinks;
 	"password.reset_requested": { code: string } & TEmailLinks;
+	"organization.invitation_sent": {
+		organizationName: string;
+		inviterName: string;
+		acceptUrl: string;
+	} & TEmailLinks;
 };
 
 /** One email to send: its type and exactly that template's props. */
@@ -36,6 +42,10 @@ const EMAILS: { [TType in TEmailType]: TEmailTemplate<TType> } = {
 	"password.reset_requested": {
 		subject: "Reset your password",
 		build: (props) => PasswordResetEmail(props),
+	},
+	"organization.invitation_sent": {
+		subject: "You're invited to Frubble",
+		build: (props) => OrganizationInvitationEmail(props),
 	},
 };
 

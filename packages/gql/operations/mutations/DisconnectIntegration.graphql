@@ -1,0 +1,5 @@
+mutation DisconnectIntegration($input: IntegrationTarget!) {
+	disconnectIntegration(input: $input) {
+		disconnected
+	}
+}

@@ -702,6 +702,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cfworker/json-schema@npm:^4.1.1":
+  version: 4.1.4
+  resolution: "@cfworker/json-schema@npm:4.1.4"
+  checksum: 10c0/8fa7698f6f8f1a218c1545fc33e0a181d977c60d3d48c41a43e802cdfa5276b1c1c4f9e9ba66219505035048e5090358db6ea200e2a8b7c1acdbf5bc2294c2bc
+  languageName: node
+  linkType: hard
+
 "@commitlint/cli@npm:^21.2.4":
   version: 21.2.4
   resolution: "@commitlint/cli@npm:21.2.4"
@@ -884,6 +891,51 @@ __metadata:
     conventional-commits-parser: "npm:^7.0.0"
     picocolors: "npm:^1.1.1"
   checksum: 10c0/64a2dd651b6c54b0e332a77d5e39fac823cf5750f0f9d8f6f562b97143ee2b76b689537a2d2bf98e64258b5d951fb0e21bc83bcf7969ce4b084f8a588d933740
+  languageName: node
+  linkType: hard
+
+"@composio/client@npm:2.0.0-rc.19":
+  version: 2.0.0-rc.19
+  resolution: "@composio/client@npm:2.0.0-rc.19"
+  peerDependencies:
+    effect: "*"
+  peerDependenciesMeta:
+    effect:
+      optional: true
+  checksum: 10c0/485f25f36add4fa95de54b799164431fe7ef13a4981cf622e7a0cff0eeed95c892db9d0796f7b549aaf7cf2a28639cd81e9d53a04c30c5c2a84983bd8733eb30
+  languageName: node
+  linkType: hard
+
+"@composio/core@npm:0.27.0":
+  version: 0.27.0
+  resolution: "@composio/core@npm:0.27.0"
+  dependencies:
+    "@composio/client": "npm:2.0.0-rc.19"
+    "@composio/json-schema-to-zod": "npm:0.4.0"
+    "@types/json-schema": "npm:^7.0.15"
+    is-fs-case-sensitive: "npm:^2.0.0"
+    openai: "npm:^7.32.0"
+    picocolors: "npm:^1.1.1"
+    pusher-js: "npm:^8.6.0"
+    semver: "npm:^7.8.5"
+    undici: "npm:^7.30.0"
+    zod-to-json-schema: "npm:^3.25.2"
+  peerDependencies:
+    zod: ">=3.25.76 <5"
+  checksum: 10c0/0a509034ea79cf83f1a16b96a498a04701379d7795c290a09092b38662138ed68b6b438c87bdefe0f79ecfcd28babdd9713c68641179e89cb5636b398dfb5402
+  languageName: node
+  linkType: hard
+
+"@composio/json-schema-to-zod@npm:0.4.0":
+  version: 0.4.0
+  resolution: "@composio/json-schema-to-zod@npm:0.4.0"
+  dependencies:
+    "@cfworker/json-schema": "npm:^4.1.1"
+    dequal: "npm:^2.0.3"
+    re2js: "npm:^2.8.6"
+  peerDependencies:
+    zod: ">=3.25.76 <5"
+  checksum: 10c0/9499cfee179204bbf474f270ab38cc28eb54b41ba49934c9d55076cbccc156f1d75e5dc6ce3d2c045ee855b82161bded0f9da64477dbf300cf5610eb94842828
   languageName: node
   linkType: hard
 
@@ -1796,6 +1848,7 @@ __metadata:
   resolution: "@frubble/backend@workspace:apps/backend"
   dependencies:
     "@biomejs/biome": "npm:^2.6.3"
+    "@composio/core": "npm:0.27.0"
     "@faker-js/faker": "npm:^10.6.0"
     "@frubble/db": "workspace:*"
     "@frubble/emails": "workspace:*"
@@ -7600,6 +7653,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"is-fs-case-sensitive@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "is-fs-case-sensitive@npm:2.0.0"
+  checksum: 10c0/efde19c2f7ea70681efe34ae4bb34ad72882df4f5f71bdfa9e40e88ebb1b54330f1ee19770fb3529e661f433941ddcd01334f96dd291907758bcff209546f28d
+  languageName: node
+  linkType: hard
+
 "is-fullwidth-code-point@npm:^3.0.0":
   version: 3.0.0
   resolution: "is-fullwidth-code-point@npm:3.0.0"
@@ -8737,6 +8797,36 @@ __metadata:
   languageName: node
   linkType: hard
 
+"openai@npm:^7.32.0":
+  version: 7.45.1
+  resolution: "openai@npm:7.45.1"
+  peerDependencies:
+    "@aws-sdk/credential-provider-node": ">=3.972.0 <4"
+    "@smithy/hash-node": ">=4.3.0 <5"
+    "@smithy/signature-v4": ">=5.4.0 <6"
+    google-auth-library: ">=9.15.1 <12"
+    undici: ">=5 <9"
+    ws: ^8.21.0
+    zod: ^3.25 || ^4.0
+  peerDependenciesMeta:
+    "@aws-sdk/credential-provider-node":
+      optional: true
+    "@smithy/hash-node":
+      optional: true
+    "@smithy/signature-v4":
+      optional: true
+    google-auth-library:
+      optional: true
+    undici:
+      optional: true
+    ws:
+      optional: true
+    zod:
+      optional: true
+  checksum: 10c0/5376321a1d165f5b2c1ffb1c1bc353aeaad99ed278b2a53d03b263c244c7ee6deed194b6c6ac3bd6c63cd1c8a137141b137f036d68517d95ce84ad42fffe0ca8
+  languageName: node
+  linkType: hard
+
 "optimism@npm:^0.18.0":
   version: 0.18.1
   resolution: "optimism@npm:0.18.1"
@@ -9306,6 +9396,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"pusher-js@npm:^8.6.0":
+  version: 8.6.0
+  resolution: "pusher-js@npm:8.6.0"
+  dependencies:
+    tweetnacl: "npm:^1.0.3"
+  checksum: 10c0/93ed5ecc9eb30c2b3d8bd17eeb3b18a7a2e54480129eebb848c1837e9f7ea19d2cda124c833a6a6a460eb33b70b97976a7355f6f83193f43f7838f8511d34982
+  languageName: node
+  linkType: hard
+
 "queue-microtask@npm:^1.2.2":
   version: 1.2.3
   resolution: "queue-microtask@npm:1.2.3"
@@ -9317,6 +9416,13 @@ __metadata:
   version: 4.0.4
   resolution: "quick-format-unescaped@npm:4.0.4"
   checksum: 10c0/fe5acc6f775b172ca5b4373df26f7e4fd347975578199e7d74b2ae4077f0af05baa27d231de1e80e8f72d88275ccc6028568a7a8c9ee5e7368ace0e18eff93a4
+  languageName: node
+  linkType: hard
+
+"re2js@npm:^2.8.6":
+  version: 2.9.1
+  resolution: "re2js@npm:2.9.1"
+  checksum: 10c0/799c179ab563b8c16422b80cbcccdfdc0e940c50999930c1aa91bd5fe54e08a00a50abcf5510ab1bb3d881c90235c6fb177ed9d710cf3e5b4e843f026407ba9b
   languageName: node
   linkType: hard
 
@@ -10576,6 +10682,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tweetnacl@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "tweetnacl@npm:1.0.3"
+  checksum: 10c0/069d9df51e8ad4a89fbe6f9806c68e06c65be3c7d42f0701cc43dba5f0d6064686b238bbff206c5addef8854e3ce00c643bff59432ea2f2c639feab0ee1a93f9
+  languageName: node
+  linkType: hard
+
 "type-check@npm:^0.4.0, type-check@npm:~0.4.0":
   version: 0.4.0
   resolution: "type-check@npm:0.4.0"
@@ -10795,6 +10908,13 @@ __metadata:
   version: 8.9.0
   resolution: "undici-types@npm:8.9.0"
   checksum: 10c0/51c712c20c087368f62c6fc0f2bc49fa76bfe5dec28ff01584bb677ff29b0622569783c02d43e151143808c48c0503f804093bd2c491b10f2a830138034cb451
+  languageName: node
+  linkType: hard
+
+"undici@npm:^7.30.0":
+  version: 7.30.1
+  resolution: "undici@npm:7.30.1"
+  checksum: 10c0/c838089b010e8e28a9a5358d4bf4621e0c8d7bb70058b23e819667349c4c0b6791a7c8bc9bbe94ff0923db132faae0d9d9592b9743eda4f2b49466fa57482213
   languageName: node
   linkType: hard
 
@@ -11292,6 +11412,15 @@ __metadata:
     compress-commons: "npm:^6.0.2"
     readable-stream: "npm:^4.0.0"
   checksum: 10c0/50f2fb30327fb9d09879abf7ae2493705313adf403e794b030151aaae00009162419d60d0519e807673ec04d442e140c8879ca14314df0a0192de3b233e8f28b
+  languageName: node
+  linkType: hard
+
+"zod-to-json-schema@npm:^3.25.2":
+  version: 3.25.2
+  resolution: "zod-to-json-schema@npm:3.25.2"
+  peerDependencies:
+    zod: ^3.25.28 || ^4
+  checksum: 10c0/dd300554393903022487688af14fbda5c719ba8179702bb55b3aa86318830467f0f7beb7d654036975ac963dc4843b72e59636448bfff9a0608f277bb6a14939
   languageName: node
   linkType: hard
 

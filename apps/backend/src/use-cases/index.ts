@@ -2,6 +2,7 @@ import type { TDb } from "@frubble/db";
 import type { TMessageBus } from "@frubble/events";
 import { DateTime } from "luxon";
 import type { TAuth, TAuthSessionCache } from "@/better-auth";
+import type { TIntegrationsClient } from "@/composio";
 import type { TConfig } from "@/config";
 import type { TLogger } from "@/logger";
 import { betterAuthClientErrorToDomainError } from "@/use-cases/lib/auth/better-auth-error";
@@ -14,6 +15,8 @@ export type TUseCaseContext = {
 	messages: TMessageBus;
 	auth: TAuth;
 	sessionCache: TAuthSessionCache;
+	/** The organizations' connected tools (Composio). */
+	integrations: TIntegrationsClient;
 	logger: TLogger;
 };
 

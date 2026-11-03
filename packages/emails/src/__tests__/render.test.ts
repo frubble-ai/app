@@ -42,6 +42,22 @@ describe("renderEmail", () => {
 		},
 	);
 
+	it("renders the organization invitation with its link and names", async () => {
+		const props = {
+			organizationName: faker.company.name(),
+			inviterName: faker.person.fullName(),
+			acceptUrl: faker.internet.url(),
+		};
+
+		const html = await renderEmail("organization.invitation_sent", props);
+
+		expect(html).toContain(props.acceptUrl);
+		expect(html).toContain("7 days");
+		expect(getSubject("organization.invitation_sent")).toBe(
+			"You're invited to Frubble",
+		);
+	});
+
 	it("links the footer to the support address the worker passes", async () => {
 		const supportUrl = faker.internet.url();
 

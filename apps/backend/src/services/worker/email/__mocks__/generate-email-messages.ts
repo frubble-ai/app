@@ -40,6 +40,11 @@ export function generateEmailMessageCases(): Array<{
 	const code = faker.string.numeric(6);
 	const resetCode = faker.string.numeric(6);
 	const address = faker.internet.email().toLowerCase();
+	const invitation = {
+		organizationName: faker.company.name(),
+		inviterName: faker.person.fullName(),
+		acceptUrl: faker.internet.url(),
+	};
 	return [
 		{
 			message: {
@@ -59,6 +64,16 @@ export function generateEmailMessageCases(): Array<{
 				code: resetCode,
 			},
 			email: { type: "password.reset_requested", props: { code: resetCode } },
+		},
+		{
+			message: {
+				type: "organization.invitation_sent",
+				email: address,
+				organizationName: invitation.organizationName,
+				inviterName: invitation.inviterName,
+				acceptUrl: invitation.acceptUrl,
+			},
+			email: { type: "organization.invitation_sent", props: invitation },
 		},
 	];
 }

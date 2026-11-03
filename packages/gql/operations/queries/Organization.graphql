@@ -1,0 +1,19 @@
+query Organization($id: String!) {
+	organization(id: $id) {
+		id
+		name
+		role
+		members {
+			userId
+			name
+			email
+			role
+		}
+		invitations {
+			id
+			email
+			role
+			expiresAt
+		}
+	}
+}

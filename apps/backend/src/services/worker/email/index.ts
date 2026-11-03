@@ -24,6 +24,15 @@ export function toEmail(message: TEmailMessage): TEmail {
 			};
 		case "password.reset_requested":
 			return { type: message.type, props: { code: message.code } };
+		case "organization.invitation_sent":
+			return {
+				type: message.type,
+				props: {
+					organizationName: message.organizationName,
+					inviterName: message.inviterName,
+					acceptUrl: message.acceptUrl,
+				},
+			};
 		default:
 			return assertNever(message);
 	}
@@ -36,7 +45,7 @@ export async function handleEmailMessage(
 ): Promise<void> {
 	const message = parseEnvelope(body, ENVELOPE_SCHEMAS.emails);
 	await deps.sendEmail(message.email, toEmail(message));
-	// The template only: never the address or the code.
+	// The template only: never the address, a code or a link.
 	deps.logger.info(
 		{ template: message.type, messageId: message.id },
 		"email sent",

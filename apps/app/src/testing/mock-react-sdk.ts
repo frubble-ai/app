@@ -13,3 +13,12 @@ const actual =
 export * from "@frubble/react-sdk";
 export const graphqlClient = actual.graphqlClient;
 export const useAuth = vi.fn();
+export const useMyOrganizationsQuery = vi.fn();
+export const useOrganizationQuery = vi.fn();
+export const useIntegrationsQuery = vi.fn();
+export const useIntegrationPreviewLazyQuery = vi.fn();
+export const useCreateOrganizationMutation = vi.fn();
+export const useInviteOrganizationMemberMutation = vi.fn();
+export const useAcceptOrganizationInvitationMutation = vi.fn();
+export const useStartIntegrationConnectMutation = vi.fn();
+export const useDisconnectIntegrationMutation = vi.fn();

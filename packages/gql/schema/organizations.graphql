@@ -1,0 +1,85 @@
+"The organization plugin's roles. Owners and admins manage; members read."
+enum OrganizationRole {
+	OWNER
+	ADMIN
+	MEMBER
+}
+
+"The role an invitation grants."
+enum InvitationRole {
+	ADMIN
+	MEMBER
+}
+
+"An organization the caller belongs to, with the caller's role in it."
+type Organization {
+	id: String!
+	name: String!
+	role: OrganizationRole!
+}
+
+type OrganizationMember {
+	userId: UserId!
+	name: String!
+	email: String!
+	role: OrganizationRole!
+}
+
+"An invitation not yet accepted and not expired."
+type OrganizationInvitation {
+	id: String!
+	email: String!
+	role: OrganizationRole!
+	expiresAt: DateTime!
+}
+
+type OrganizationDetails {
+	id: String!
+	name: String!
+	role: OrganizationRole!
+	members: [OrganizationMember!]!
+	invitations: [OrganizationInvitation!]!
+}
+
+input CreateOrganizationInput {
+	name: String!
+}
+
+input InviteOrganizationMemberInput {
+	organizationId: String!
+	email: String!
+	role: InvitationRole!
+}
+
+type AcceptInvitationPayload {
+	organizationId: String!
+}
+
+extend type Query {
+	"Every organization the caller belongs to, oldest first."
+	myOrganizations: [Organization!]!
+
+	"""
+	One of the caller's organizations, with its members and open invitations.
+	Not a member answers `NOT_FOUND`.
+	"""
+	organization(id: String!): OrganizationDetails!
+}
+
+extend type Mutation {
+	"Create an organization; the caller becomes its owner."
+	createOrganization(input: CreateOrganizationInput!): Organization!
+
+	"""
+	Invite an address (owners and admins only); it gets an email with a link to
+	accept.
+	"""
+	inviteOrganizationMember(
+		input: InviteOrganizationMemberInput!
+	): OrganizationInvitation!
+
+	"""
+	Join through an invitation sent to the caller's own verified address.
+	"""
+	acceptOrganizationInvitation(invitationId: String!): AcceptInvitationPayload!
+}
