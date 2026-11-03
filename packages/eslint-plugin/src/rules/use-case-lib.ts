@@ -29,7 +29,9 @@ const rule: Rule.RuleModule = {
 			ImportDeclaration(node) {
 				const source = node.source?.value;
 				if (typeof source !== "string") return;
-				if (source === "@/use-cases") {
+				// `@/use-cases/index` and `@/use-cases/index.ts` are the same module.
+				const target = source.replace(/\/index(\.[cm]?[jt]sx?)?$/, "");
+				if (target === "@/use-cases") {
 					context.report({ node, messageId: "context", data: { source } });
 				} else if (source.startsWith("@/use-cases/cases/")) {
 					context.report({ node, messageId: "useCase", data: { source } });

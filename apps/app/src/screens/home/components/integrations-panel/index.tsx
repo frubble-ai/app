@@ -1,15 +1,24 @@
 import {
-	type IntegrationProvider,
+	IntegrationProvider,
 	useDisconnectIntegrationMutation,
 	useIntegrationsQuery,
 	useStartIntegrationConnectMutation,
 } from "@frubble/react-sdk";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IntegrationPreview } from "@/screens/home/components/integration-preview";
+import { GithubOrganizations } from "@/screens/home/components/github-organizations";
+import { LinearTeams } from "@/screens/home/components/linear-teams";
+import { SlackChannels } from "@/screens/home/components/slack-channels";
 import { PROVIDERS, providerSlug } from "@/screens/home/lib/providers";
 
-/** Each provider: connected or not, connect and disconnect for managers, a preview once connected. */
+/** What a connected provider shows: its own read. */
+const READS = {
+	[IntegrationProvider.Github]: GithubOrganizations,
+	[IntegrationProvider.Linear]: LinearTeams,
+	[IntegrationProvider.Slack]: SlackChannels,
+};
+
+/** Each provider: connected or not, connect and disconnect for managers, its own read once connected. */
 export function IntegrationsPanel({
 	organizationId,
 	canManage,
@@ -114,12 +123,12 @@ export function IntegrationsPanel({
 									</div>
 								) : null}
 							</div>
-							{isConnected ? (
-								<IntegrationPreview
-									organizationId={organizationId}
-									provider={provider}
-								/>
-							) : null}
+							{isConnected
+								? (() => {
+										const Read = READS[provider];
+										return <Read organizationId={organizationId} />;
+									})()
+								: null}
 						</li>
 					);
 				})}

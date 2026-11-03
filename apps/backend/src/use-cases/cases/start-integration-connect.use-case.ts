@@ -5,6 +5,7 @@ import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
 import { retireIntegrationConnectionsUseCase } from "@/use-cases/cases/retire-integration-connections.use-case";
 import { sweepRetiringIntegrationsUseCase } from "@/use-cases/cases/sweep-retiring-integrations.use-case";
+import { openSession } from "@/use-cases/lib/composio";
 import { integrationProviderSchema } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -66,13 +67,14 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			connectedById: userId,
 		});
 
-		// `initiate`, not `link`: on our own OAuth apps it answers the provider's consent page itself,
-		// where `link` sends the user through Composio's hosted page first. allowMultiple: a
-		// reconnect starts while the old connection still works.
-		const request = await ctx.composio.connectedAccounts
-			.initiate(organizationId, ctx.config.composio.authConfigIds[provider], {
+		const session = await openSession(ctx.composio, {
+			organizationId,
+			toolkit: provider,
+			authConfigId: ctx.config.composio.authConfigIds[provider],
+		});
+		const request = await session
+			.authorize(provider, {
 				callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
-				allowMultiple: true,
 			})
 			.catch(async (err: unknown) => {
 				await ctx.db
@@ -107,6 +109,11 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			);
 		}
 		if (!redirectUrl) {
+			// Nothing to send the user to: the attempt retires with its account.
+			await retireIntegrationConnectionsUseCase({
+				organizationId,
+				connectionIds: [id],
+			});
 			throw new Error(`Composio returned no redirect URL for ${provider}`);
 		}
 		return { redirectUrl };

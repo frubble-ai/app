@@ -1,25 +1,35 @@
 import type { TComposio } from "@/composio";
-import {
-	executeRead,
-	type TConnectedAccountRef,
-} from "@/use-cases/lib/composio/lib/execute-read";
-import {
-	type TIntegrationPreviewItem,
-	toPreviewItems,
-} from "@/use-cases/lib/composio/lib/preview-items";
+import { executeTool } from "@/use-cases/lib/composio/lib/execute-tool";
+import type { TSession } from "@/use-cases/lib/composio/lib/session";
 
-// Pinned, so a Composio release cannot change a tool under us. Bump after reading its changelog.
-const TOOLKIT_VERSION = "20261023_00";
+/** A Slack channel the connected user can see. */
+export type TSlackChannel = {
+	id: string;
+	name: string;
+	isPrivate: boolean;
+	memberCount: number | null;
+};
 
 /** The workspace's channels the connected user can see, archived ones left out. */
 export async function listSlackChannels(
 	composio: TComposio,
-	account: TConnectedAccountRef,
-): Promise<TIntegrationPreviewItem[]> {
-	const data = await executeRead(composio, account, {
+	session: TSession,
+): Promise<TSlackChannel[]> {
+	const data = (await executeTool(composio, session, {
 		slug: "SLACK_LIST_ALL_CHANNELS",
-		version: TOOLKIT_VERSION,
-		arguments: { limit: 100, exclude_archived: true },
-	});
-	return toPreviewItems(data, ["channels"]);
+		arguments: { limit: 200, exclude_archived: true },
+	})) as {
+		channels: Array<{
+			id: string;
+			name: string;
+			is_private?: boolean;
+			num_members?: number;
+		}>;
+	};
+	return data.channels.map((channel) => ({
+		id: channel.id,
+		name: channel.name,
+		isPrivate: channel.is_private ?? false,
+		memberCount: channel.num_members ?? null,
+	}));
 }

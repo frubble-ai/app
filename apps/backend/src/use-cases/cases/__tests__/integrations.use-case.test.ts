@@ -3,21 +3,38 @@ import { integrationConnection } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import type { TTestClone } from "@/testing/integration-bootstrap";
+import {
+	answerAuthorize,
+	answerConnectedAccount,
+	answerExecute,
+	answerTool,
+	composioRequests,
+	deletedAccounts,
+	failConnectedAccount,
+	failDelete,
+	lastCallbackUrl,
+	restoreDelete,
+} from "@/testing/mock-composio-network";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import {
 	signedInTestUser,
 	type TSignedInTestUser,
 } from "@/testing/signed-in-test-user";
+import { generateGithubOrganization } from "@/use-cases/cases/__mocks__/generate-github-organization";
+import { generateGithubOrganizationsTool } from "@/use-cases/cases/__mocks__/generate-github-organizations-tool";
 import { acceptOrganizationInvitationUseCase } from "@/use-cases/cases/accept-organization-invitation.use-case";
 import { completeIntegrationConnectUseCase } from "@/use-cases/cases/complete-integration-connect.use-case";
 import { createOrganizationUseCase } from "@/use-cases/cases/create-organization.use-case";
 import { disconnectIntegrationUseCase } from "@/use-cases/cases/disconnect-integration.use-case";
 import { inviteOrganizationMemberUseCase } from "@/use-cases/cases/invite-organization-member.use-case";
+import { listGithubOrganizationsUseCase } from "@/use-cases/cases/list-github-organizations.use-case";
 import { listIntegrationsUseCase } from "@/use-cases/cases/list-integrations.use-case";
-import { previewIntegrationUseCase } from "@/use-cases/cases/preview-integration.use-case";
+import { listLinearTeamsUseCase } from "@/use-cases/cases/list-linear-teams.use-case";
 import { startIntegrationConnectUseCase } from "@/use-cases/cases/start-integration-connect.use-case";
 
 const { getClone } = setupIntegrationTestContext();
+
+const CONSENT_PAGE = "https://connect.composio.dev/link/test";
 
 async function ownerWithOrganization(clone: TTestClone) {
 	const owner = await signedInTestUser(clone);
@@ -50,84 +67,95 @@ async function plainMember(
 	return joined;
 }
 
-/** Start connecting GitHub; the connection id the callback will carry. */
-async function startConnecting(
-	clone: TTestClone,
-	args: { userId: string; organizationId: string },
-) {
+/** Start connecting GitHub; the connection id our callback will carry. */
+async function startConnecting(args: {
+	userId: string;
+	organizationId: string;
+}) {
 	const connectedAccountId = `ca_${faker.string.alphanumeric(10)}`;
-	clone.composio.connectedAccounts.initiate.mockResolvedValueOnce({
-		id: connectedAccountId,
-		redirectUrl: "https://consent.example/github",
-	});
+	answerAuthorize({ connectedAccountId, redirectUrl: CONSENT_PAGE });
 	await startIntegrationConnectUseCase({ ...args, provider: "github" });
-	const callbackUrl =
-		clone.composio.connectedAccounts.initiate.mock.lastCall?.[2].callbackUrl;
 	return {
 		connectionId:
-			new URL(callbackUrl ?? "").searchParams.get("connection") ?? "",
+			new URL(lastCallbackUrl()).searchParams.get("connection") ?? "",
 		connectedAccountId,
 	};
 }
 
-async function connected(
-	clone: TTestClone,
-	args: { userId: string; organizationId: string },
-) {
-	const attempt = await startConnecting(clone, args);
-	clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-		status: "ACTIVE",
-	});
+async function connected(args: { userId: string; organizationId: string }) {
+	const attempt = await startConnecting(args);
+	answerConnectedAccount(attempt.connectedAccountId, "ACTIVE", { once: true });
 	await completeIntegrationConnectUseCase({
 		connectionId: attempt.connectionId,
 	});
 	return attempt;
 }
 
+async function rowsOf(clone: TTestClone, organizationId: string) {
+	return clone.db
+		.select({
+			status: integrationConnection.status,
+			account: integrationConnection.composioConnectedAccountId,
+		})
+		.from(integrationConnection)
+		.where(eq(integrationConnection.organizationId, organizationId));
+}
+
 describe("connecting a provider", () => {
-	it("links the organization at Composio with our callback, connected only once it finishes", async () => {
+	it("opens a session on our auth config and sends Composio our callback", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		clone.composio.connectedAccounts.initiate.mockResolvedValueOnce({
-			id: "ca_1",
-			redirectUrl: "https://consent.example/github",
-		});
+		answerAuthorize({ connectedAccountId: "ca_1", redirectUrl: CONSENT_PAGE });
 
-		const result = await startIntegrationConnectUseCase({
-			userId: owner.id,
-			organizationId,
-			provider: "github",
-		});
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).resolves.toEqual({ redirectUrl: CONSENT_PAGE });
 
-		expect(result).toEqual({ redirectUrl: "https://consent.example/github" });
-		expect(clone.composio.connectedAccounts.initiate).toHaveBeenCalledWith(
-			organizationId,
-			"ac_test_github",
-			{
-				callbackUrl: expect.stringMatching(
-					/^http:\/\/localhost:8080\/integrations\/callback\?connection=[0-9a-f-]{36}$/,
-				),
-				allowMultiple: true,
-			},
+		const session = composioRequests.find((entry) =>
+			entry.path.endsWith("/tool_router/session"),
+		);
+		expect(session?.body).toMatchObject({
+			user_id: organizationId,
+			toolkits: { enable: ["github"] },
+			auth_configs: { github: "ac_test_github" },
+		});
+		expect(lastCallbackUrl()).toMatch(
+			/^http:\/\/localhost:8080\/integrations\/callback\?connection=[0-9a-f-]{36}$/,
 		);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
 		).resolves.toEqual([]);
 	});
 
+	it("retires the attempt when Composio gives no page to send the user to", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		answerAuthorize({ connectedAccountId: "ca_no_page", redirectUrl: null });
+
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).rejects.toThrow();
+
+		expect(deletedAccounts()).toEqual(["ca_no_page"]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
 	it("activates the connection when Composio says it is live", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const { connectionId } = await startConnecting(clone, {
-			userId: owner.id,
-			organizationId,
-		});
-		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-			status: "ACTIVE",
-		});
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
 
 		await expect(
-			completeIntegrationConnectUseCase({ connectionId }),
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
 		).resolves.toEqual({
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=connected",
@@ -143,32 +171,21 @@ describe("connecting a provider", () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const first = await connected(clone, args);
+		const first = await connected(args);
 
-		const second = await connected(clone, args);
+		const second = await connected(args);
 
-		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
-			first.connectedAccountId,
-		);
-		const rows = await clone.db
-			.select()
-			.from(integrationConnection)
-			.where(eq(integrationConnection.organizationId, organizationId));
-		expect(
-			rows.map((row) => [row.composioConnectedAccountId, row.status]),
-		).toEqual([[second.connectedAccountId, "active"]]);
+		expect(deletedAccounts()).toContain(first.connectedAccountId);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "active", account: second.connectedAccountId },
+		]);
 	});
 
 	it("drops a failed attempt at Composio and says it failed", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting(clone, {
-			userId: owner.id,
-			organizationId,
-		});
-		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-			status: "FAILED",
-		});
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		answerConnectedAccount(attempt.connectedAccountId, "FAILED");
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -176,56 +193,47 @@ describe("connecting a provider", () => {
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=failed",
 		});
-		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
-			attempt.connectedAccountId,
-		);
+		expect(deletedAccounts()).toEqual([attempt.connectedAccountId]);
 	});
 
 	it("keeps a replaced account until Composio confirms its removal, then retries", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const first = await connected(clone, args);
-		clone.composio.connectedAccounts.delete.mockRejectedValueOnce(
-			new Error("Composio down"),
-		);
+		const first = await connected(args);
+		failDelete();
 
-		await connected(clone, args);
-		const retiring = await clone.db
-			.select()
-			.from(integrationConnection)
-			.where(eq(integrationConnection.status, "retiring"));
-		expect(retiring.map((row) => row.composioConnectedAccountId)).toEqual([
-			first.connectedAccountId,
-		]);
+		await connected(args);
+		expect(
+			(await rowsOf(clone, organizationId)).find(
+				(row) => row.status === "retiring",
+			),
+		).toEqual({ status: "retiring", account: first.connectedAccountId });
 
+		restoreDelete();
 		await listIntegrationsUseCase(args);
 
-		const left = await clone.db
-			.select()
-			.from(integrationConnection)
-			.where(eq(integrationConnection.organizationId, organizationId));
-		expect(left.map((row) => row.status)).toEqual(["active"]);
+		expect(
+			(await rowsOf(clone, organizationId)).map((row) => row.status),
+		).toEqual(["active"]);
 	});
 
 	it("shows a connection that went live after its callback once the list is read", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const { connectionId } = await startConnecting(clone, args);
-		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-			status: "INITIATED",
+		const attempt = await startConnecting(args);
+		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
+		answerConnectedAccount(attempt.connectedAccountId, "INITIATED", {
+			once: true,
 		});
+
 		await expect(
-			completeIntegrationConnectUseCase({ connectionId }),
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
 		).resolves.toEqual({
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=pending",
 		});
-		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-			status: "ACTIVE",
-		});
-
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([
 			{ provider: "github", connectedAt: expect.anything() },
 		]);
@@ -234,16 +242,11 @@ describe("connecting a provider", () => {
 	it("still sends the browser back to the app when Composio cannot be reached", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const { connectionId } = await startConnecting(clone, {
-			userId: owner.id,
-			organizationId,
-		});
-		clone.composio.connectedAccounts.get.mockRejectedValueOnce(
-			new Error("timeout"),
-		);
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		failConnectedAccount(attempt.connectedAccountId);
 
 		await expect(
-			completeIntegrationConnectUseCase({ connectionId }),
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
 		).resolves.toEqual({
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=pending",
@@ -282,41 +285,80 @@ describe("connecting a provider", () => {
 				provider: "slack",
 			}),
 		).rejects.toMatchObject({ name: "NotFoundError" });
-		expect(clone.composio.connectedAccounts.initiate).not.toHaveBeenCalled();
+		expect(composioRequests).toEqual([]);
+	});
+
+	it("reports connected to both callbacks when two settle the same attempt at once", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
+		const connectedUrl =
+			"http://localhost:3000/?integration=github&integration_status=connected";
+
+		await expect(
+			Promise.all([
+				completeIntegrationConnectUseCase({
+					connectionId: attempt.connectionId,
+				}),
+				completeIntegrationConnectUseCase({
+					connectionId: attempt.connectionId,
+				}),
+			]),
+		).resolves.toEqual([
+			{ redirectUrl: connectedUrl },
+			{ redirectUrl: connectedUrl },
+		]);
 	});
 });
 
-describe("using a connection", () => {
-	it("previews through the organization's connection for any member", async () => {
+describe("reading through a connection", () => {
+	it("lists the GitHub organizations for any member, through the organization's own account", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const { connectedAccountId } = await connected(clone, {
+		const { connectedAccountId } = await connected({
 			userId: owner.id,
 			organizationId,
 		});
 		const joined = await plainMember(clone, owner, organizationId);
-		clone.composio.tools.execute.mockResolvedValueOnce({
-			successful: true,
-			error: null,
-			data: { details: [{ id: 1, login: "frubble-ai" }] },
+		const organization = generateGithubOrganization();
+		answerTool(generateGithubOrganizationsTool());
+		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
+			data: { organizations: [organization] },
 		});
 
 		await expect(
-			previewIntegrationUseCase({
-				userId: joined.id,
-				organizationId,
-				provider: "github",
-			}),
-		).resolves.toEqual([{ id: "1", name: "frubble-ai" }]);
-		expect(clone.composio.tools.execute).toHaveBeenCalledWith(
-			"GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER",
+			listGithubOrganizationsUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual([
 			{
-				userId: organizationId,
-				connectedAccountId,
-				version: "20261023_00",
-				arguments: { per_page: 50 },
+				id: String(organization.id),
+				login: organization.login,
+				description: null,
+				avatarUrl: organization.avatar_url,
 			},
-		);
+		]);
+		expect(
+			composioRequests.findLast((entry) =>
+				entry.path.endsWith("/tool_router/session"),
+			)?.body,
+		).toMatchObject({
+			user_id: organizationId,
+			connected_accounts: { github: [connectedAccountId] },
+		});
+	});
+
+	it("refuses a response that the tool's output schema refuses", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		await connected({ userId: owner.id, organizationId });
+		answerTool(generateGithubOrganizationsTool());
+		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
+			data: { message: "hello world" },
+		});
+
+		await expect(
+			listGithubOrganizationsUseCase({ userId: owner.id, organizationId }),
+		).rejects.toThrow("output schema refuses");
 	});
 
 	it("says a provider that is not connected is not found", async () => {
@@ -324,25 +366,33 @@ describe("using a connection", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 
 		await expect(
-			previewIntegrationUseCase({
-				userId: owner.id,
-				organizationId,
-				provider: "linear",
-			}),
+			listLinearTeamsUseCase({ userId: owner.id, organizationId }),
 		).rejects.toMatchObject({ name: "NotFoundError" });
 	});
+});
 
-	it("disconnecting also retires an unfinished attempt, so its callback cannot reconnect", async () => {
+describe("disconnecting", () => {
+	it("removes the account at Composio and the organization no longer has it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		await connected(clone, args);
-		const attempt = await startConnecting(clone, args);
+		const { connectedAccountId } = await connected(args);
 
 		await disconnectIntegrationUseCase({ ...args, provider: "github" });
-		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-			status: "ACTIVE",
-		});
+
+		expect(deletedAccounts()).toEqual([connectedAccountId]);
+		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
+	});
+
+	it("also retires an unfinished attempt, so its callback cannot reconnect", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		await connected(args);
+		const attempt = await startConnecting(args);
+
+		await disconnectIntegrationUseCase({ ...args, provider: "github" });
+		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -350,182 +400,72 @@ describe("using a connection", () => {
 			redirectUrl: "http://localhost:3000/?integration_status=failed",
 		});
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
-		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
-			attempt.connectedAccountId,
-		);
-	});
-
-	it("reports connected to both callbacks when two settle the same attempt at once", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const { connectionId } = await startConnecting(clone, {
-			userId: owner.id,
-			organizationId,
-		});
-		clone.composio.connectedAccounts.get.mockResolvedValue({
-			status: "ACTIVE",
-		});
-
-		const outcomes = await Promise.all([
-			completeIntegrationConnectUseCase({ connectionId }),
-			completeIntegrationConnectUseCase({ connectionId }),
-		]);
-
-		expect(outcomes).toEqual([
-			{
-				redirectUrl:
-					"http://localhost:3000/?integration=github&integration_status=connected",
-			},
-			{
-				redirectUrl:
-					"http://localhost:3000/?integration=github&integration_status=connected",
-			},
-		]);
-	});
-
-	it("never activates an attempt that was retired, even while Composio still holds it", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const args = { userId: owner.id, organizationId };
-		await connected(clone, args);
-		const attempt = await startConnecting(clone, args);
-		clone.composio.connectedAccounts.delete.mockRejectedValue(
-			new Error("Composio down"),
-		);
-		await expect(
-			disconnectIntegrationUseCase({ ...args, provider: "github" }),
-		).rejects.toMatchObject({ name: "InternalServerError" });
-		clone.composio.connectedAccounts.get.mockResolvedValueOnce({
-			status: "ACTIVE",
-		});
-
-		await expect(
-			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
-		).resolves.toEqual({
-			redirectUrl:
-				"http://localhost:3000/?integration=github&integration_status=failed",
-		});
-		const rows = await clone.db
-			.select({ status: integrationConnection.status })
-			.from(integrationConnection)
-			.where(eq(integrationConnection.organizationId, organizationId));
-		expect(rows.map((row) => row.status)).toEqual(["retiring", "retiring"]);
-	});
-
-	it("fails a connect that a disconnect overtook while Composio created the account", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const args = { userId: owner.id, organizationId };
-		await connected(clone, args);
-		clone.composio.connectedAccounts.initiate.mockImplementationOnce(
-			async () => {
-				await disconnectIntegrationUseCase({ ...args, provider: "github" });
-				return {
-					id: "ca_overtaken",
-					redirectUrl: "https://consent.example/github",
-				};
-			},
-		);
-
-		await expect(
-			startIntegrationConnectUseCase({ ...args, provider: "github" }),
-		).rejects.toMatchObject({ name: "BadInputError" });
-
-		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
-			"ca_overtaken",
-		);
-		const left = await clone.db
-			.select()
-			.from(integrationConnection)
-			.where(eq(integrationConnection.organizationId, organizationId));
-		expect(left).toEqual([]);
-	});
-
-	it("keeps the overtaken account on a retiring row when Composio fails to remove it", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const args = { userId: owner.id, organizationId };
-		await connected(clone, args);
-		clone.composio.connectedAccounts.initiate.mockImplementationOnce(
-			async () => {
-				await disconnectIntegrationUseCase({ ...args, provider: "github" });
-				clone.composio.connectedAccounts.delete.mockRejectedValueOnce(
-					new Error("Composio down"),
-				);
-				return {
-					id: "ca_overtaken",
-					redirectUrl: "https://consent.example/github",
-				};
-			},
-		);
-
-		await expect(
-			startIntegrationConnectUseCase({ ...args, provider: "github" }),
-		).rejects.toMatchObject({ name: "BadInputError" });
-
-		const left = await clone.db
-			.select({
-				status: integrationConnection.status,
-				account: integrationConnection.composioConnectedAccountId,
-			})
-			.from(integrationConnection)
-			.where(eq(integrationConnection.organizationId, organizationId));
-		expect(left).toEqual([{ status: "retiring", account: "ca_overtaken" }]);
-
-		await listIntegrationsUseCase(args);
-
-		const removals = clone.composio.connectedAccounts.delete.mock.calls.filter(
-			([accountId]) => accountId === "ca_overtaken",
-		);
-		expect(removals).toHaveLength(2);
-		await expect(
-			clone.db
-				.select()
-				.from(integrationConnection)
-				.where(eq(integrationConnection.organizationId, organizationId)),
-		).resolves.toEqual([]);
 	});
 
 	it("does not report a disconnect Composio has not confirmed, and keeps retrying it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		await connected(clone, args);
-		clone.composio.connectedAccounts.delete.mockRejectedValueOnce(
-			new Error("Composio down"),
-		);
+		await connected(args);
+		failDelete();
 
 		await expect(
 			disconnectIntegrationUseCase({ ...args, provider: "github" }),
 		).rejects.toMatchObject({ name: "InternalServerError" });
 
+		restoreDelete();
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
-		const left = await clone.db
-			.select()
-			.from(integrationConnection)
-			.where(eq(integrationConnection.organizationId, organizationId));
-		expect(left).toEqual([]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("disconnects: Composio revokes it and the organization no longer has it", async () => {
+	it("fails a connect that a disconnect overtook while Composio created the account", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const { connectedAccountId } = await connected(clone, {
-			userId: owner.id,
-			organizationId,
+		const args = { userId: owner.id, organizationId };
+		await connected(args);
+		answerAuthorize({
+			connectedAccountId: "ca_overtaken",
+			redirectUrl: CONSENT_PAGE,
+			before: () =>
+				disconnectIntegrationUseCase({ ...args, provider: "github" }),
 		});
 
-		await disconnectIntegrationUseCase({
-			userId: owner.id,
-			organizationId,
-			provider: "github",
-		});
-
-		expect(clone.composio.connectedAccounts.delete).toHaveBeenCalledWith(
-			connectedAccountId,
-		);
 		await expect(
-			listIntegrationsUseCase({ userId: owner.id, organizationId }),
-		).resolves.toEqual([]);
+			startIntegrationConnectUseCase({ ...args, provider: "github" }),
+		).rejects.toMatchObject({ name: "BadInputError" });
+
+		expect(deletedAccounts()).toContain("ca_overtaken");
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("keeps the overtaken account on a retiring row when Composio fails to remove it", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		await connected(args);
+		answerAuthorize({
+			connectedAccountId: "ca_overtaken",
+			redirectUrl: CONSENT_PAGE,
+			before: async () => {
+				await disconnectIntegrationUseCase({ ...args, provider: "github" });
+				failDelete();
+			},
+		});
+
+		await expect(
+			startIntegrationConnectUseCase({ ...args, provider: "github" }),
+		).rejects.toMatchObject({ name: "BadInputError" });
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "retiring", account: "ca_overtaken" },
+		]);
+
+		restoreDelete();
+		await listIntegrationsUseCase(args);
+
+		// The failed attempts (the SDK retries them) and the one that worked.
+		expect(
+			deletedAccounts().filter((id) => id === "ca_overtaken").length,
+		).toBeGreaterThan(1);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 });

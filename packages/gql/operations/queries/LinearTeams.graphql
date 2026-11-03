@@ -1,0 +1,6 @@
+query LinearTeams($organizationId: String!) {
+	linearTeams(organizationId: $organizationId) {
+		id
+		name
+	}
+}

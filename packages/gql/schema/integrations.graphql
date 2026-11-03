@@ -11,13 +11,26 @@ type Integration {
 	connectedAt: DateTime!
 }
 
-"""
-One row of a provider's preview: a GitHub organization, a Linear team, a Slack
-channel.
-"""
-type IntegrationPreviewItem {
+"A GitHub organization the connected user belongs to."
+type GithubOrganization {
+	id: String!
+	login: String!
+	description: String
+	avatarUrl: String!
+}
+
+"A Linear team the connected user can see."
+type LinearTeam {
 	id: String!
 	name: String!
+}
+
+"A Slack channel the connected user can see."
+type SlackChannel {
+	id: String!
+	name: String!
+	isPrivate: Boolean!
+	memberCount: Int
 }
 
 type StartIntegrationConnectPayload {
@@ -39,10 +52,19 @@ extend type Query {
 	integrations(organizationId: String!): [Integration!]!
 
 	"""
-	A live read through a connection, proving it works. `NOT_FOUND` when the
-	provider is not connected.
+	The organizations the connected GitHub user belongs to. `NOT_FOUND` when
+	GitHub is not connected.
 	"""
-	integrationPreview(input: IntegrationTarget!): [IntegrationPreviewItem!]!
+	githubOrganizations(organizationId: String!): [GithubOrganization!]!
+
+	"The Linear teams the connected user can see. `NOT_FOUND` when not connected."
+	linearTeams(organizationId: String!): [LinearTeam!]!
+
+	"""
+	The Slack channels the connected user can see, archived ones left out.
+	`NOT_FOUND` when Slack is not connected.
+	"""
+	slackChannels(organizationId: String!): [SlackChannel!]!
 }
 
 extend type Mutation {

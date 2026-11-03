@@ -1,6 +1,0 @@
-query IntegrationPreview($input: IntegrationTarget!) {
-	integrationPreview(input: $input) {
-		id
-		name
-	}
-}

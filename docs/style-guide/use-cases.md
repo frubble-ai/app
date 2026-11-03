@@ -12,7 +12,10 @@ Where the backend's work happens (`apps/backend/src/use-cases`).
 3. **`lib/` takes parts of the context, never the context.** A function there receives what it
    needs as arguments: `ctx.db`, `ctx.composio`, a config value. It never imports
    `@/use-cases` or calls a use case. `@frubble/use-case-lib` enforces both.
-4. **Resolvers, HTTP routes, scripts and the worker call use cases**, never `lib/` or a client.
+4. **Resolvers, HTTP routes, scripts and the worker call use cases**, never `lib/` or a client:
+   `yarn db:seed` runs `seed-local-users`. The migration script is not one of them: it runs
+   before the API's configuration exists, from the database variables alone, through
+   `@frubble/db/migrate`, and never builds the context.
 
 ```
 use-cases/

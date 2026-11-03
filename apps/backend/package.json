@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@composio/core": "0.27.0",
+		"@composio/json-schema-to-zod": "0.4.0",
 		"@frubble/db": "workspace:*",
 		"@frubble/emails": "workspace:*",
 		"@frubble/events": "workspace:*",
@@ -50,6 +51,7 @@
 		"@types/pg": "^8.20.0",
 		"@vitest/coverage-istanbul": "^5.0.5",
 		"eslint": "^9.0.0",
+		"msw": "3.0.3",
 		"pino-pretty": "^13.2.0",
 		"typescript": "^5.7.2",
 		"vite": "^8.3.5",

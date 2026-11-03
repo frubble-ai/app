@@ -22,6 +22,14 @@ describe("@frubble/use-case-lib", () => {
 		]);
 	});
 
+	it("refuses the context module named by its index file", () => {
+		for (const source of ["@/use-cases/index", "@/use-cases/index.ts"]) {
+			expect(lint(LIB, source)).toEqual([
+				expect.objectContaining({ messageId: "context" }),
+			]);
+		}
+	});
+
 	it("refuses a use case in use-cases/lib", () => {
 		expect(lint(LIB, "@/use-cases/cases/sweep.use-case")).toEqual([
 			expect.objectContaining({ messageId: "useCase" }),

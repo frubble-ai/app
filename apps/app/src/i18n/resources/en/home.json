@@ -24,17 +24,26 @@
 		"reconnect": "Reconnect",
 		"disconnect": "Disconnect",
 		"actionFailed": "That didn't work. Try again.",
-		"previewAction": {
-			"github": "List GitHub organizations",
-			"linear": "List Linear teams",
-			"slack": "List Slack channels"
-		},
-		"previewFailed": "We couldn't read from this tool. Reconnect it and try again.",
-		"previewEmpty": "Nothing to show.",
 		"outcome": {
 			"connected": "Connected.",
 			"pending": "Still connecting. Refresh in a moment.",
 			"failed": "The connection didn't go through. Try again."
+		},
+		"readFailed": "We couldn't read from this tool. Reconnect it and try again.",
+		"github": {
+			"load": "List GitHub organizations",
+			"empty": "This account belongs to no organization."
+		},
+		"linear": {
+			"load": "List Linear teams",
+			"empty": "No teams to show."
+		},
+		"slack": {
+			"load": "List Slack channels",
+			"empty": "No channels to show.",
+			"private": "private",
+			"public": "public",
+			"members": "{{count}} members"
 		}
 	},
 	"members": {
