@@ -25,4 +25,8 @@ describe("returnPath", () => {
 	])("goes home for %s", (_case, from) => {
 		expect(returnPath(from)).toBe("/");
 	});
+
+	it("goes home for a value that is not a URL at all", () => {
+		expect(returnPath("//[")).toBe("/");
+	});
 });

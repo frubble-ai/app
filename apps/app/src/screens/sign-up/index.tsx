@@ -15,9 +15,10 @@ export function SignUpScreen() {
 	const { t } = useTranslation("auth");
 	const { isAuthenticated, isPending } = useAuth();
 	const from = useSearchParams().get("from");
-	const signUp = useSignUp(returnPath(from));
+	const destination = returnPath(from);
+	const signUp = useSignUp(destination);
 
-	if (!isPending && isAuthenticated) return <Redirect to="/" />;
+	if (!isPending && isAuthenticated) return <Redirect to={destination} />;
 
 	return (
 		<main data-testid="sign-up">

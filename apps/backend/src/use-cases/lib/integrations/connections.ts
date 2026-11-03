@@ -106,11 +106,23 @@ export async function settleConnection(
 		return "pending";
 	}
 
-	if (state === "failed") {
-		await retireConnections(ctx, row.organizationId, [row.id]);
-	}
-	if (state === "active") {
-		await ctx.db.transaction(async (tx) => {
+	// Lock the row and look again: a newer connect or a disconnect may have retired it since it
+	// was read, and only a row still pending may change here.
+	const settled = await ctx.db.transaction(async (tx) => {
+		const [current] = await tx
+			.select({ status: integrationConnection.status })
+			.from(integrationConnection)
+			.where(eq(integrationConnection.id, row.id))
+			.for("update");
+		if (current?.status !== "pending") return "failed" as const;
+		if (state === "failed") {
+			await tx
+				.update(integrationConnection)
+				.set({ status: "retiring" })
+				.where(eq(integrationConnection.id, row.id));
+			return "failed" as const;
+		}
+		if (state === "active") {
 			await tx
 				.update(integrationConnection)
 				.set({ status: "retiring" })
@@ -125,10 +137,11 @@ export async function settleConnection(
 				.update(integrationConnection)
 				.set({ status: "active" })
 				.where(eq(integrationConnection.id, row.id));
-		});
-		await sweepRetiring(ctx, row.organizationId);
-	}
-	return state;
+		}
+		return state;
+	});
+	await sweepRetiring(ctx, row.organizationId);
+	return settled;
 }
 
 /** Settle every pending row of the organization, so one that went live after its callback shows. */

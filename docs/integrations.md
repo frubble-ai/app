@@ -24,8 +24,8 @@ Composio connects each organization's GitHub, Linear and Slack and keeps their t
 `integration_connection` records which connected account an organization uses per provider:
 `pending` while the provider's consent is open, `active` after it, `retiring` once replaced,
 failed or abandoned. A retiring row stays until Composio confirms the account is removed, and
-every list of the organization's tools tries again, so no account is left behind with live
-tokens. One active row per organization and provider.
+every list of the organization's tools tries the removal again; while Composio keeps failing,
+the account stays there. One active row per organization and provider.
 
 1. `startIntegrationConnect` creates a pending row and asks Composio for a link back to
    `<API>/integrations/callback?connection=<row id>`.

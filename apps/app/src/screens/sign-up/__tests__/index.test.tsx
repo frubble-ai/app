@@ -87,6 +87,19 @@ describe("SignUpScreen", () => {
 		).toBeInTheDocument();
 	});
 
+	it("sends a user who is already signed in to the page asked for", async () => {
+		vi.mocked(useAuth).mockReturnValue(generateAuth());
+
+		renderWithProviders(<SignUpScreen />, {
+			path: "/sign-up?from=%2Finvitations%2Fabc",
+			routes: ["/invitations/abc"],
+		});
+
+		expect(
+			await screen.findByTestId("route-/invitations/abc"),
+		).toBeInTheDocument();
+	});
+
 	it("keeps the page to return to on the link to sign-in", () => {
 		signedOut();
 		renderWithProviders(<SignUpScreen />, {

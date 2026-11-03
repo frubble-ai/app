@@ -328,6 +328,29 @@ describe("using a connection", () => {
 		);
 	});
 
+	it("never activates an attempt that was retired, even while Composio still holds it", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		await connected(clone, args);
+		const attempt = await startConnecting(clone, args);
+		clone.integrations.remove.mockRejectedValue(new Error("Composio down"));
+		await disconnectIntegrationUseCase({ ...args, provider: "github" });
+		clone.integrations.getState.mockResolvedValueOnce("active");
+
+		await expect(
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+		).resolves.toEqual({
+			redirectUrl:
+				"http://localhost:3000/?integration=github&integration_status=failed",
+		});
+		const rows = await clone.db
+			.select({ status: integrationConnection.status })
+			.from(integrationConnection)
+			.where(eq(integrationConnection.organizationId, organizationId));
+		expect(rows.map((row) => row.status)).toEqual(["retiring", "retiring"]);
+	});
+
 	it("disconnects: Composio revokes it and the organization no longer has it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);

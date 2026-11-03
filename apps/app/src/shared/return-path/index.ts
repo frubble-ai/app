@@ -9,7 +9,13 @@ const SITE = "https://app.invalid";
  */
 export function returnPath(from: string | null): string {
 	if (!from?.startsWith("/")) return "/";
-	const url = new URL(from, SITE);
+	let url: URL;
+	try {
+		url = new URL(from, SITE);
+	} catch {
+		// Not a URL at all (`//[`): nowhere to go back to
+		return "/";
+	}
 	if (url.origin !== SITE) return "/";
 	const path = `${url.pathname}${url.search}${url.hash}`;
 	// A path can resolve to one that starts `//` (`/.//host`): the browser reads that as another
