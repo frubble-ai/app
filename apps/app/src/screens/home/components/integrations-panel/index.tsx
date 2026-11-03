@@ -65,47 +65,55 @@ export function IntegrationsPanel({
 					{t("integrations.actionFailed")}
 				</p>
 			) : null}
-			<ul>
+			<ul className="rows">
 				{PROVIDERS.map((provider) => {
 					const slug = providerSlug(provider);
 					const isConnected = connected.has(provider);
 					return (
 						<li key={provider} data-testid={`integration-${slug}`}>
-							<strong>
-								{t(`integrations.names.${slug}` as "integrations.names.github")}
-							</strong>{" "}
-							<span data-testid={`integration-status-${slug}`}>
-								{loading
-									? t("integrations.checking")
-									: isConnected
-										? t("integrations.connected")
-										: t("integrations.notConnected")}
-							</span>
-							{canManage ? (
-								<>
-									{" "}
-									<button
-										type="button"
-										disabled={busy !== null}
-										data-testid={`integration-connect-${slug}`}
-										onClick={() => void connect(provider)}
-									>
-										{isConnected
-											? t("integrations.reconnect")
-											: t("integrations.connect")}
-									</button>
-									{isConnected ? (
+							<div className="row">
+								<strong>
+									{t(
+										`integrations.names.${slug}` as "integrations.names.github",
+									)}
+								</strong>
+								<span
+									className={isConnected ? "badge badge--on" : "badge"}
+									data-testid={`integration-status-${slug}`}
+								>
+									{loading
+										? t("integrations.checking")
+										: isConnected
+											? t("integrations.connected")
+											: t("integrations.notConnected")}
+								</span>
+								{canManage ? (
+									<div className="row__actions">
 										<button
 											type="button"
+											className={isConnected ? undefined : "primary"}
 											disabled={busy !== null}
-											data-testid={`integration-disconnect-${slug}`}
-											onClick={() => void remove(provider)}
+											data-testid={`integration-connect-${slug}`}
+											onClick={() => void connect(provider)}
 										>
-											{t("integrations.disconnect")}
+											{isConnected
+												? t("integrations.reconnect")
+												: t("integrations.connect")}
 										</button>
-									) : null}
-								</>
-							) : null}
+										{isConnected ? (
+											<button
+												type="button"
+												className="danger"
+												disabled={busy !== null}
+												data-testid={`integration-disconnect-${slug}`}
+												onClick={() => void remove(provider)}
+											>
+												{t("integrations.disconnect")}
+											</button>
+										) : null}
+									</div>
+								) : null}
+							</div>
 							{isConnected ? (
 								<IntegrationPreview
 									organizationId={organizationId}

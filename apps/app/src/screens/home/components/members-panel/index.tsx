@@ -55,66 +55,81 @@ export function MembersPanel({
 	return (
 		<section data-testid="members">
 			<h2>{t("members.title")}</h2>
-			<ul data-testid="members-list">
+			<ul className="rows" data-testid="members-list">
 				{(organization?.members ?? []).map((entry) => (
-					<li key={entry.userId}>
-						{entry.name} ({entry.email}) ·{" "}
-						{t(`roles.${entry.role}` as "roles.OWNER")}
+					<li key={entry.userId} className="row">
+						<strong>{entry.name}</strong>
+						<span className="muted">{entry.email}</span>
+						<span className="badge">
+							{t(`roles.${entry.role}` as "roles.OWNER")}
+						</span>
 					</li>
 				))}
 			</ul>
 			{(organization?.invitations ?? []).length > 0 ? (
 				<>
 					<h3>{t("members.invited")}</h3>
-					<ul data-testid="invitations-list">
+					<ul className="rows" data-testid="invitations-list">
 						{organization?.invitations.map((entry) => (
-							<li key={entry.id}>
-								{entry.email} · {t(`roles.${entry.role}` as "roles.OWNER")}
+							<li key={entry.id} className="row">
+								<span>{entry.email}</span>
+								<span className="badge">
+									{t(`roles.${entry.role}` as "roles.OWNER")}
+								</span>
 							</li>
 						))}
 					</ul>
 				</>
 			) : null}
 			{canManage ? (
-				<form data-testid="invite-member" onSubmit={submit}>
-					<label>
-						{t("members.emailLabel")}
-						<input
-							name="email"
-							type="email"
-							required
-							data-testid="invite-member-email"
-						/>
-					</label>
-					<label>
-						{t("members.roleLabel")}
-						<select
-							name="role"
-							defaultValue={InvitationRole.Member}
-							data-testid="invite-member-role"
-						>
-							<option value={InvitationRole.Member}>{t("roles.MEMBER")}</option>
-							<option value={InvitationRole.Admin}>{t("roles.ADMIN")}</option>
-						</select>
-					</label>
-					{error ? (
-						<p role="alert" data-testid="invite-member-error">
-							{error}
-						</p>
-					) : null}
-					{sentTo ? (
-						<p role="status" data-testid="invite-member-sent">
-							{t("members.sent")}
-						</p>
-					) : null}
-					<button
-						type="submit"
-						disabled={loading}
-						data-testid="invite-member-submit"
+				<>
+					<h3>{t("members.invite")}</h3>
+					<form
+						className="inline-form"
+						data-testid="invite-member"
+						onSubmit={submit}
 					>
-						{t("members.invite")}
-					</button>
-				</form>
+						<label>
+							{t("members.emailLabel")}
+							<input
+								name="email"
+								type="email"
+								required
+								data-testid="invite-member-email"
+							/>
+						</label>
+						<label>
+							{t("members.roleLabel")}
+							<select
+								name="role"
+								defaultValue={InvitationRole.Member}
+								data-testid="invite-member-role"
+							>
+								<option value={InvitationRole.Member}>
+									{t("roles.MEMBER")}
+								</option>
+								<option value={InvitationRole.Admin}>{t("roles.ADMIN")}</option>
+							</select>
+						</label>
+						{error ? (
+							<p role="alert" data-testid="invite-member-error">
+								{error}
+							</p>
+						) : null}
+						{sentTo ? (
+							<p role="status" data-testid="invite-member-sent">
+								{t("members.sent")}
+							</p>
+						) : null}
+						<button
+							type="submit"
+							disabled={loading}
+							data-testid="invite-member-submit"
+						>
+							{t("members.invite")}
+						</button>
+					</form>
+				</>
 			) : null}
 		</section>
 	);

@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { TEmailMessage } from "@frubble/events";
+import { EMAIL_MESSAGE_SCHEMAS } from "@frubble/events";
 import { describe, expect, it, vi } from "vitest";
 import { handleEmailMessage, toEmail } from "@/services/worker/email";
 import {
@@ -38,6 +39,20 @@ describe("handleEmailMessage", () => {
 		await handleEmailMessage(deps, generateEnvelope(message));
 
 		expect(sendEmail).toHaveBeenCalledWith(message.email, toEmail(message));
+	});
+
+	it("accepts every email the catalog has, in its envelope", async () => {
+		const cases = generateEmailMessageCases();
+		expect(cases.map(({ message }) => message.type).sort()).toEqual(
+			EMAIL_MESSAGE_SCHEMAS.map((schema) => schema.shape.type.value).sort(),
+		);
+		for (const { message, email } of cases) {
+			const { deps, sendEmail } = setup();
+
+			await handleEmailMessage(deps, generateEnvelope(message));
+
+			expect(sendEmail).toHaveBeenCalledWith(message.email, email);
+		}
 	});
 
 	it("rethrows a failed send, so the message is redelivered", async () => {

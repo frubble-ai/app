@@ -10,20 +10,26 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
 	const { user } = useAuth();
 	return (
 		<div data-testid="app-shell">
-			<header>
-				<Link href="/" data-testid="app-shell-brand">
+			<header className="app-header">
+				<Link
+					href="/"
+					className="app-header__brand"
+					data-testid="app-shell-brand"
+				>
 					{t("brand")}
 				</Link>
-				{user ? (
-					<span data-testid="app-shell-email"> {user.email} </span>
-				) : null}
-				<button
-					type="button"
-					data-testid="app-shell-sign-out"
-					onClick={() => void endSession()}
-				>
-					{t("signOut")}
-				</button>
+				<div className="app-header__account">
+					{user ? (
+						<span data-testid="app-shell-email">{user.email}</span>
+					) : null}
+					<button
+						type="button"
+						data-testid="app-shell-sign-out"
+						onClick={() => void endSession()}
+					>
+						{t("signOut")}
+					</button>
+				</div>
 			</header>
 			<main>{children}</main>
 		</div>

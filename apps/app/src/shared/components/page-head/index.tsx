@@ -11,7 +11,7 @@ export function PageHead({
 	testId = "page-head",
 }: TPageHeadProps) {
 	return (
-		<div data-testid={testId}>
+		<div className="page-head" data-testid={testId}>
 			<h1>{title}</h1>
 			{description ? <p>{description}</p> : null}
 		</div>

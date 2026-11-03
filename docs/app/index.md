@@ -13,7 +13,7 @@ accepts an invitation.
 | Its own server (`output: "standalone"`) | The image runs `node server.js` on port 3000 (Dockerfile): no web server or config of ours in front of it. The security headers are in `next.config.ts`                                                         |
 | Pages render in the browser             | The session is a bearer token in `localStorage`, so the server has nothing to render: `AppProviders` shows the splash screen until the session has loaded, and each page is a client component (`"use client"`) |
 | `@frubble/react-sdk`                    | The typed client, hooks and `useAuth`; the app gives it a `localStorage` token store (`src/shared/token-store`, [client](../graphql/client.md#session-token-storage))                                           |
-| Plain HTML, one small stylesheet        | No component library, palette or theme: `src/app/app.css` lays out the page and leaves fonts and colors to the browser                                                                                          |
+| Plain HTML, one stylesheet               | No component library: `src/app/app.css` holds the colour tokens (light and dark follow the system), the frame, cards, forms, buttons, messages and rows; screens add a class only where the CSS needs a hook |
 
 ## Dependencies
 

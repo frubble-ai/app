@@ -31,7 +31,8 @@ the account stays there. One active row per organization and provider.
    back to `<API>/integrations/callback?connection=<row id>`, and records the account on the row.
    The row comes first, so a disconnect meanwhile retires it; the connect then fails and the
    new account is removed.
-2. The browser goes through the provider's consent and Composio sends it to that callback.
+2. The browser goes straight to the provider's consent for our OAuth app (`initiate`, not
+   `link`, which would show Composio's hosted page first), and Composio sends it to that callback.
 3. The callback asks Composio for the account's state: live replaces any previous connection to
    that provider (which retires), failed retires the attempt, and still pending or Composio
    unreachable leaves it pending. Either way it redirects to

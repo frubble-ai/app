@@ -4,6 +4,7 @@ import {
 	signupCodeRequestedSchema,
 } from "../catalog/auth";
 import type { TMessage, TMessageChannel, TMessagesOn } from "../catalog/index";
+import { organizationInvitationSentSchema } from "../catalog/organizations";
 
 /**
  * Every message on the wire is `{ version, id, occurredAt, ...message }`: the envelope version, the
@@ -28,11 +29,15 @@ export const messageContextSchema = z.object({
 	id: envelopeFields.id,
 });
 
-/** What a consumer accepts on each channel: one of the channel's messages, in its envelope. */
+/**
+ * What a consumer accepts on each channel: one of the channel's messages, in its envelope. Every
+ * catalog message of the channel must be listed (the worker's tests send each one through).
+ */
 export const ENVELOPE_SCHEMAS = {
 	emails: z.discriminatedUnion("type", [
 		signupCodeRequestedSchema.extend(envelopeFields),
 		passwordResetRequestedSchema.extend(envelopeFields),
+		organizationInvitationSentSchema.extend(envelopeFields),
 	]),
 } satisfies {
 	[TChannel in TMessageChannel]: z.ZodType<TEnvelope<TMessagesOn[TChannel]>>;

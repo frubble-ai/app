@@ -12,7 +12,7 @@ export function ResetPasswordScreen() {
 	const flow = useResetPassword();
 
 	return (
-		<main data-testid="reset-password">
+		<main className="auth" data-testid="reset-password">
 			<h1>{t("reset.title")}</h1>
 			{flow.email === null ? (
 				<form
