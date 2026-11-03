@@ -2,7 +2,6 @@ import { integrationConnection, organization } from "@frubble/db";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import { retireIntegrationConnectionsUseCase } from "@/use-cases/cases/retire-integration-connections.use-case";
 import { sweepRetiringIntegrationsUseCase } from "@/use-cases/cases/sweep-retiring-integrations.use-case";
 import {
 	accountState,
@@ -48,16 +47,9 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 			return "pending";
 		}
 		if (state === "pending") return "pending";
-		if (state === "failed") {
-			await retireIntegrationConnectionsUseCase({
-				organizationId: row.organizationId,
-				connectionIds: [row.id],
-			});
-			return "failed";
-		}
 
-		// Lock the row and look again: a newer connect or a disconnect may have retired it since it
-		// was read, and only a row still pending may become active here.
+		// Lock the row and look again: a newer connect, a disconnect or another settle may have
+		// changed it since it was read, and only a row still pending may change here.
 		const settled = await ctx.db.transaction(async (tx) => {
 			// One settle per organization at a time, so two never lock its rows in opposite order.
 			await tx
@@ -73,6 +65,13 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 			// Another settle got here first: active is its success, retiring or gone is a failure.
 			if (current?.status === "active") return "active" as const;
 			if (current?.status !== "pending") return "failed" as const;
+			if (state === "failed") {
+				await tx
+					.update(integrationConnection)
+					.set({ status: "retiring" })
+					.where(eq(integrationConnection.id, row.id));
+				return "failed" as const;
+			}
 			await tx
 				.update(integrationConnection)
 				.set({ status: "retiring" })

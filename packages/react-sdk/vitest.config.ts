@@ -6,6 +6,15 @@ export default defineConfig({
 		environment: "node",
 		globals: true,
 		include: ["src/**/*.test.{ts,tsx}", "codegen/**/*.test.ts"],
-		coverage,
+		coverage: {
+			...coverage,
+			// Codegen output (codegen.yml), outside a `__generated__` folder: one hook per operation.
+			exclude: [
+				...coverage.exclude,
+				"src/gql/documents.ts",
+				"src/gql/operations.ts",
+				"src/gql/generated.ts",
+			],
+		},
 	},
 });

@@ -21,8 +21,16 @@ export async function executeTool(
 			`${tool.slug} ${result.resultType}: ${result.error ?? "no error"} (log ${result.logId})`,
 		);
 	}
-	const schema = await toolOutputSchema(composio, tool.slug, tool.patch);
-	const parsed = schema.safeParse(result.data);
+	let parsed = (
+		await toolOutputSchema(composio, tool.slug, tool.patch)
+	).safeParse(result.data);
+	if (!parsed.success) {
+		// The session may run a newer toolkit version than the schema we kept: check once more
+		// against Composio's current one before refusing.
+		parsed = (
+			await toolOutputSchema(composio, tool.slug, tool.patch, { refresh: true })
+		).safeParse(result.data);
+	}
 	if (!parsed.success) {
 		throw new Error(
 			`${tool.slug} returned data its output schema refuses (log ${result.logId}): ${parsed.error.message}`,

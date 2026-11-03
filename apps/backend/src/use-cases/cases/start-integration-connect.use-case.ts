@@ -67,7 +67,8 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			connectedById: userId,
 		});
 
-		// No account exists until `authorize` answers: a failure up to then only drops our row.
+		// The attempt's alias is our row id, so an account Composio created before a lost answer
+		// is still found and removed: a failure retires the row and the sweep looks it up.
 		const request = await openSession(ctx.composio, {
 			organizationId,
 			toolkit: provider,
@@ -76,12 +77,14 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			.then((session) =>
 				session.authorize(provider, {
 					callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
+					alias: id,
 				}),
 			)
 			.catch(async (err: unknown) => {
-				await ctx.db
-					.delete(integrationConnection)
-					.where(eq(integrationConnection.id, id));
+				await retireIntegrationConnectionsUseCase({
+					organizationId,
+					connectionIds: [id],
+				});
 				throw err;
 			});
 		const connectedAccountId = request.id;

@@ -15,14 +15,16 @@ const schemas = new Map<string, Promise<ZodType>>();
 
 /**
  * The Zod schema of a tool's `data`, built from Composio's own output schema (latest version, as
- * sessions run) with Composio's converter. Fetched once per process and tool.
+ * sessions run) with Composio's converter. Kept per process and tool; `refresh` fetches it again,
+ * for when a session has moved to a newer toolkit version.
  */
 export function toolOutputSchema(
 	composio: TComposio,
 	slug: string,
 	patch?: TSchemaPatch,
+	options: { refresh?: boolean } = {},
 ): Promise<ZodType> {
-	const cached = schemas.get(slug);
+	const cached = options.refresh ? undefined : schemas.get(slug);
 	if (cached) return cached;
 	const built = composio.tools
 		.getRawComposioToolBySlug(slug)

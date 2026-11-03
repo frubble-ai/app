@@ -4,12 +4,14 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import type { TTestClone } from "@/testing/integration-bootstrap";
 import {
+	answerAccountMadeForLastAttempt,
 	answerAuthorize,
 	answerConnectedAccount,
 	answerExecute,
 	answerTool,
 	composioRequests,
 	deletedAccounts,
+	failAuthorize,
 	failConnectedAccount,
 	failDelete,
 	failSessions,
@@ -163,6 +165,48 @@ describe("connecting a provider", () => {
 		).rejects.toThrow();
 
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("removes an account Composio made though its answer to authorize was lost", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		failAuthorize();
+		answerAccountMadeForLastAttempt("ca_lost");
+
+		await expect(
+			startIntegrationConnectUseCase({
+				userId: owner.id,
+				organizationId,
+				provider: "github",
+			}),
+		).rejects.toThrow();
+
+		expect(deletedAccounts()).toEqual(["ca_lost"]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("keeps a connection another settle activated when a later answer says it failed", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		// The second answer arrives after the first settle has activated the connection.
+		answerConnectedAccount(attempt.connectedAccountId, "FAILED", {
+			once: true,
+			delayMs: 500,
+		});
+		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE", {
+			once: true,
+		});
+
+		await Promise.all([
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+		]);
+
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "active", account: attempt.connectedAccountId },
+		]);
+		expect(deletedAccounts()).toEqual([]);
 	});
 
 	it("activates the connection when Composio says it is live", async () => {
@@ -376,6 +420,35 @@ describe("reading through a connection", () => {
 		await expect(
 			listGithubOrganizationsUseCase({ userId: owner.id, organizationId }),
 		).rejects.toThrow("output schema refuses");
+	});
+
+	it("checks again against Composio's current schema before refusing a response", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		await connected({ userId: owner.id, organizationId });
+		const organization = generateGithubOrganization();
+		// An older schema, kept from an earlier read, that wanted a field GitHub no longer sends.
+		answerTool(
+			generateGithubOrganizationsTool({
+				required: ["id", "login", "avatar_url", "url"],
+			}),
+		);
+		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
+			data: {
+				organizations: [
+					{ ...organization, url: "https://api.github.com/orgs/x" },
+				],
+			},
+		});
+		await listGithubOrganizationsUseCase({ userId: owner.id, organizationId });
+		answerTool(generateGithubOrganizationsTool());
+		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
+			data: { organizations: [organization] },
+		});
+
+		await expect(
+			listGithubOrganizationsUseCase({ userId: owner.id, organizationId }),
+		).resolves.toHaveLength(1);
 	});
 
 	it("says a provider that is not connected is not found", async () => {

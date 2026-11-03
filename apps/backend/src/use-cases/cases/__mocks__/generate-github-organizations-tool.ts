@@ -3,8 +3,11 @@ import { generateComposioTool } from "@/testing/generate-composio-tool";
 /**
  * GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER as Composio defines it: `data` through
  * `$defs`, and an organization's `description` typed as a string though GitHub sends null.
+ * `required` changes which organization fields the schema requires, as a newer version might.
  */
-export function generateGithubOrganizationsTool() {
+export function generateGithubOrganizationsTool(
+	organization: { required?: string[] } = {},
+) {
 	return generateComposioTool({
 		slug: "GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER",
 		data: { $ref: "#/$defs/Response" },
@@ -30,7 +33,7 @@ export function generateGithubOrganizationsTool() {
 					},
 					avatar_url: { type: "string" },
 				},
-				required: ["id", "login", "avatar_url"],
+				required: organization.required ?? ["id", "login", "avatar_url"],
 			},
 		},
 	});

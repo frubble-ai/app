@@ -1,4 +1,4 @@
-import { HttpResponse, http } from "msw";
+import { delay, HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { generateComposioConnectedAccount } from "./generate-composio-connected-account";
 import { generateComposioSession } from "./generate-composio-session";
@@ -8,6 +8,17 @@ import type { generateComposioTool } from "./generate-composio-tool";
 // are the test's.
 
 const API = "https://backend.composio.dev/api/v3.1";
+
+/** `GET /api/v3.1/connected_accounts` as Composio answers it. */
+function accountList(items: unknown[]) {
+	return {
+		items,
+		next_cursor: null,
+		total_pages: 1,
+		current_page: 1,
+		total_items: items.length,
+	};
+}
 
 /** Every request the SDK sent, in order, with its JSON body. */
 export const composioRequests: Array<{
@@ -19,6 +30,9 @@ export const composioRequests: Array<{
 export const composioNetwork = setupServer(
 	http.delete(`${API}/connected_accounts/:id`, () =>
 		HttpResponse.json({ success: true }),
+	),
+	http.get(`${API}/connected_accounts`, () =>
+		HttpResponse.json(accountList([])),
 	),
 	http.post(`${API}/tool_router/session`, async ({ request }) => {
 		const body = (await request.json()) as { user_id: string };
@@ -100,21 +114,64 @@ export function answerExecute(
 	);
 }
 
-/** `connectedAccounts.get` answers the account with `status` (every time, or `once`). */
+/**
+ * `connectedAccounts.get` answers the account with `status` (every time, or `once`), after
+ * `delayMs` when a test needs one answer to arrive after another.
+ */
 export function answerConnectedAccount(
 	connectedAccountId: string,
 	status: "INITIATED" | "ACTIVE" | "FAILED",
-	options: { once?: boolean } = {},
+	options: { once?: boolean; delayMs?: number } = {},
 ) {
 	composioNetwork.use(
 		http.get(
 			`${API}/connected_accounts/${connectedAccountId}`,
-			() =>
-				HttpResponse.json(
+			async () => {
+				if (options.delayMs) await delay(options.delayMs);
+				return HttpResponse.json(
 					generateComposioConnectedAccount(connectedAccountId, status),
-				),
-			options,
+				);
+			},
+			{ once: options.once },
 		),
+	);
+}
+
+/** `session.authorize` is refused, once; Composio may still have made the account. */
+export function failAuthorize() {
+	composioNetwork.use(
+		http.post(
+			`${API}/tool_router/session/:id/link`,
+			() => HttpResponse.json({ error: "refused" }, { status: 400 }),
+			{ once: true },
+		),
+	);
+}
+
+/**
+ * The organization's accounts at Composio include `connectedAccountId`, made for the last
+ * `authorize` attempt (its alias is that attempt's), as when Composio's answer was lost.
+ */
+export function answerAccountMadeForLastAttempt(connectedAccountId: string) {
+	composioNetwork.use(
+		http.get(`${API}/connected_accounts`, () => {
+			const link = composioRequests.findLast((entry) =>
+				entry.path.endsWith("/link"),
+			);
+			const alias =
+				(link?.body as { alias?: string } | undefined)?.alias ?? null;
+			return HttpResponse.json(
+				accountList([
+					{
+						...generateComposioConnectedAccount(
+							connectedAccountId,
+							"INITIATED",
+						),
+						alias,
+					},
+				]),
+			);
+		}),
 	);
 }
 
