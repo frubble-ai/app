@@ -28,12 +28,12 @@ failed or abandoned. A retiring row stays until Composio confirms the account is
 every list of the organization's tools tries the removal again; while Composio keeps failing,
 the account stays there. One active row per organization and provider.
 
-1. `startIntegrationConnect` writes a pending row, opens the organization's Composio session on
-   our auth config and calls `session.authorize`, with a callback to
-   `<API>/integrations/callback?connection=<row id>`, and records the account on the row.
+1. `startIntegrationConnect` writes a pending row, then calls `connectedAccounts.initiate` on our
+   auth config with the unshortened consent URL, the row id as the account's alias and a callback
+   to `<API>/integrations/callback?connection=<row id>`, and records the account on the row.
    The row comes first, so a disconnect meanwhile retires it; the connect then fails and the
    new account is removed.
-2. The browser goes through Composio's Connect Link to the provider's consent for our OAuth app,
+2. The browser goes straight to the provider's consent for our OAuth app, with no Composio page,
    and Composio sends it to that callback.
 3. The callback asks Composio for the account's state: live replaces any previous connection to
    that provider (which retires), failed retires the attempt, and still pending or Composio

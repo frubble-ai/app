@@ -52,38 +52,57 @@ composioNetwork.events.on("request:start", async ({ request }) => {
 });
 
 /**
- * `session.authorize` answers this account and consent page, once. `before` runs while Composio
- * is "creating" the account, for races.
+ * `connectedAccounts.initiate` answers this account and consent page, once. `before` runs while
+ * Composio is "creating" the account, for races.
  */
-export function answerAuthorize(answer: {
+export function answerInitiate(answer: {
 	connectedAccountId: string;
 	redirectUrl: string | null;
 	before?: () => Promise<void>;
 }) {
 	composioNetwork.use(
 		http.post(
-			`${API}/tool_router/session/:id/link`,
+			`${API}/connected_accounts`,
 			async () => {
 				await answer.before?.();
-				return HttpResponse.json({
-					link_token: "lt_test",
-					redirect_url: answer.redirectUrl,
-					connected_account_id: answer.connectedAccountId,
-				});
+				return HttpResponse.json(
+					{
+						id: answer.connectedAccountId,
+						connectionData: {
+							authScheme: "OAUTH2",
+							val: { status: "INITIATED", redirectUrl: answer.redirectUrl },
+						},
+						status: "INITIATED",
+					},
+					{ status: 201 },
+				);
 			},
 			{ once: true },
 		),
 	);
 }
 
-/** The callback URL the last `session.authorize` sent Composio. */
+/** The connection the last `initiate` asked Composio for. */
+export function lastInitiateRequest() {
+	return composioRequests.findLast(
+		(entry) =>
+			entry.method === "POST" && entry.path.endsWith("/connected_accounts"),
+	)?.body as
+		| {
+				auth_config?: { id?: string };
+				connection?: {
+					callback_url?: string;
+					user_id?: string;
+					alias?: string;
+					state?: unknown;
+				};
+		  }
+		| undefined;
+}
+
+/** The callback URL the last `initiate` sent Composio. */
 export function lastCallbackUrl(): string {
-	const link = composioRequests.findLast((entry) =>
-		entry.path.endsWith("/link"),
-	);
-	return (
-		(link?.body as { callback_url?: string } | undefined)?.callback_url ?? ""
-	);
+	return lastInitiateRequest()?.connection?.callback_url ?? "";
 }
 
 /** `session.execute` of `slug` answers `data`, or fails. */
@@ -137,11 +156,11 @@ export function answerConnectedAccount(
 	);
 }
 
-/** `session.authorize` is refused, once; Composio may still have made the account. */
-export function failAuthorize() {
+/** `initiate` is refused, once; Composio may still have made the account. */
+export function failInitiate() {
 	composioNetwork.use(
 		http.post(
-			`${API}/tool_router/session/:id/link`,
+			`${API}/connected_accounts`,
 			() => HttpResponse.json({ error: "refused" }, { status: 400 }),
 			{ once: true },
 		),
@@ -150,16 +169,12 @@ export function failAuthorize() {
 
 /**
  * The organization's accounts at Composio include `connectedAccountId`, made for the last
- * `authorize` attempt (its alias is that attempt's), as when Composio's answer was lost.
+ * `initiate` attempt (its alias is that attempt's), as when Composio's answer was lost.
  */
 export function answerAccountMadeForLastAttempt(connectedAccountId: string) {
 	composioNetwork.use(
 		http.get(`${API}/connected_accounts`, () => {
-			const link = composioRequests.findLast((entry) =>
-				entry.path.endsWith("/link"),
-			);
-			const alias =
-				(link?.body as { alias?: string } | undefined)?.alias ?? null;
+			const alias = lastInitiateRequest()?.connection?.alias ?? null;
 			return HttpResponse.json(
 				accountList([
 					{
@@ -218,14 +233,5 @@ export function deletedAccounts(): string[] {
 export function answerTool(tool: ReturnType<typeof generateComposioTool>) {
 	composioNetwork.use(
 		http.get(`${API}/tools/${tool.slug}`, () => HttpResponse.json(tool)),
-	);
-}
-
-/** Opening a session fails, as Composio would when down. */
-export function failSessions() {
-	composioNetwork.use(
-		http.post(`${API}/tool_router/session`, () =>
-			HttpResponse.json({ error: "down" }, { status: 400 }),
-		),
 	);
 }

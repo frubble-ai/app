@@ -5,7 +5,6 @@ import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
 import { retireIntegrationConnectionsUseCase } from "@/use-cases/cases/retire-integration-connections.use-case";
 import { sweepRetiringIntegrationsUseCase } from "@/use-cases/cases/sweep-retiring-integrations.use-case";
-import { openSession } from "@/use-cases/lib/composio";
 import { integrationProviderSchema } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -67,19 +66,20 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			connectedById: userId,
 		});
 
-		// The attempt's alias is our row id, so an account Composio created before a lost answer
-		// is still found and removed: a failure retires the row and the sweep looks it up.
-		const request = await openSession(ctx.composio, {
-			organizationId,
-			toolkit: provider,
-			authConfigId: ctx.config.composio.authConfigIds[provider],
-		})
-			.then((session) =>
-				session.authorize(provider, {
-					callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
-					alias: id,
-				}),
-			)
+		// Straight to the provider's consent for our OAuth app: `initiate` with an unshortened URL,
+		// Composio's app-owned path for custom auth configs, so no Composio page is shown. The
+		// attempt's alias is our row id, so an account Composio made before a lost answer is still
+		// found and removed: a failure retires the row and the sweep looks it up.
+		const request = await ctx.composio.connectedAccounts
+			.initiate(organizationId, ctx.config.composio.authConfigIds[provider], {
+				callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
+				allowMultiple: true,
+				alias: id,
+				config: {
+					authScheme: "OAUTH2",
+					val: { status: "INITIALIZING", long_redirect_url: true },
+				},
+			})
 			.catch(async (err: unknown) => {
 				await retireIntegrationConnectionsUseCase({
 					organizationId,

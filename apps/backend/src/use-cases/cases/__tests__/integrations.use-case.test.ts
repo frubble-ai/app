@@ -5,17 +5,17 @@ import { describe, expect, it } from "vitest";
 import type { TTestClone } from "@/testing/integration-bootstrap";
 import {
 	answerAccountMadeForLastAttempt,
-	answerAuthorize,
 	answerConnectedAccount,
 	answerExecute,
+	answerInitiate,
 	answerTool,
 	composioRequests,
 	deletedAccounts,
-	failAuthorize,
 	failConnectedAccount,
 	failDelete,
-	failSessions,
+	failInitiate,
 	lastCallbackUrl,
+	lastInitiateRequest,
 	restoreDelete,
 } from "@/testing/mock-composio-network";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
@@ -37,7 +37,7 @@ import { startIntegrationConnectUseCase } from "@/use-cases/cases/start-integrat
 
 const { getClone } = setupIntegrationTestContext();
 
-const CONSENT_PAGE = "https://connect.composio.dev/link/test";
+const CONSENT_PAGE = "https://github.com/login/oauth/authorize?client_id=test";
 
 async function ownerWithOrganization(clone: TTestClone) {
 	const owner = await signedInTestUser(clone);
@@ -76,7 +76,7 @@ async function startConnecting(args: {
 	organizationId: string;
 }) {
 	const connectedAccountId = `ca_${faker.string.alphanumeric(10)}`;
-	answerAuthorize({ connectedAccountId, redirectUrl: CONSENT_PAGE });
+	answerInitiate({ connectedAccountId, redirectUrl: CONSENT_PAGE });
 	await startIntegrationConnectUseCase({ ...args, provider: "github" });
 	return {
 		connectionId:
@@ -105,10 +105,10 @@ async function rowsOf(clone: TTestClone, organizationId: string) {
 }
 
 describe("connecting a provider", () => {
-	it("opens a session on our auth config and sends Composio our callback", async () => {
+	it("sends the user straight to the provider's consent on our auth config, with our callback", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		answerAuthorize({ connectedAccountId: "ca_1", redirectUrl: CONSENT_PAGE });
+		answerInitiate({ connectedAccountId: "ca_1", redirectUrl: CONSENT_PAGE });
 
 		await expect(
 			startIntegrationConnectUseCase({
@@ -118,16 +118,17 @@ describe("connecting a provider", () => {
 			}),
 		).resolves.toEqual({ redirectUrl: CONSENT_PAGE });
 
-		const session = composioRequests.find((entry) =>
-			entry.path.endsWith("/tool_router/session"),
-		);
-		expect(session?.body).toMatchObject({
+		const initiated = lastInitiateRequest();
+		expect(initiated?.auth_config?.id).toBe("ac_test_github");
+		expect(initiated?.connection).toMatchObject({
 			user_id: organizationId,
-			toolkits: { enable: ["github"] },
-			auth_configs: { github: "ac_test_github" },
+			state: {
+				authScheme: "OAUTH2",
+				val: { status: "INITIALIZING", long_redirect_url: true },
+			},
 		});
-		expect(lastCallbackUrl()).toMatch(
-			/^http:\/\/localhost:8080\/integrations\/callback\?connection=[0-9a-f-]{36}$/,
+		expect(initiated?.connection?.callback_url).toBe(
+			`http://localhost:8080/integrations/callback?connection=${initiated?.connection?.alias}`,
 		);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
@@ -137,7 +138,7 @@ describe("connecting a provider", () => {
 	it("retires the attempt when Composio gives no page to send the user to", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		answerAuthorize({ connectedAccountId: "ca_no_page", redirectUrl: null });
+		answerInitiate({ connectedAccountId: "ca_no_page", redirectUrl: null });
 
 		await expect(
 			startIntegrationConnectUseCase({
@@ -151,26 +152,10 @@ describe("connecting a provider", () => {
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("drops its pending row when Composio cannot open the session", async () => {
+	it("removes an account Composio made though its answer to initiate was lost", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		failSessions();
-
-		await expect(
-			startIntegrationConnectUseCase({
-				userId: owner.id,
-				organizationId,
-				provider: "github",
-			}),
-		).rejects.toThrow();
-
-		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
-	});
-
-	it("removes an account Composio made though its answer to authorize was lost", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		failAuthorize();
+		failInitiate();
 		answerAccountMadeForLastAttempt("ca_lost");
 
 		await expect(
@@ -513,7 +498,7 @@ describe("disconnecting", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		await connected(args);
-		answerAuthorize({
+		answerInitiate({
 			connectedAccountId: "ca_overtaken",
 			redirectUrl: CONSENT_PAGE,
 			before: () =>
@@ -533,7 +518,7 @@ describe("disconnecting", () => {
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
 		await connected(args);
-		answerAuthorize({
+		answerInitiate({
 			connectedAccountId: "ca_overtaken",
 			redirectUrl: CONSENT_PAGE,
 			before: async () => {

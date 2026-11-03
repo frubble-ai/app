@@ -1,5 +1,9 @@
 import { faker } from "@faker-js/faker";
-import { useAuth, useSlackChannelsLazyQuery } from "@frubble/react-sdk";
+import {
+	useAuth,
+	useLinearTeamsLazyQuery,
+	useSlackChannelsLazyQuery,
+} from "@frubble/react-sdk";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -87,6 +91,53 @@ describe("HomeScreen", () => {
 		});
 		await waitFor(() => expect(assign).toHaveBeenCalledWith(redirectUrl));
 		vi.unstubAllGlobals();
+	});
+
+	it("lists a connected Linear's teams on demand", async () => {
+		const organization = generateOrganization(OrganizationRole.Member);
+		mockMyOrganizations([organization]);
+		mockIntegrations([IntegrationProvider.Linear]);
+		const team = { id: faker.string.uuid(), name: faker.company.name() };
+		const load = mockRead(useLinearTeamsLazyQuery, "linearTeams", [team]);
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.queryByTestId("linear-teams-items")).toBeNull();
+		await userEvent.click(screen.getByTestId("linear-teams-load"));
+
+		expect(load).toHaveBeenCalledWith({
+			variables: { organizationId: organization.id },
+		});
+		expect(await screen.findByTestId("linear-teams-items")).toHaveTextContent(
+			team.name,
+		);
+	});
+
+	it("says when a connected Linear has no teams", async () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Linear]);
+		mockRead(useLinearTeamsLazyQuery, "linearTeams", []);
+		renderWithProviders(<HomeScreen />);
+
+		await userEvent.click(screen.getByTestId("linear-teams-load"));
+
+		expect(await screen.findByTestId("linear-teams-empty")).toBeInTheDocument();
+	});
+
+	it("says when reading Linear fails", () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Linear]);
+		vi.mocked(useLinearTeamsLazyQuery).mockReturnValue([
+			vi.fn(),
+			{
+				data: undefined,
+				loading: false,
+				called: true,
+				error: new Error("down"),
+			},
+		] as never);
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("linear-teams-error")).toBeInTheDocument();
 	});
 
 	it("lists a connected Slack's channels on demand", async () => {
