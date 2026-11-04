@@ -147,17 +147,19 @@ pair in that variable, its toolkit in `src/composio/`, a row in the constants mi
 `integration_provider` ([migrations](style-guide/migrations.md#constants)),
 `INTEGRATION_PROVIDERS`, and its own read.
 
-Each auth config asks only for the access the tools we call need, read-only, from the tool's own
-`scope_requirements` at Composio. A GitHub App takes no scopes: its permissions decide, and it
-answers only for the organizations it is installed on.
+Every auth config is read-only: it grants read access across the provider, and never write. That
+is more than today's reads use, so a new read needs no new access and no reconnect. A GitHub App
+takes no scopes: its permissions decide, and it answers only for the organizations it is
+installed on.
 
-| Provider | Access                                                   | For                                                    |
-| -------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| GitHub   | GitHub App permission _Members: read_, installed per org | `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
-| Linear   | `read`                                      | `LINEAR_LIST_LINEAR_TEAMS`                             |
-| Slack    | user `channels:read`, `groups:read`; no bot | `SLACK_LIST_ALL_CHANNELS`, public and private channels |
+| Provider | Granted (read-only)                                                             | Our reads need                                                              |
+| -------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| GitHub   | the GitHub App's permissions, every one `read`; installed per organization      | _Members: read_, for `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
+| Linear   | `read`                                                                          | `read`, for `LINEAR_LIST_LINEAR_TEAMS`                                      |
+| Slack    | bot and user `*:read` and `*:history` scopes, and user `search:read*`; no write | user `channels:read`, `groups:read`, for `SLACK_LIST_ALL_CHANNELS`          |
 
-A new tool adds its scopes to the auth config. Set them with the auth config's `PATCH`
+The auth config at Composio holds the exact list. Change it with the auth config's `PATCH`
 (`{"type":"custom","credentials":{"scopes":[…]}}`, plus `user_scopes` for Slack): it keeps the
-client id and secret. An account connected before a change keeps its old scopes until it
-reconnects.
+client id and secret. A GitHub App's permissions change in the app's settings on GitHub, and each
+installation accepts them. A write scope is never added. An account connected before a change
+keeps its old access until it reconnects.
