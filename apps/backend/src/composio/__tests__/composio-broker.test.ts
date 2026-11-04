@@ -6,7 +6,11 @@ import {
 	generateComposioConnection,
 } from "@/composio/__mocks__/generate-composio-connection";
 import { generateComposioGithubOrganization } from "@/composio/__mocks__/generate-composio-github-organization";
+import { generateComposioLinearTeam } from "@/composio/__mocks__/generate-composio-linear-team";
+import { generateComposioSlackChannel } from "@/composio/__mocks__/generate-composio-slack-channel";
 import { generateGithubOrganizationsTool } from "@/composio/__mocks__/generate-github-organizations-tool";
+import { generateLinearTeamsTool } from "@/composio/__mocks__/generate-linear-teams-tool";
+import { generateSlackChannelsTool } from "@/composio/__mocks__/generate-slack-channels-tool";
 import {
 	answerAccountGone,
 	answerAccountMadeForLastAttempt,
@@ -137,24 +141,84 @@ describe("connecting through Composio", () => {
 });
 
 describe("running an action through Composio", () => {
-	it("runs the tool in a session on the organization's own account", async () => {
-		const through = generateComposioConnection();
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute(LIST_ORGANIZATIONS, {
-			data: { organizations: [generateComposioGithubOrganization()] },
-		});
+	// Each action: what Composio answers for it, and what the broker must read that into.
+	const ACTION_CASES = [
+		{
+			action: "github.listOrganizations",
+			toolkit: "github",
+			answer() {
+				const organization = generateComposioGithubOrganization({
+					description: faker.company.catchPhrase(),
+				});
+				answerTool(generateGithubOrganizationsTool());
+				answerExecute(LIST_ORGANIZATIONS, {
+					data: { organizations: [organization] },
+				});
+				return [
+					{
+						id: String(organization.id),
+						login: organization.login,
+						description: organization.description,
+						avatarUrl: organization.avatar_url,
+					},
+				];
+			},
+		},
+		{
+			action: "linear.listTeams",
+			toolkit: "linear",
+			answer() {
+				const team = generateComposioLinearTeam();
+				answerTool(generateLinearTeamsTool());
+				answerExecute("LINEAR_LIST_LINEAR_TEAMS", {
+					data: { items: [], teams: [team] },
+				});
+				return [{ id: team.id, name: team.name }];
+			},
+		},
+		{
+			action: "slack.listChannels",
+			toolkit: "slack",
+			answer() {
+				const channel = generateComposioSlackChannel();
+				answerTool(generateSlackChannelsTool());
+				answerExecute("SLACK_LIST_ALL_CHANNELS", {
+					data: { channels: [channel] },
+				});
+				return [
+					{
+						id: channel.id,
+						name: channel.name,
+						isPrivate: channel.is_private,
+						memberCount: channel.num_members,
+					},
+				];
+			},
+		},
+	] as const;
 
-		await composioBroker().run("github.listOrganizations", through, {});
+	it.each(ACTION_CASES)(
+		"runs $action in a $toolkit session on the organization's own account, read into our output",
+		async ({ action, toolkit, answer }) => {
+			const through = generateComposioConnection();
+			const expected = answer();
 
-		expect(
-			composioRequests.findLast((entry) =>
-				entry.path.endsWith("/tool_router/session"),
-			)?.body,
-		).toMatchObject({
-			user_id: through.organizationId,
-			connected_accounts: { github: [through.accountRef] },
-		});
-	});
+			await expect(composioBroker().run(action, through, {})).resolves.toEqual(
+				expected,
+			);
+			expect(
+				composioRequests.findLast((entry) =>
+					entry.path.endsWith("/tool_router/session"),
+				)?.body,
+			).toMatchObject({
+				user_id: through.organizationId,
+				auth_configs: {
+					[toolkit]: buildTestConfig().composio.authConfigIds[toolkit],
+				},
+				connected_accounts: { [toolkit]: [through.accountRef] },
+			});
+		},
+	);
 
 	it("refuses a response that the tool's output schema refuses", async () => {
 		answerTool(generateGithubOrganizationsTool());

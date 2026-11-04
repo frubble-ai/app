@@ -142,21 +142,16 @@ export function answerExecute(
 	);
 }
 
-/** `connectedAccounts.get` answers the account with `status` (every time, or `once`). */
+/** `connectedAccounts.get` answers the account with `status`. */
 export function answerConnectedAccount(
 	connectedAccountId: string,
 	status: "INITIATED" | "ACTIVE" | "FAILED",
-	options: { once?: boolean } = {},
 ) {
 	composioNetwork.use(
-		http.get(
-			`${API}/connected_accounts/${connectedAccountId}`,
-			async () => {
-				return HttpResponse.json(
-					generateComposioConnectedAccount(connectedAccountId, status),
-				);
-			},
-			{ once: options.once },
+		http.get(`${API}/connected_accounts/${connectedAccountId}`, () =>
+			HttpResponse.json(
+				generateComposioConnectedAccount(connectedAccountId, status),
+			),
 		),
 	);
 }
