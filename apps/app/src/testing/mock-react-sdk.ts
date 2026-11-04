@@ -17,6 +17,7 @@ export const useMyOrganizationsQuery = vi.fn();
 export const useOrganizationQuery = vi.fn();
 export const useIntegrationsQuery = vi.fn();
 export const useGithubOrganizationsLazyQuery = vi.fn();
+export const useGithubAppInstallUrlQuery = vi.fn();
 export const useLinearTeamsLazyQuery = vi.fn();
 export const useSlackChannelsLazyQuery = vi.fn();
 export const useCreateOrganizationMutation = vi.fn();

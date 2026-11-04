@@ -45,7 +45,7 @@ export async function buildUseCaseContext(): Promise<TUseCaseContext> {
 
 	// Every broker a connection may be on; new connections go through `connectThrough`.
 	const integrations: TIntegrations = {
-		brokers: { composio: createComposioBroker(config.composio) },
+		brokers: { composio: createComposioBroker(config.integrations.composio) },
 		connectThrough: "composio",
 	};
 

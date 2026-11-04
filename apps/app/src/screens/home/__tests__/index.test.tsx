@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import {
 	useAuth,
+	useGithubOrganizationsLazyQuery,
 	useLinearTeamsLazyQuery,
 	useSlackChannelsLazyQuery,
 } from "@frubble/react-sdk";
@@ -13,6 +14,7 @@ import {
 	generateOrganization,
 	generateSlackChannel,
 	IntegrationProvider,
+	mockGithubAppInstallUrl,
 	mockIntegrations,
 	mockMyOrganizations,
 	mockOrganizationActions,
@@ -92,6 +94,51 @@ describe("HomeScreen", () => {
 		await waitFor(() => expect(assign).toHaveBeenCalledWith(redirectUrl));
 		vi.unstubAllGlobals();
 	});
+
+	it("offers to install the GitHub App on an organization once GitHub is connected", () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Github]);
+		const installUrl = faker.internet.url();
+		mockGithubAppInstallUrl(installUrl);
+
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("github-app-install")).toHaveAttribute(
+			"href",
+			installUrl,
+		);
+	});
+
+	it.each([
+		{
+			label: "says to install the app, with its link",
+			installUrl: faker.internet.url(),
+			message: "home.integrations.github.emptyInstall",
+		},
+		{
+			label: "stays neutral while the install link is unknown",
+			installUrl: undefined,
+			message: "home.integrations.github.empty",
+		},
+	])(
+		"when a connected GitHub lists no organization, $label",
+		async ({ installUrl, message }) => {
+			mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+			mockIntegrations([IntegrationProvider.Github]);
+			mockGithubAppInstallUrl(installUrl);
+			mockRead(useGithubOrganizationsLazyQuery, "githubOrganizations", []);
+			renderWithProviders(<HomeScreen />);
+
+			await userEvent.click(screen.getByTestId("github-organizations-load"));
+
+			expect(
+				await screen.findByTestId("github-organizations-empty"),
+			).toHaveTextContent(message);
+			expect(screen.queryByTestId("github-app-install") !== null).toBe(
+				installUrl !== undefined,
+			);
+		},
+	);
 
 	it("lists a connected Linear's teams on demand", async () => {
 		const organization = generateOrganization(OrganizationRole.Member);

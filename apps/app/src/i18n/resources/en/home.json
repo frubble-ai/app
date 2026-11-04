@@ -32,7 +32,9 @@
 		"readFailed": "We couldn't read from this tool. Reconnect it and try again.",
 		"github": {
 			"load": "List GitHub organizations",
-			"empty": "This account belongs to no organization."
+			"install": "Install Frubble AI on an organization",
+			"empty": "No organization to show.",
+			"emptyInstall": "Frubble AI isn't installed on any organization you belong to yet. Install it, then list again."
 		},
 		"linear": {
 			"load": "List Linear teams",

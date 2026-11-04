@@ -1,0 +1,21 @@
+"A GitHub organization the connected user belongs to."
+type GithubOrganization {
+	id: String!
+	login: String!
+	description: String
+	avatarUrl: String!
+}
+
+extend type Query {
+	"""
+	The organizations the connected GitHub user belongs to. `NOT_FOUND` when
+	GitHub is not connected.
+	"""
+	githubOrganizations(organizationId: String!): [GithubOrganization!]!
+
+	"""
+	Where to install our GitHub App on an organization. A GitHub connection lists
+	only the organizations the app is installed on.
+	"""
+	githubAppInstallUrl: String!
+}

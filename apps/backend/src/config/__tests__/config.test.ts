@@ -48,12 +48,17 @@ describe("buildConfig", () => {
 			},
 			publicUrl: "http://localhost:8080",
 			appUrl: "http://localhost:3000",
-			composio: {
-				apiKey: env.COMPOSIO_API_KEY,
-				authConfigIds: {
-					github: "ac_github1",
-					linear: "ac_linear1",
-					slack: "ac_slack1",
+			integrations: {
+				composio: {
+					apiKey: env.COMPOSIO_API_KEY,
+					authConfigIds: {
+						github: "ac_github1",
+						linear: "ac_linear1",
+						slack: "ac_slack1",
+					},
+				},
+				github: {
+					appInstallUrl: "https://github.com/apps/frubble-ai/installations/new",
 				},
 			},
 			cors: { origin: [] },
