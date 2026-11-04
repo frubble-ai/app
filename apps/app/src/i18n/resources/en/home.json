@@ -31,10 +31,16 @@
 		},
 		"readFailed": "We couldn't read from this tool. Reconnect it and try again.",
 		"github": {
-			"load": "List GitHub organizations",
-			"install": "Install Frubble AI on an organization",
-			"empty": "No organization to show.",
-			"emptyInstall": "Frubble AI isn't installed on any organization you belong to yet. Install it, then list again."
+			"checking": "Checking where Frubble AI is installed…",
+			"notInstalled": "Install Frubble AI on your account or an organization to choose which repositories Frubble can read.",
+			"install": "Install Frubble AI",
+			"installedOn": "Installed on {{accounts}}.",
+			"allRepositories": "{{account}} (all repositories)",
+			"selectedRepositories": "{{account}} (selected repositories)",
+			"change": "Add or change where it's installed",
+			"load": "List repositories",
+			"empty": "No repository to show.",
+			"private": "private"
 		},
 		"linear": {
 			"load": "List Linear teams",

@@ -5,11 +5,12 @@ import {
 	type TIntegrationAction,
 	type TIntegrationActions,
 } from "@/integrations";
-import { listGithubOrganizations } from "./github";
+import { listGithubInstallations, listGithubRepositories } from "./github";
 import { accountState, isAlreadyGone } from "./lib/account-state";
 import { accountsByAlias } from "./lib/accounts-by-alias";
-import { createComposio, type TComposio } from "./lib/client";
-import { openSession, type TSession } from "./lib/session";
+import { createComposio } from "./lib/client";
+import type { TRunContext } from "./lib/run-context";
+import { openSession } from "./lib/session";
 import { listLinearTeams } from "./linear";
 import { listSlackChannels } from "./slack";
 
@@ -20,15 +21,18 @@ const TOOLKITS: Record<TIntegrationProvider, string> = {
 	slack: "slack",
 };
 
-/** Each action as Composio runs it: one of its tools with the action's input, read into our output. */
+/**
+ * Each action as Composio runs it, read into our output: one of its tools in a session, or the
+ * provider's own endpoint through its proxy where no current tool covers it.
+ */
 const ACTIONS: {
 	[TAction in TIntegrationAction]: (
-		composio: TComposio,
-		session: TSession,
+		run: TRunContext,
 		input: TIntegrationActions[TAction]["input"],
 	) => Promise<TIntegrationActions[TAction]["output"]>;
 } = {
-	"github.listOrganizations": listGithubOrganizations,
+	"github.listInstallations": listGithubInstallations,
+	"github.listRepositories": listGithubRepositories,
 	"linear.listTeams": listLinearTeams,
 	"slack.listChannels": listSlackChannels,
 };
@@ -94,13 +98,21 @@ export function createComposioBroker(config: {
 
 		async run(action, connection, input) {
 			const provider = INTEGRATION_ACTION_PROVIDERS[action];
-			const session = await openSession(composio, {
-				organizationId: connection.organizationId,
-				toolkit: TOOLKITS[provider],
-				authConfigId: config.authConfigIds[provider],
-				connectedAccountId: connection.accountRef,
-			});
-			return ACTIONS[action](composio, session, input);
+			return ACTIONS[action](
+				{
+					composio,
+					organizationId: connection.organizationId,
+					connectedAccountId: connection.accountRef,
+					session: () =>
+						openSession(composio, {
+							organizationId: connection.organizationId,
+							toolkit: TOOLKITS[provider],
+							authConfigId: config.authConfigIds[provider],
+							connectedAccountId: connection.accountRef,
+						}),
+				},
+				input,
+			);
 		},
 	};
 }

@@ -14,12 +14,24 @@ export type TConnectionRef = {
 	accountRef: string;
 };
 
-/** A GitHub organization the connected user belongs to. */
-export type TGithubOrganization = {
+/** Where our GitHub App is installed, as the connected user can see it: an account or organization. */
+export type TGithubInstallation = {
 	id: string;
-	login: string;
+	/** The account or organization's login. */
+	account: string;
+	accountType: "user" | "organization";
+	/** Every repository of the account, or only the ones chosen at install. */
+	repositories: "all" | "selected";
+};
+
+/** A repository our GitHub App can read, through one of its installations. */
+export type TGithubRepository = {
+	id: string;
+	/** `owner/name`. */
+	fullName: string;
+	isPrivate: boolean;
+	url: string;
 	description: string | null;
-	avatarUrl: string;
 };
 
 /** A Linear team the connected user can see. */
@@ -35,10 +47,15 @@ export type TSlackChannel = {
 
 /** Every action a broker runs with a connection: our ids, our input and output. */
 export type TIntegrationActions = {
-	/** The organizations the connected GitHub user belongs to. */
-	"github.listOrganizations": {
+	/** Where our GitHub App is installed, of what the connected user can see. */
+	"github.listInstallations": {
 		input: Record<string, never>;
-		output: TGithubOrganization[];
+		output: TGithubInstallation[];
+	};
+	/** Every repository our GitHub App's installations give the connected user. */
+	"github.listRepositories": {
+		input: Record<string, never>;
+		output: TGithubRepository[];
 	};
 	/** The Linear teams the connected user can see. */
 	"linear.listTeams": { input: Record<string, never>; output: TLinearTeam[] };
@@ -55,7 +72,8 @@ export type TIntegrationAction = keyof TIntegrationActions;
 export const INTEGRATION_ACTION_PROVIDERS: {
 	[TAction in TIntegrationAction]: TIntegrationProvider;
 } = {
-	"github.listOrganizations": "github",
+	"github.listInstallations": "github",
+	"github.listRepositories": "github",
 	"linear.listTeams": "linear",
 	"slack.listChannels": "slack",
 };

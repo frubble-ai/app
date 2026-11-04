@@ -2,7 +2,6 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Composio } from "@composio/core";
 import { compile } from "json-schema-to-typescript";
-import { allowNullDescription } from "../src/composio/github/lib/output-patch.ts";
 import type {
 	TJsonSchema,
 	TSchemaPatch,
@@ -14,7 +13,6 @@ import { typeTeams } from "../src/composio/linear/lib/output-patch.ts";
 // Runs under Node (the image's build stage has no Bun), so its imports are relative.
 
 const TOOLS: Record<string, TSchemaPatch | undefined> = {
-	GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER: allowNullDescription,
 	LINEAR_LIST_LINEAR_TEAMS: typeTeams,
 	SLACK_LIST_ALL_CHANNELS: undefined,
 };

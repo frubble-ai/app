@@ -1,21 +1,53 @@
-"A GitHub organization the connected user belongs to."
-type GithubOrganization {
+"Who a GitHub App installation belongs to."
+enum GithubAccountType {
+	USER
+	ORGANIZATION
+}
+
+"Which repositories a GitHub App installation gives access to."
+enum GithubRepositorySelection {
+	"Every repository of the account."
+	ALL
+	"Only the repositories chosen at install."
+	SELECTED
+}
+
+"Where our GitHub App is installed: an account or organization."
+type GithubInstallation {
 	id: String!
-	login: String!
+	"The account or organization's login."
+	account: String!
+	accountType: GithubAccountType!
+	repositories: GithubRepositorySelection!
+}
+
+"A repository our GitHub App can read, through one of its installations."
+type GithubRepository {
+	id: String!
+	"`owner/name`."
+	fullName: String!
+	isPrivate: Boolean!
+	url: String!
 	description: String
-	avatarUrl: String!
 }
 
 extend type Query {
 	"""
-	The organizations the connected GitHub user belongs to. `NOT_FOUND` when
-	GitHub is not connected.
+	Where our GitHub App is installed, of what the organization's connected
+	GitHub user can see. Empty until it is installed. `NOT_FOUND` when GitHub is
+	not connected.
 	"""
-	githubOrganizations(organizationId: String!): [GithubOrganization!]!
+	githubInstallations(organizationId: String!): [GithubInstallation!]!
 
 	"""
-	Where to install our GitHub App on an organization. A GitHub connection lists
-	only the organizations the app is installed on.
+	The repositories our GitHub App's installations give the connected GitHub
+	user. `NOT_FOUND` when GitHub is not connected.
+	"""
+	githubRepositories(organizationId: String!): [GithubRepository!]!
+
+	"""
+	Where to install our GitHub App on an account or organization. A GitHub
+	connection reads only what the app is installed on.
 	"""
 	githubAppInstallUrl: String!
 }

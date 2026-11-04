@@ -1,0 +1,8 @@
+query GithubInstallations($organizationId: String!) {
+	githubInstallations(organizationId: $organizationId) {
+		id
+		account
+		accountType
+		repositories
+	}
+}

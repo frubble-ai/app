@@ -6,7 +6,8 @@ import {
 } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { generateGithubOrganization } from "@/shared/__mocks__/generate-github-organization";
+import { generateGithubInstallation } from "@/shared/__mocks__/generate-github-installation";
+import { generateGithubRepository } from "@/shared/__mocks__/generate-github-repository";
 import type { TTestClone } from "@/testing/integration-bootstrap";
 import { createMockConnectionBroker } from "@/testing/mock-connection-broker";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
@@ -19,7 +20,8 @@ import { completeIntegrationConnectUseCase } from "@/use-cases/cases/complete-in
 import { createOrganizationUseCase } from "@/use-cases/cases/create-organization.use-case";
 import { disconnectIntegrationUseCase } from "@/use-cases/cases/disconnect-integration.use-case";
 import { inviteOrganizationMemberUseCase } from "@/use-cases/cases/invite-organization-member.use-case";
-import { listGithubOrganizationsUseCase } from "@/use-cases/cases/list-github-organizations.use-case";
+import { listGithubInstallationsUseCase } from "@/use-cases/cases/list-github-installations.use-case";
+import { listGithubRepositoriesUseCase } from "@/use-cases/cases/list-github-repositories.use-case";
 import { listIntegrationsUseCase } from "@/use-cases/cases/list-integrations.use-case";
 import { listLinearTeamsUseCase } from "@/use-cases/cases/list-linear-teams.use-case";
 import { startIntegrationConnectUseCase } from "@/use-cases/cases/start-integration-connect.use-case";
@@ -462,7 +464,7 @@ describe("connecting a provider", () => {
 });
 
 describe("reading through a connection", () => {
-	it("lists the GitHub organizations for any member, through the organization's own account", async () => {
+	it("lists where our GitHub App is installed for any member, through the organization's own account", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const { accountRef } = await connected(clone, {
@@ -470,15 +472,37 @@ describe("reading through a connection", () => {
 			organizationId,
 		});
 		const joined = await plainMember(clone, owner, organizationId);
-		const organizations = [generateGithubOrganization()];
-		clone.broker.answerAction("github.listOrganizations", organizations);
+		const installations = [generateGithubInstallation()];
+		clone.broker.answerAction("github.listInstallations", installations);
 
 		await expect(
-			listGithubOrganizationsUseCase({ userId: joined.id, organizationId }),
-		).resolves.toEqual(organizations);
+			listGithubInstallationsUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual(installations);
 		expect(clone.broker.runs()).toEqual([
 			{
-				action: "github.listOrganizations",
+				action: "github.listInstallations",
+				connection: { organizationId, accountRef },
+			},
+		]);
+	});
+
+	it("lists the GitHub repositories for any member, through the organization's own account", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const { accountRef } = await connected(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		const joined = await plainMember(clone, owner, organizationId);
+		const repositories = [generateGithubRepository()];
+		clone.broker.answerAction("github.listRepositories", repositories);
+
+		await expect(
+			listGithubRepositoriesUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual(repositories);
+		expect(clone.broker.runs()).toEqual([
+			{
+				action: "github.listRepositories",
 				connection: { organizationId, accountRef },
 			},
 		]);
@@ -598,11 +622,11 @@ describe("replacing a broker", () => {
 		const args = { userId: owner.id, organizationId };
 		const first = await connected(clone, args);
 		const replacement = await replaceBroker(clone);
-		const organizations = [generateGithubOrganization()];
-		clone.broker.answerAction("github.listOrganizations", organizations);
+		const repositories = [generateGithubRepository()];
+		clone.broker.answerAction("github.listRepositories", repositories);
 
-		await expect(listGithubOrganizationsUseCase(args)).resolves.toEqual(
-			organizations,
+		await expect(listGithubRepositoriesUseCase(args)).resolves.toEqual(
+			repositories,
 		);
 		expect(replacement.calls()).toEqual([]);
 
@@ -618,11 +642,11 @@ describe("replacing a broker", () => {
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
 			{ status: "active", account: attempt.accountRef },
 		]);
-		replacement.answerAction("github.listOrganizations", organizations);
-		await listGithubOrganizationsUseCase(args);
+		replacement.answerAction("github.listRepositories", repositories);
+		await listGithubRepositoriesUseCase(args);
 		expect(replacement.runs()).toEqual([
 			{
-				action: "github.listOrganizations",
+				action: "github.listRepositories",
 				connection: { organizationId, accountRef: attempt.accountRef },
 			},
 		]);

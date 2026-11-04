@@ -72,7 +72,7 @@ until then the sweep looks for it by its attempt, as above.
 | `findAccountsByAttempt` | the accounts made for an attempt whose `startConnect` answer was lost                |
 | `run`                   | runs one action with a connection and answers its checked output                     |
 
-Actions are ours too (`TIntegrationActions`): an id such as `github.listOrganizations`, its input
+Actions are ours too (`TIntegrationActions`): an id such as `github.listRepositories`, its input
 and its output type. Each broker maps them onto its own tools.
 
 `ctx.integrations` holds every broker by its key (`integration_broker`) and the one new
@@ -103,25 +103,34 @@ same contract holds it to what the real ones do.
 
 ## Reading
 
-Each provider has its own read: `githubOrganizations`, `linearTeams`, `slackChannels`, each a
-use case that runs one action through the organization's connection. Each provider is its own
+Each provider has its reads: `githubInstallations` and `githubRepositories`, `linearTeams`,
+`slackChannels`, each a use case that runs one action through the organization's connection. Each provider is its own
 domain in every layer: `src/composio/<provider>/`, the resolvers in
 `services/api/graphql/<provider>/` and its schema in `packages/gql/schema/<provider>.graphql`,
 beside `integrations` for what they share (connecting, disconnecting, listing).
 
-GitHub's connection goes through our GitHub App, which sees only the organizations it is
-installed on: connecting alone lists none. `githubAppInstallUrl` answers where to install it,
-`github.com/apps/frubble-ai/installations/new` (`config/integrations/github/`), and the GitHub
-card offers that link once connected, and says why when the list comes back empty.
+GitHub's connection goes through our GitHub App, which reads only what it is installed on: an
+account or an organization, with all its repositories or the ones chosen at install. Connecting
+is the first step, installing the second. Once connected, the GitHub card asks where the app is
+installed (`githubInstallations`). Installed nowhere, it offers only the install: the link
+`githubAppInstallUrl` answers, `github.com/apps/frubble-ai/installations/new`
+(`config/integrations/github/`). Installed, it says where, links to change that, and lists the
+repositories on demand (`githubRepositories`, every installation's, each once).
 
 At Composio, an action is one tool run in a session opened for the organization with its
-connected account. Sessions choose the toolkit version.
+connected account. Sessions choose the toolkit version. Where no current tool covers an endpoint,
+the action calls the provider's own endpoint through Composio's proxy with the connection's
+token (`src/composio/lib/proxy-get.ts`), and checks the answer against our own schema of the
+provider's documented response. GitHub's installations and their repositories (`/user/installations`)
+are read that way: Composio's tools for them exist only in GitHub toolkit `20250911_00`, which
+sessions no longer run and which stops working on 2027-01-29, and their output schemas are
+untyped.
 
 Every result is checked against the tool's own output schema, fetched from Composio and built
 into Zod with `@composio/json-schema-to-zod` (`src/composio/lib/output-schema.ts`); a response the
 schema refuses fails the read. Where Composio's schema is wrong, the provider's folder in
 `src/composio/` patches only that schema, with the date and the reason. The provider's folder then
-reads the result into our output type.
+reads the result into our output type. A proxied answer is checked against our schema instead.
 
 The same schemas, with the same patches, generate each tool's `data` type
 (`codegen/composio-tools.ts`, part of the backend's `codegen`, into `src/__generated__/composio/`,
@@ -149,14 +158,14 @@ pair in that variable, its toolkit in `src/composio/`, a row in the constants mi
 
 Every auth config is read-only: it grants read access across the provider, and never write. That
 is more than today's reads use, so a new read needs no new access and no reconnect. A GitHub App
-takes no scopes: its permissions decide, and it answers only for the organizations it is
-installed on.
+takes no scopes: its permissions decide, and it answers only for the accounts and organizations
+it is installed on.
 
-| Provider | Granted (read-only)                                                             | Our reads need                                                              |
-| -------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| GitHub   | the GitHub App's permissions, every one `read`; installed per organization      | _Members: read_, for `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
-| Linear   | `read`                                                                          | `read`, for `LINEAR_LIST_LINEAR_TEAMS`                                      |
-| Slack    | bot and user `*:read` and `*:history` scopes, and user `search:read*`; no write | user `channels:read`, `groups:read`, for `SLACK_LIST_ALL_CHANNELS`          |
+| Provider | Granted (read-only)                                                             | Our reads need                                                     |
+| -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| GitHub   | the GitHub App's permissions, every one `read`; installed per organization      | _Metadata: read_, for `GET /user/installations/{id}/repositories`  |
+| Linear   | `read`                                                                          | `read`, for `LINEAR_LIST_LINEAR_TEAMS`                             |
+| Slack    | bot and user `*:read` and `*:history` scopes, and user `search:read*`; no write | user `channels:read`, `groups:read`, for `SLACK_LIST_ALL_CHANNELS` |
 
 The auth config at Composio holds the exact list. Change it with the auth config's `PATCH`
 (`{"type":"custom","credentials":{"scopes":[…]}}`, plus `user_scopes` for Slack): it keeps the

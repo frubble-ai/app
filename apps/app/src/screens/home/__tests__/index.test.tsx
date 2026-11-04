@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import {
 	useAuth,
-	useGithubOrganizationsLazyQuery,
+	useGithubRepositoriesLazyQuery,
 	useLinearTeamsLazyQuery,
 	useSlackChannelsLazyQuery,
 } from "@frubble/react-sdk";
@@ -11,10 +11,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen } from "@/screens/home";
 import { generateAuth } from "@/testing/generate-auth";
 import {
+	GithubRepositorySelection,
+	generateGithubInstallation,
+	generateGithubRepository,
 	generateOrganization,
 	generateSlackChannel,
 	IntegrationProvider,
 	mockGithubAppInstallUrl,
+	mockGithubInstallations,
 	mockIntegrations,
 	mockMyOrganizations,
 	mockOrganizationActions,
@@ -66,7 +70,7 @@ describe("HomeScreen", () => {
 		expect(screen.getByTestId("integration-status-slack")).toHaveTextContent(
 			"home.integrations.notConnected",
 		);
-		expect(screen.getByTestId("github-organizations")).toBeInTheDocument();
+		expect(screen.getByTestId("github-repositories")).toBeInTheDocument();
 		expect(screen.queryByTestId("slack-channels")).toBeNull();
 	});
 
@@ -95,48 +99,85 @@ describe("HomeScreen", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("offers to install the GitHub App on an organization once GitHub is connected", () => {
+	it("offers only the install while Frubble AI is installed nowhere", () => {
 		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
 		mockIntegrations([IntegrationProvider.Github]);
 		const installUrl = faker.internet.url();
 		mockGithubAppInstallUrl(installUrl);
+		mockGithubInstallations([]);
 
 		renderWithProviders(<HomeScreen />);
 
+		expect(screen.getByTestId("github-installations-none")).toHaveTextContent(
+			"home.integrations.github.notInstalled",
+		);
 		expect(screen.getByTestId("github-app-install")).toHaveAttribute(
 			"href",
 			installUrl,
 		);
+		expect(screen.queryByTestId("github-repositories-load")).toBeNull();
+	});
+
+	it("says where Frubble AI is installed and lists its repositories on demand", async () => {
+		const organization = generateOrganization(OrganizationRole.Member);
+		mockMyOrganizations([organization]);
+		mockIntegrations([IntegrationProvider.Github]);
+		const installation = generateGithubInstallation({
+			repositories: GithubRepositorySelection.Selected,
+		});
+		mockGithubInstallations([installation]);
+		const repository = generateGithubRepository();
+		const load = mockRead(
+			useGithubRepositoriesLazyQuery,
+			"githubRepositories",
+			[repository],
+		);
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("github-installations")).toHaveTextContent(
+			"home.integrations.github.installedOn",
+		);
+		expect(screen.getByTestId("github-app-install")).toHaveTextContent(
+			"home.integrations.github.change",
+		);
+		await userEvent.click(screen.getByTestId("github-repositories-load"));
+
+		expect(load).toHaveBeenCalledWith({
+			variables: { organizationId: organization.id },
+		});
+		expect(
+			await screen.findByTestId("github-repositories-items"),
+		).toHaveTextContent(repository.fullName);
+	});
+
+	it("says when an installed Frubble AI reads no repository", async () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Github]);
+		mockGithubInstallations([generateGithubInstallation()]);
+		mockRead(useGithubRepositoriesLazyQuery, "githubRepositories", []);
+		renderWithProviders(<HomeScreen />);
+
+		await userEvent.click(screen.getByTestId("github-repositories-load"));
+
+		expect(
+			await screen.findByTestId("github-repositories-empty"),
+		).toBeInTheDocument();
 	});
 
 	it.each([
-		{
-			label: "says to install the app, with its link",
-			installUrl: faker.internet.url(),
-			message: "home.integrations.github.emptyInstall",
-		},
-		{
-			label: "stays neutral while the install link is unknown",
-			installUrl: undefined,
-			message: "home.integrations.github.empty",
-		},
-	])(
-		"when a connected GitHub lists no organization, $label",
-		async ({ installUrl, message }) => {
+		{ state: "loading", testId: "github-installations-checking" },
+		{ state: "failed", testId: "github-installations-error" },
+	] as const)(
+		"shows no list while the installation check is $state",
+		({ state, testId }) => {
 			mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
 			mockIntegrations([IntegrationProvider.Github]);
-			mockGithubAppInstallUrl(installUrl);
-			mockRead(useGithubOrganizationsLazyQuery, "githubOrganizations", []);
+			mockGithubInstallations(state);
+
 			renderWithProviders(<HomeScreen />);
 
-			await userEvent.click(screen.getByTestId("github-organizations-load"));
-
-			expect(
-				await screen.findByTestId("github-organizations-empty"),
-			).toHaveTextContent(message);
-			expect(screen.queryByTestId("github-app-install") !== null).toBe(
-				installUrl !== undefined,
-			);
+			expect(screen.getByTestId(testId)).toBeInTheDocument();
+			expect(screen.queryByTestId("github-repositories-load")).toBeNull();
 		},
 	);
 

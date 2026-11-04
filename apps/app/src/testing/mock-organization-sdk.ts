@@ -1,11 +1,14 @@
 import { faker } from "@faker-js/faker";
 import {
+	GithubAccountType,
+	GithubRepositorySelection,
 	IntegrationProvider,
 	OrganizationRole,
 	useCreateOrganizationMutation,
 	useDisconnectIntegrationMutation,
 	useGithubAppInstallUrlQuery,
-	useGithubOrganizationsLazyQuery,
+	useGithubInstallationsQuery,
+	useGithubRepositoriesLazyQuery,
 	useIntegrationsQuery,
 	useInviteOrganizationMemberMutation,
 	useLinearTeamsLazyQuery,
@@ -98,8 +101,12 @@ export function mockOrganizationActions(
 	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({
 		data: { githubAppInstallUrl: faker.internet.url() },
 	} as never);
+	vi.mocked(useGithubInstallationsQuery).mockReturnValue({
+		data: { githubInstallations: [] },
+		loading: false,
+	} as never);
 	for (const hook of [
-		useGithubOrganizationsLazyQuery,
+		useGithubRepositoriesLazyQuery,
 		useLinearTeamsLazyQuery,
 		useSlackChannelsLazyQuery,
 	]) {
@@ -117,7 +124,7 @@ export function mockOrganizationActions(
  */
 export function mockRead(
 	hook:
-		| typeof useGithubOrganizationsLazyQuery
+		| typeof useGithubRepositoriesLazyQuery
 		| typeof useLinearTeamsLazyQuery
 		| typeof useSlackChannelsLazyQuery,
 	field: string,
@@ -139,6 +146,53 @@ export function mockGithubAppInstallUrl(url: string | undefined) {
 	} as never);
 }
 
+/** Where our GitHub App is installed, as the API gives it. */
+export function generateGithubInstallation(
+	overrides: Partial<{
+		account: string;
+		repositories: GithubRepositorySelection;
+	}> = {},
+) {
+	return {
+		id: String(faker.number.int({ min: 1, max: 1_000_000_000 })),
+		account: faker.internet.username().toLowerCase(),
+		accountType: faker.helpers.arrayElement([
+			GithubAccountType.User,
+			GithubAccountType.Organization,
+		]),
+		repositories: GithubRepositorySelection.All,
+		...overrides,
+	};
+}
+
+/** A repository our GitHub App reads, as the API gives it. */
+export function generateGithubRepository() {
+	const fullName = `${faker.internet.username().toLowerCase()}/${faker.lorem.slug(2)}`;
+	return {
+		id: String(faker.number.int({ min: 1, max: 1_000_000_000 })),
+		fullName,
+		isPrivate: faker.datatype.boolean(),
+		url: `https://github.com/${fullName}`,
+		description: faker.helpers.arrayElement([null, faker.lorem.sentence()]),
+	};
+}
+
+/** Our GitHub App is installed at `installations`, or the check is still running, or failed. */
+export function mockGithubInstallations(
+	installations:
+		| ReturnType<typeof generateGithubInstallation>[]
+		| "loading"
+		| "failed",
+) {
+	vi.mocked(useGithubInstallationsQuery).mockReturnValue({
+		data: Array.isArray(installations)
+			? { githubInstallations: installations }
+			: undefined,
+		loading: installations === "loading",
+		error: installations === "failed" ? new Error("failed") : undefined,
+	} as never);
+}
+
 export function generateSlackChannel() {
 	return {
 		id: `C${faker.string.alphanumeric(8).toUpperCase()}`,
@@ -148,4 +202,4 @@ export function generateSlackChannel() {
 	};
 }
 
-export { IntegrationProvider, OrganizationRole };
+export { GithubRepositorySelection, IntegrationProvider, OrganizationRole };
