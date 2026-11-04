@@ -132,10 +132,10 @@ export function mockRead(
 	return load;
 }
 
-/** Our GitHub App installs at `url`. */
-export function mockGithubAppInstallUrl(url: string) {
+/** Our GitHub App installs at `url`; none: the query has not answered, or failed. */
+export function mockGithubAppInstallUrl(url: string | undefined) {
 	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({
-		data: { githubAppInstallUrl: url },
+		data: url === undefined ? undefined : { githubAppInstallUrl: url },
 	} as never);
 }
 
