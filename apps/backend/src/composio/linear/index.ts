@@ -1,10 +1,8 @@
-import type { TComposio } from "@/composio";
-import { executeTool } from "@/use-cases/lib/composio/lib/execute-tool";
-import type { TSession } from "@/use-cases/lib/composio/lib/session";
-import { typeTeams } from "./output-patch";
-
-/** A Linear team the connected user can see. */
-export type TLinearTeam = { id: string; name: string };
+import type { TComposio } from "@/composio/lib/client";
+import { executeTool } from "@/composio/lib/execute-tool";
+import type { TSession } from "@/composio/lib/session";
+import type { TLinearTeam } from "@/integrations";
+import { typeTeams } from "./lib/output-patch";
 
 /** The Linear teams the connected user can see. */
 export async function listLinearTeams(

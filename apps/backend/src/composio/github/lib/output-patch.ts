@@ -1,4 +1,4 @@
-import type { TJsonSchema } from "@/use-cases/lib/composio/lib/output-schema";
+import type { TJsonSchema } from "@/composio/lib/output-schema";
 
 /**
  * Composio types an organization's `description` as a string, though its own text says it can be

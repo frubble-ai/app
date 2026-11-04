@@ -1,15 +1,8 @@
-import type { TComposio } from "@/composio";
-import { executeTool } from "@/use-cases/lib/composio/lib/execute-tool";
-import type { TSession } from "@/use-cases/lib/composio/lib/session";
-import { allowNullDescription } from "./output-patch";
-
-/** A GitHub organization the connected user belongs to. */
-export type TGithubOrganization = {
-	id: string;
-	login: string;
-	description: string | null;
-	avatarUrl: string;
-};
+import type { TComposio } from "@/composio/lib/client";
+import { executeTool } from "@/composio/lib/execute-tool";
+import type { TSession } from "@/composio/lib/session";
+import type { TGithubOrganization } from "@/integrations";
+import { allowNullDescription } from "./lib/output-patch";
 
 /** The organizations the connected GitHub user belongs to. */
 export async function listGithubOrganizations(

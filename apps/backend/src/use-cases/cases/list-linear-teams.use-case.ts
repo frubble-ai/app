@@ -1,10 +1,6 @@
 import { z } from "zod";
+import type { TLinearTeam } from "@/integrations";
 import { defineUseCase } from "@/use-cases";
-import {
-	listLinearTeams,
-	openSession,
-	type TLinearTeam,
-} from "@/use-cases/lib/composio";
 import { requireActiveConnection } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -28,12 +24,10 @@ export const listLinearTeamsUseCase = defineUseCase(
 			organizationId,
 			provider: "linear",
 		});
-		const session = await openSession(ctx.composio, {
-			organizationId,
-			toolkit: "linear",
-			authConfigId: ctx.config.composio.authConfigIds.linear,
-			connectedAccountId: connection.composioConnectedAccountId,
-		});
-		return listLinearTeams(ctx.composio, session);
+		return ctx.integrations.brokers[connection.broker].run(
+			"linear.listTeams",
+			{ organizationId, accountRef: connection.accountRef },
+			{},
+		);
 	},
 );

@@ -1,10 +1,6 @@
 import { z } from "zod";
+import type { TSlackChannel } from "@/integrations";
 import { defineUseCase } from "@/use-cases";
-import {
-	listSlackChannels,
-	openSession,
-	type TSlackChannel,
-} from "@/use-cases/lib/composio";
 import { requireActiveConnection } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -28,12 +24,10 @@ export const listSlackChannelsUseCase = defineUseCase(
 			organizationId,
 			provider: "slack",
 		});
-		const session = await openSession(ctx.composio, {
-			organizationId,
-			toolkit: "slack",
-			authConfigId: ctx.config.composio.authConfigIds.slack,
-			connectedAccountId: connection.composioConnectedAccountId,
-		});
-		return listSlackChannels(ctx.composio, session);
+		return ctx.integrations.brokers[connection.broker].run(
+			"slack.listChannels",
+			{ organizationId, accountRef: connection.accountRef },
+			{},
+		);
 	},
 );

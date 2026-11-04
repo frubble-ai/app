@@ -1,4 +1,4 @@
-import type { TJsonSchema } from "@/use-cases/lib/composio/lib/output-schema";
+import type { TJsonSchema } from "@/composio/lib/output-schema";
 
 /**
  * Composio leaves `teams` untyped and types a parallel `items` list, but Linear's answer has the

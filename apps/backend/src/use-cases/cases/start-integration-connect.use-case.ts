@@ -22,8 +22,9 @@ const startIntegrationConnectArgsSchema = z.object({
 /**
  * Begin connecting a provider for an organization (owners and admins only): the provider's
  * consent page to send the browser to. It comes back to `/integrations/callback`, which
- * finishes. An unfinished earlier attempt for the same provider is dropped; a disconnect while
- * Composio creates the account fails this connect.
+ * finishes. New connections go through `ctx.integrations.connectThrough`. An unfinished earlier
+ * attempt for the same provider is dropped; a disconnect while the broker creates the account
+ * fails this connect.
  */
 export const startIntegrationConnectUseCase = defineUseCase(
 	async function startIntegrationConnectUseCase(
@@ -57,28 +58,25 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			connectionIds: stale.map((row) => row.id),
 		});
 
-		// The row comes first, so a disconnect while Composio is creating the account retires it.
+		// The row comes first, so a disconnect while the broker is creating the account retires it.
 		const id = randomUUID();
+		const broker = ctx.integrations.connectThrough;
 		await ctx.db.insert(integrationConnection).values({
 			id,
 			organizationId,
 			provider,
+			broker,
 			connectedById: userId,
 		});
 
-		// Straight to the provider's consent for our OAuth app: `initiate` with an unshortened URL,
-		// Composio's app-owned path for custom auth configs, so no Composio page is shown. The
-		// attempt's alias is our row id, so an account Composio made before a lost answer is still
+		// The attempt id is our row id, so an account the broker made before a lost answer is still
 		// found and removed: a failure retires the row and the sweep looks it up.
-		const request = await ctx.composio.connectedAccounts
-			.initiate(organizationId, ctx.config.composio.authConfigIds[provider], {
+		const { accountRef, redirectUrl } = await ctx.integrations.brokers[broker]
+			.startConnect({
+				organizationId,
+				provider,
+				attemptId: id,
 				callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
-				allowMultiple: true,
-				alias: id,
-				config: {
-					authScheme: "OAUTH2",
-					val: { status: "INITIALIZING", long_redirect_url: true },
-				},
 			})
 			.catch(async (err: unknown) => {
 				await retireIntegrationConnectionsUseCase({
@@ -87,13 +85,11 @@ export const startIntegrationConnectUseCase = defineUseCase(
 				});
 				throw err;
 			});
-		const connectedAccountId = request.id;
-		const redirectUrl = request.redirectUrl;
 
 		// Recorded whatever the row's status, so a retired row still leads the sweep to the account.
 		const [row] = await ctx.db
 			.update(integrationConnection)
-			.set({ composioConnectedAccountId: connectedAccountId })
+			.set({ externalAccountRef: accountRef })
 			.where(eq(integrationConnection.id, id))
 			.returning({ status: integrationConnection.status });
 		if (row?.status !== "pending") {
@@ -103,8 +99,9 @@ export const startIntegrationConnectUseCase = defineUseCase(
 					id,
 					organizationId,
 					provider,
+					broker,
 					status: "retiring",
-					composioConnectedAccountId: connectedAccountId,
+					externalAccountRef: accountRef,
 					connectedById: userId,
 				});
 			}
@@ -119,7 +116,7 @@ export const startIntegrationConnectUseCase = defineUseCase(
 				organizationId,
 				connectionIds: [id],
 			});
-			throw new Error(`Composio returned no redirect URL for ${provider}`);
+			throw new Error(`${broker} returned no redirect URL for ${provider}`);
 		}
 		return { redirectUrl };
 	},

@@ -1,7 +1,7 @@
 import type { Rule } from "eslint";
 
 // A use case is the only code that receives the context. `use-cases/lib` holds functions that
-// take the parts they need (`db`, the Composio client, a config value), so it may neither import
+// take the parts they need (`db`, a broker, a config value), so it may neither import
 // the context module (`@/use-cases`: TUseCaseContext, defineUseCase) nor call a use case.
 const rule: Rule.RuleModule = {
 	meta: {
@@ -12,7 +12,7 @@ const rule: Rule.RuleModule = {
 		},
 		messages: {
 			context:
-				"use-cases/lib must not import '{{source}}': take the parts you need (db, composio, a config value) as arguments.",
+				"use-cases/lib must not import '{{source}}': take the parts you need (db, a broker, a config value) as arguments.",
 			useCase:
 				"use-cases/lib must not call a use case ('{{source}}'): the use case calls lib, not the other way round.",
 		},

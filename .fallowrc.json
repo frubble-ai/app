@@ -16,6 +16,7 @@
 	},
 	"ignoreDependencies": [
 		"graphql-codegen-typescript-validation-schema",
-		"@graphql-typed-document-node/core"
+		"@graphql-typed-document-node/core",
+		"msw"
 	]
 }

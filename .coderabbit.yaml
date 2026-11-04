@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  path_instructions:
+    - path: "packages/db/drizzle/**"
+      instructions: |
+        While only stg exists, a change may rewrite migrations stg already ran and reset stg with
+        db-reset.yml instead of adding a forward migration (docs/style-guide/migrations.md, "While
+        only stg exists"). Do not ask for a forward migration or a backfill when the pull request
+        plans that reset.

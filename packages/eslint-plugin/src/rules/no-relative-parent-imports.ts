@@ -1,6 +1,6 @@
 import type { Rule } from "eslint";
 
-// Bans ../ imports in app source files. The @/ alias must be used for
+// Bans ../ imports in app source files, `import()` included. The @/ alias must be used for
 // anything outside the current folder. This ensures the placement rule's
 // path-based analysis catches all cross-boundary imports.
 // Scope: only app source dirs - packages legitimately use relative imports.
@@ -53,6 +53,19 @@ const rule: Rule.RuleModule = {
 					.source?.value;
 				if (typeof source === "string") {
 					checkSource(node, source);
+				}
+			},
+			// `import("…")`, as a string or a template without expressions: one with an expression
+			// cannot be resolved here.
+			ImportExpression(node) {
+				const source = node.source;
+				if (source.type === "Literal" && typeof source.value === "string") {
+					checkSource(node, source.value);
+				} else if (
+					source.type === "TemplateLiteral" &&
+					source.expressions.length === 0
+				) {
+					checkSource(node, source.quasis[0]?.value.cooked ?? "");
 				}
 			},
 		};
