@@ -149,6 +149,19 @@ jobs:
           name: image
           path: ${{ runner.temp }}
 
+      # Google trusts a dev deploy only from frubble-ai's members, by the
+      # run's actor (platform, dev/gcp/trust.tf). A re-run keeps the original
+      # actor, so it would pass for whoever re-runs it: on dev, only the person
+      # who started the run may re-run it. Anyone else starts a new run.
+      - name: Refuse a dev re-run by someone else
+        if: github.ref != 'refs/heads/stg' && github.triggering_actor != github.actor
+        env:
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          echo "::error::$TRIGGERING_ACTOR re-ran a dev deploy $ACTOR started. Start a new run instead."
+          exit 1
+
       # Signs in as the hub, which holds no permissions of its own. Its only
       # capability is impersonating the spoke, which is what is set next.
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0

@@ -35,6 +35,16 @@ from, and the next push to `dev` puts dev back on `dev`. Dev's database migrates
 deployed branch; deploying a branch with an older schema afterwards needs a reset (Resetting the
 database).
 
+Only frubble-ai's members can deploy to dev, whether by pushing to `dev` or by a run from a
+branch. Google enforces it, not this workflow: dev's trust rule in `platform`
+(`dev/gcp/trust.tf`, `dev_deployers`) lists the members by GitHub id and matches the run's
+actor, so a run anyone else starts fails at the Google sign-in, whatever its branch or its copy of
+the workflow says. A re-run keeps the original actor, so on dev the deploy job refuses a re-run by
+anyone but the person who started the run; they start a new run instead. Fork pull requests and
+Dependabot never reach it: they run on `pull_request`, with no OIDC token and a `refs/pull/` ref,
+which dev's trust never matches. When someone joins or leaves the organization, that list in
+`platform` changes with them.
+
 ## What a deploy does
 
 1. **Build and scan**, with no cloud credentials. Builds `apps/backend/Dockerfile` once,
