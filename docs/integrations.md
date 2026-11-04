@@ -29,8 +29,11 @@ every list of the organization's tools tries the removal again; while Composio k
 the account stays there. One active row per organization and provider.
 
 1. `startIntegrationConnect` writes a pending row, then calls `connectedAccounts.initiate` on our
-   auth config with the unshortened consent URL, the row id as the account's alias and a callback
-   to `<API>/integrations/callback?connection=<row id>`, and records the account on the row.
+   auth config with `config: { authScheme: "OAUTH2", val: { status: "INITIALIZING",
+   long_redirect_url: true } }`, so the `redirectUrl` it returns is the provider's own consent URL
+   rather than a Composio short link. It also passes the row id as the account's alias and a
+   callback to `<API>/integrations/callback?connection=<row id>`, and records the account on the
+   row.
    The row comes first, so a disconnect meanwhile retires it; the connect then fails and the
    new account is removed.
 2. The browser goes straight to the provider's consent for our OAuth app, with no Composio page,
