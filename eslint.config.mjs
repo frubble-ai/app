@@ -20,10 +20,11 @@ function brokerBoundary(brokers) {
 			prefix: `${library}/`,
 			message: `Only src/${broker.folder}/ imports ${library}/*; use a broker from ctx.integrations.`,
 		})),
-		{
-			prefix: `@/${broker.folder}/`,
+		// By the alias, or from `src/` itself by a relative path into the folder.
+		...[`@/${broker.folder}/`, `./${broker.folder}/`].map((prefix) => ({
+			prefix,
 			message: `src/${broker.folder}/ is reached through its index.`,
-		},
+		})),
 	]);
 	return {
 		"no-restricted-imports": [
@@ -85,17 +86,12 @@ export default [
 		files: ["apps/*/src/**/*.{ts,tsx}"],
 		...frubblePlugin.configs.recommended,
 	},
-	// Outside the broker folders, no broker is reachable but through its index; inside one, no
-	// other broker's library or folder is.
+	// Outside the broker folders, no broker is reachable but through its index.
 	{
 		files: ["apps/backend/src/**/*.{ts,tsx}"],
 		ignores: BROKERS.map((broker) => `apps/backend/src/${broker.folder}/**`),
 		rules: brokerBoundary(BROKERS),
 	},
-	...BROKERS.filter(() => BROKERS.length > 1).map((broker) => ({
-		files: [`apps/backend/src/${broker.folder}/**/*.{ts,tsx}`],
-		rules: brokerBoundary(BROKERS.filter((other) => other !== broker)),
-	})),
 	{
 		files: ["packages/*/src/**/*.{ts,tsx}"],
 		plugins: { "@frubble": frubblePlugin },

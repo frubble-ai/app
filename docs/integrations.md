@@ -81,9 +81,10 @@ row's own broker (`ctx.integrations.brokers[row.broker]`), so two brokers serve 
 one replaces the other: an organization's existing connection stays where its tokens are until it
 reconnects.
 
-Only a broker's own folder imports its library: ESLint refuses each broker's library and any path
-into its folder but its index, by `import` or `import("…")`, everywhere else in the backend,
-another broker's folder included. The brokers it knows are `BROKERS` in `eslint.config.mjs`.
+Only a broker's own folder imports its library: everywhere else in `apps/backend/src/`, ESLint
+refuses each broker's library and any path into its folder but its index, by `import` or
+`import("…")`. The brokers it knows are `BROKERS` in `eslint.config.mjs`. Codegen, outside
+`src/`, is the exception: `codegen/composio-tools.ts` reads Composio's tool schemas with its SDK.
 
 To add a broker:
 
@@ -92,8 +93,8 @@ To add a broker:
    ([migrations](style-guide/migrations.md#constants)), and its key in `INTEGRATION_BROKERS`.
 3. Its entry in `brokers` in `build-use-case-context`; moving new connections to it is
    `connectThrough`.
-4. Its entry in `BROKERS` in `eslint.config.mjs`: its folder and its libraries, so only its
-   folder may import them.
+4. Its entry in `BROKERS` in `eslint.config.mjs`: its folder and its libraries, so the rest of
+   `src/` may not import them.
 5. Its contract test: `describeConnectionBrokerContract` (`src/testing/`) with a harness that
    makes it answer, as `src/composio/__tests__/` does for Composio.
 
