@@ -33,6 +33,16 @@ When a schema change needs a new migration, keep the constants last:
 3. `drizzle-kit generate --custom --name=constants`, then put the constants SQL back in the new
    file, with any new rows.
 
-This holds while no long-lived database has to keep its applied migrations: stg is reset by
-`db-reset.yml` ([deployment](../deployment.md)). Once a database must keep them, constants
-change through new custom migrations instead.
+This holds while only stg exists (below). Once a database must keep its data, constants change
+through new custom migrations instead.
+
+## While only stg exists
+
+No database has to keep its data yet, so a schema change may rewrite migrations stg already ran
+(regenerate them, rename a column in place, squash them) instead of adding a forward migration.
+`0000_auth`, Better Auth's, stays as it is unless auth changes.
+
+Such a change resets stg after its deploy with `db-reset.yml`
+([deployment](../deployment.md#resetting-the-database)), which drops every account, session and
+integration connection there; its pull request says so under _Risk and rollback_. Once a database
+must keep its data, every change is a new forward migration.

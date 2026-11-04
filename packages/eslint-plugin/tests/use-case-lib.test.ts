@@ -12,7 +12,8 @@ function lint(filename: string, importSource: string) {
 	return reports;
 }
 
-const LIB = "/project/apps/backend/src/use-cases/lib/composio/github/index.ts";
+const LIB =
+	"/project/apps/backend/src/use-cases/lib/integrations/connections.ts";
 const CASE = "/project/apps/backend/src/use-cases/cases/start.use-case.ts";
 
 describe("@frubble/use-case-lib", () => {
@@ -37,8 +38,8 @@ describe("@frubble/use-case-lib", () => {
 	});
 
 	it("allows lib importing lib, and a use case importing anything", () => {
-		expect(lint(LIB, "@/use-cases/lib/composio/lib/execute-read")).toEqual([]);
-		expect(lint(LIB, "@/composio")).toEqual([]);
+		expect(lint(LIB, "@/use-cases/lib/shared/domain-errors")).toEqual([]);
+		expect(lint(LIB, "@/integrations")).toEqual([]);
 		expect(lint(CASE, "@/use-cases")).toEqual([]);
 		expect(lint(CASE, "@/use-cases/cases/sweep.use-case")).toEqual([]);
 	});

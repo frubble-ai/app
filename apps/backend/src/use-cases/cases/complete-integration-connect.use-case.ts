@@ -14,9 +14,9 @@ const OUTCOMES = {
 
 /**
  * Where the browser lands after a provider's consent: our connection id in the query, never
- * trusted for anything but finding the row. Composio says whether the account is live; a live one
- * replaces the organization's previous connection to that provider. Always a redirect to the app,
- * even when Composio cannot be reached: the row stays pending and the home page settles it later.
+ * trusted for anything but finding the row. Its broker says whether the account is live; a live
+ * one replaces the organization's previous connection to that provider. Always a redirect to the
+ * app, even when the broker cannot be reached: the row stays pending and the home page settles it later.
  */
 export const completeIntegrationConnectUseCase = defineUseCase(
 	async function completeIntegrationConnectUseCase(

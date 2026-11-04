@@ -1,4 +1,4 @@
-import type { TComposio } from "@/composio";
+import type { TComposio } from "./client";
 
 /** An organization's Composio session for one toolkit, on our own OAuth app (auth config). */
 export type TSessionTarget = {

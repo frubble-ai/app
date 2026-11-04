@@ -7,7 +7,6 @@ import {
 	type TTestClone,
 	teardownIntegration,
 } from "./integration-bootstrap";
-import { composioNetwork, composioRequests } from "./mock-composio-network";
 
 export type TIntegrationTestHandles = {
 	/** The per-test clone. Only inside an `it`: describe-level setup runs before `beforeEach`. */
@@ -24,13 +23,10 @@ export function setupIntegrationTestContext(
 	let clone: TTestClone | undefined;
 
 	beforeAll(async () => {
-		// A request no test answered fails the test instead of reaching Composio.
-		composioNetwork.listen({ onUnhandledFrame: "error" });
 		context = await bootstrapIntegration();
 	}, 180_000);
 
 	afterAll(async () => {
-		composioNetwork.close();
 		if (context) await teardownIntegration(context);
 	});
 
@@ -42,8 +38,6 @@ export function setupIntegrationTestContext(
 	});
 
 	afterEach(async () => {
-		composioNetwork.resetHandlers();
-		composioRequests.length = 0;
 		if (clone) {
 			await clone.cleanup();
 			clone = undefined;

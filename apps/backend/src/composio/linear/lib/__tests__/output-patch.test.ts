@@ -1,7 +1,7 @@
 import { jsonSchemaToZod } from "@composio/json-schema-to-zod/v4";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
-import { typeTeams } from "@/use-cases/lib/composio/linear/output-patch";
+import { typeTeams } from "@/composio/linear/lib/output-patch";
 
 /** LINEAR_LIST_LINEAR_TEAMS's `data` as Composio defines it: `teams` with untyped items. */
 function composioSchema() {

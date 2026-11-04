@@ -29,6 +29,6 @@ a cloud SDK.
 4. **The [placement rule](./placement-rule.md) decides.** One domain uses it → it stays in
    that domain's folder; several do → `src/shared/<library>/`.
 
-A client the backend's use cases call per request (Composio) is the exception: it goes on the
-use-case context as the library's own client and the use cases call it directly
+A vendor the backend's use cases call per request (an integration broker such as Composio) also
+lives in its own folder, and goes on the use-case context behind a type of ours
 ([use cases](./use-cases.md#third-party-clients)).

@@ -30,7 +30,7 @@
 			"inputs": [
 				"codegen.yml",
 				"codegen/**",
-				"src/use-cases/lib/composio/**/output-patch.ts",
+				"src/composio/**/output-patch.ts",
 				"schema/**",
 				"../../packages/gql/schema/**",
 				"../../packages/gql/operations/**"

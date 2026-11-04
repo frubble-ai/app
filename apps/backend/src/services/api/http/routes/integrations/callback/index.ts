@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { completeIntegrationConnectUseCase } from "@/use-cases/cases/complete-integration-connect.use-case";
 
 /**
- * `/integrations/callback`: where Composio sends the browser after a provider's consent. Public:
- * the use case checks the connection with Composio, then this redirects to the web app.
+ * `/integrations/callback`: where the broker sends the browser after a provider's consent. Public:
+ * the use case checks the connection with its broker, then this redirects to the web app.
  */
 export function createIntegrationsCallbackRoutes(): Hono {
 	const app = new Hono();

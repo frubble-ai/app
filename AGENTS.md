@@ -52,12 +52,12 @@ Every package exports its TypeScript source; there is no build step.
 - [`docs/dependencies.md`](./docs/dependencies.md) — why each `resolutions` override exists.
 - [`docs/deployment.md`](./docs/deployment.md) — what a push to `stg` does, rollback, and the variables the deploy reads.
 - [`docs/auth.md`](./docs/auth.md) — the sign-in flow, its codes, its role and rate limits.
-- [`docs/integrations.md`](./docs/integrations.md) — organizations, roles, invitations, and the Composio connections.
+- [`docs/integrations.md`](./docs/integrations.md) — organizations, roles, invitations, and the provider connections through a broker (Composio).
 - [`docs/environment.md`](./docs/environment.md) — every variable the API, the worker, the migration and the app read.
 - [`docs/app/index.md`](./docs/app/index.md) — the web app: stack, structure, tests, running it.
 - [`docs/graphql/index.md`](./docs/graphql/index.md) — the schema, codegen and the client SDK.
 - [`docs/style-guide/use-cases.md`](./docs/style-guide/use-cases.md) — the context is setup only; only use cases receive it; `lib/` takes its parts.
-- [`docs/style-guide/migrations.md`](./docs/style-guide/migrations.md) — never edit a generated migration; constants live in the last one.
+- [`docs/style-guide/migrations.md`](./docs/style-guide/migrations.md) — never edit a generated migration; constants live in the last one; while only stg exists, history may be rewritten and stg reset.
 - [`docs/style-guide/i18n.md`](./docs/style-guide/i18n.md) — translation namespaces, typed keys, tests render keys.
 
 ## Skills
@@ -74,7 +74,7 @@ Each one lists the docs to read and the rules that matter most.
 - Follow the monorepo and style-guide rules before changing the structure.
 - Place new code by the [placement rule](./docs/style-guide/placement-rule.md), not wherever is closest.
 - Keep framework-owned entrypoints, such as `apps/backend/src/services/api/index.ts`, in the shape the framework expects; `apps/backend/src/index.ts` only picks one by `APP_PROCESS`.
-- Resolvers, HTTP routes (`src/services/api/http`), scripts and the worker call use cases; only use cases touch the database, Better Auth, Composio and the queue.
+- Resolvers, HTTP routes (`src/services/api/http`), scripts and the worker call use cases; only use cases touch the database, Better Auth, the integration brokers and the queue.
 - Branch from `dev` and open pull requests against `dev`; `stg` only receives promotions from `dev`.
 - Do not add a `resolutions` entry without its row in [`docs/dependencies.md`](./docs/dependencies.md).
 - Never commit secrets: no keys, tokens or `.env` files.

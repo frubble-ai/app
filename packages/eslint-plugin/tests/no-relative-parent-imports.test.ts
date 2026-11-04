@@ -21,6 +21,35 @@ function lint(
 	return reports;
 }
 
+/** `import(source)`, where `source` is the specifier's AST node. */
+function lintDynamic(
+	filename: string,
+	source: unknown,
+): { messageId: string; data?: Record<string, string> }[] {
+	const { context, reports } = createMockContext({ filename });
+	const visitors = rule.create(context);
+	(visitors.ImportExpression as ((node: unknown) => void) | undefined)?.({
+		type: "ImportExpression",
+		source,
+	});
+	return reports;
+}
+
+function literal(value: string) {
+	return { type: "Literal", value };
+}
+
+function template(cooked: string, expressions: unknown[] = []) {
+	return {
+		type: "TemplateLiteral",
+		quasis: [{ value: { cooked, raw: cooked } }],
+		expressions,
+	};
+}
+
+const BACKEND_FILE =
+	"/project/apps/backend/src/use-cases/cases/probe.use-case.ts";
+
 describe("@frubble/no-relative-parent-imports", () => {
 	describe("violations in app source files", () => {
 		it("reports ../ import in portal app", () => {
@@ -91,5 +120,36 @@ describe("@frubble/no-relative-parent-imports", () => {
 			const reports = lint("/project/eslint.config.js", "../some-dep");
 			expect(reports).toHaveLength(0);
 		});
+	});
+});
+
+describe("@frubble/no-relative-parent-imports with import()", () => {
+	it.each([
+		["a string", literal("../../composio/lib/client")],
+		["a template without expressions", template("../../composio/lib/client")],
+	])("reports a ../ import() given as %s", (_, source) => {
+		expect(lintDynamic(BACKEND_FILE, source)).toEqual([
+			expect.objectContaining({
+				messageId: "noParentImport",
+				data: { source: "../../composio/lib/client" },
+			}),
+		]);
+	});
+
+	it.each([
+		["a ./ string", literal("./lib/client")],
+		["an @/ string", literal("@/composio")],
+		[
+			"a template with an expression",
+			template("../", [{ type: "Identifier" }]),
+		],
+	])("allows %s", (_, source) => {
+		expect(lintDynamic(BACKEND_FILE, source)).toEqual([]);
+	});
+
+	it("ignores a ../ import() in packages", () => {
+		expect(
+			lintDynamic("/project/packages/db/src/index.ts", literal("../env")),
+		).toEqual([]);
 	});
 });

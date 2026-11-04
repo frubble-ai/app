@@ -1,6 +1,6 @@
 {
-	"id": "d917298a-fbb1-459e-bce8-cfb7d8ac3324",
-	"prevId": "c056ba26-ae7c-43af-9495-3aa6b0f1ea6d",
+	"id": "0b4c8b2b-d9fc-432f-8cc2-3dc159d4a49f",
+	"prevId": "b0b2b251-d285-4875-af84-c9eef8989eb0",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -363,6 +363,25 @@
 			"checkConstraints": {},
 			"isRLSEnabled": false
 		},
+		"public.integration_broker": {
+			"name": "integration_broker",
+			"schema": "",
+			"columns": {
+				"key": {
+					"name": "key",
+					"type": "varchar(32)",
+					"primaryKey": true,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
 		"public.integration_connection": {
 			"name": "integration_connection",
 			"schema": "",
@@ -392,8 +411,14 @@
 					"notNull": true,
 					"default": "'pending'"
 				},
-				"composio_connected_account_id": {
-					"name": "composio_connected_account_id",
+				"broker": {
+					"name": "broker",
+					"type": "varchar(32)",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"external_account_ref": {
+					"name": "external_account_ref",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": false
@@ -431,6 +456,27 @@
 						}
 					],
 					"isUnique": false,
+					"with": {},
+					"method": "btree",
+					"concurrently": false
+				},
+				"integration_connection_external_account_idx": {
+					"name": "integration_connection_external_account_idx",
+					"columns": [
+						{
+							"expression": "broker",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "external_account_ref",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
 					"with": {},
 					"method": "btree",
 					"concurrently": false
@@ -486,6 +532,15 @@
 					"onUpdate": "no action",
 					"onDelete": "no action"
 				},
+				"integration_connection_broker_integration_broker_key_fk": {
+					"name": "integration_connection_broker_integration_broker_key_fk",
+					"tableFrom": "integration_connection",
+					"columnsFrom": ["broker"],
+					"tableTo": "integration_broker",
+					"columnsTo": ["key"],
+					"onUpdate": "no action",
+					"onDelete": "no action"
+				},
 				"integration_connection_connected_by_id_user_id_fk": {
 					"name": "integration_connection_connected_by_id_user_id_fk",
 					"tableFrom": "integration_connection",
@@ -497,13 +552,7 @@
 				}
 			},
 			"compositePrimaryKeys": {},
-			"uniqueConstraints": {
-				"integration_connection_composio_connected_account_id_unique": {
-					"name": "integration_connection_composio_connected_account_id_unique",
-					"columns": ["composio_connected_account_id"],
-					"nullsNotDistinct": false
-				}
-			},
+			"uniqueConstraints": {},
 			"policies": {},
 			"checkConstraints": {},
 			"isRLSEnabled": false

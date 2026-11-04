@@ -1,14 +1,13 @@
-/** Where a connected account stands, in our terms. */
-export type TConnectedAccountState = "pending" | "active" | "failed";
+import type { TAccountState } from "@/integrations";
 
-const STATES: Record<string, TConnectedAccountState> = {
+const STATES: Record<string, TAccountState> = {
 	INITIALIZING: "pending",
 	INITIATED: "pending",
 	ACTIVE: "active",
 };
 
 /** A Composio account status in our terms; anything not pending or live has failed. */
-export function accountState(status: string): TConnectedAccountState {
+export function accountState(status: string): TAccountState {
 	return STATES[status] ?? "failed";
 }
 

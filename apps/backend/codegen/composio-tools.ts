@@ -2,12 +2,12 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Composio } from "@composio/core";
 import { compile } from "json-schema-to-typescript";
-import { allowNullDescription } from "../src/use-cases/lib/composio/github/output-patch.ts";
+import { allowNullDescription } from "../src/composio/github/lib/output-patch.ts";
 import type {
 	TJsonSchema,
 	TSchemaPatch,
-} from "../src/use-cases/lib/composio/lib/output-schema.ts";
-import { typeTeams } from "../src/use-cases/lib/composio/linear/output-patch.ts";
+} from "../src/composio/lib/output-schema.ts";
+import { typeTeams } from "../src/composio/linear/lib/output-patch.ts";
 
 // The `data` type of each Composio tool the backend calls, generated from Composio's own output
 // schema with the same patch the runtime check applies; one file per tool. Needs COMPOSIO_API_KEY.

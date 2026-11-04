@@ -5,11 +5,11 @@ import {
 	type StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { createComposio } from "@/composio";
 import { setConfigForTests } from "@/config";
 import { resetCtx, setCtxForTests } from "@/use-cases";
 import { seedLocalUsersUseCase } from "@/use-cases/cases/seed-local-users.use-case";
 import { createCapturedMessages } from "./capture-messages";
+import { createMockConnectionBroker } from "./mock-connection-broker";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -55,7 +55,10 @@ export async function setup(): Promise<void> {
 		messages: captured.messages,
 		auth,
 		sessionCache,
-		composio: createComposio("test-composio-key"),
+		integrations: {
+			brokers: { composio: createMockConnectionBroker().broker },
+			connectThrough: "composio",
+		},
 		logger: testLogger,
 	});
 
