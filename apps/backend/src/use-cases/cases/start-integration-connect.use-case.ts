@@ -3,11 +3,9 @@ import { integrationConnection, type TIntegrationProvider } from "@frubble/db";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import {
-	integrationProviderSchema,
-	retireConnections,
-	sweepRetiring,
-} from "@/use-cases/lib/integrations/connections";
+import { retireIntegrationConnectionsUseCase } from "@/use-cases/cases/retire-integration-connections.use-case";
+import { sweepRetiringIntegrationsUseCase } from "@/use-cases/cases/sweep-retiring-integrations.use-case";
+import { integrationProviderSchema } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
 	MANAGER_ROLES,
@@ -38,7 +36,7 @@ export const startIntegrationConnectUseCase = defineUseCase(
 	): Promise<{ redirectUrl: string }> {
 		const { userId, organizationId, provider } =
 			startIntegrationConnectArgsSchema.parse(args);
-		await requireMembership(ctx, {
+		await requireMembership(ctx.db, {
 			userId,
 			organizationId,
 			roles: MANAGER_ROLES,
@@ -54,11 +52,10 @@ export const startIntegrationConnectUseCase = defineUseCase(
 					eq(integrationConnection.status, "pending"),
 				),
 			);
-		await retireConnections(
-			ctx,
+		await retireIntegrationConnectionsUseCase({
 			organizationId,
-			stale.map((row) => row.id),
-		);
+			connectionIds: stale.map((row) => row.id),
+		});
 
 		// The row comes first, so a disconnect while Composio is creating the account retires it.
 		const id = randomUUID();
@@ -69,20 +66,29 @@ export const startIntegrationConnectUseCase = defineUseCase(
 			connectedById: userId,
 		});
 
-		let linked: { connectedAccountId: string; redirectUrl: string };
-		try {
-			linked = await ctx.integrations.link({
-				organizationId,
-				provider,
+		// Straight to the provider's consent for our OAuth app: `initiate` with an unshortened URL,
+		// Composio's app-owned path for custom auth configs, so no Composio page is shown. The
+		// attempt's alias is our row id, so an account Composio made before a lost answer is still
+		// found and removed: a failure retires the row and the sweep looks it up.
+		const request = await ctx.composio.connectedAccounts
+			.initiate(organizationId, ctx.config.composio.authConfigIds[provider], {
 				callbackUrl: `${ctx.config.publicUrl}/integrations/callback?connection=${id}`,
+				allowMultiple: true,
+				alias: id,
+				config: {
+					authScheme: "OAUTH2",
+					val: { status: "INITIALIZING", long_redirect_url: true },
+				},
+			})
+			.catch(async (err: unknown) => {
+				await retireIntegrationConnectionsUseCase({
+					organizationId,
+					connectionIds: [id],
+				});
+				throw err;
 			});
-		} catch (err) {
-			await ctx.db
-				.delete(integrationConnection)
-				.where(eq(integrationConnection.id, id));
-			throw err;
-		}
-		const { connectedAccountId, redirectUrl } = linked;
+		const connectedAccountId = request.id;
+		const redirectUrl = request.redirectUrl;
 
 		// Recorded whatever the row's status, so a retired row still leads the sweep to the account.
 		const [row] = await ctx.db
@@ -102,10 +108,18 @@ export const startIntegrationConnectUseCase = defineUseCase(
 					connectedById: userId,
 				});
 			}
-			await sweepRetiring(ctx, organizationId);
+			await sweepRetiringIntegrationsUseCase({ organizationId });
 			throw badInput(
 				`${provider} was disconnected while connecting; start again.`,
 			);
+		}
+		if (!redirectUrl) {
+			// Nothing to send the user to: the attempt retires with its account.
+			await retireIntegrationConnectionsUseCase({
+				organizationId,
+				connectionIds: [id],
+			});
+			throw new Error(`Composio returned no redirect URL for ${provider}`);
 		}
 		return { redirectUrl };
 	},

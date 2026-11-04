@@ -1,14 +1,11 @@
 import type { TDb } from "@frubble/db";
+import { createComposio } from "@/composio";
 import { setConfigForTests, type TConfig } from "@/config";
 import { resetCtx, setCtxForTests } from "@/use-cases";
 import {
 	createCapturedMessages,
 	type TCapturedMessages,
 } from "./capture-messages";
-import {
-	createMockIntegrationsClient,
-	type TMockIntegrationsClient,
-} from "./mock-integrations-client";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -30,8 +27,6 @@ export type TTestClone = {
 	auth: ReturnType<typeof buildTestAuth>["auth"];
 	sessionCache: ReturnType<typeof buildTestAuth>["sessionCache"];
 	captured: TCapturedMessages;
-	/** Composio: never called for real in tests. */
-	integrations: TMockIntegrationsClient;
 	cleanup: () => Promise<void>;
 };
 
@@ -66,7 +61,6 @@ export async function cloneForTest(
 	const config: TConfig = { ...buildTestConfig(), ...options.config };
 	const { auth, sessionCache } = buildTestAuth(clone.db, config);
 	const captured = createCapturedMessages();
-	const integrations = createMockIntegrationsClient();
 
 	setConfigForTests(config);
 	setCtxForTests({
@@ -75,7 +69,8 @@ export async function cloneForTest(
 		messages: captured.messages,
 		auth,
 		sessionCache,
-		integrations,
+		// The real SDK; `mock-composio-network` answers its requests.
+		composio: createComposio("test-composio-key"),
 		logger: testLogger,
 	});
 
@@ -84,7 +79,6 @@ export async function cloneForTest(
 		auth,
 		sessionCache,
 		captured,
-		integrations,
 		async cleanup() {
 			resetCtx();
 			await clone.cleanup();

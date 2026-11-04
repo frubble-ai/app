@@ -4,13 +4,16 @@ import {
 	OrganizationRole,
 	useCreateOrganizationMutation,
 	useDisconnectIntegrationMutation,
-	useIntegrationPreviewLazyQuery,
+	useGithubOrganizationsLazyQuery,
 	useIntegrationsQuery,
 	useInviteOrganizationMemberMutation,
+	useLinearTeamsLazyQuery,
 	useMyOrganizationsQuery,
 	useOrganizationQuery,
+	useSlackChannelsLazyQuery,
 	useStartIntegrationConnectMutation,
 } from "@frubble/react-sdk";
+import { useState } from "react";
 import { vi } from "vitest";
 
 // Drives the organization and integration hooks of `@/testing/mock-react-sdk`; call after
@@ -57,13 +60,12 @@ export function mockIntegrations(connected: IntegrationProvider[] = []) {
 	return { refetch };
 }
 
-/** The mutations and the lazy preview, each resolving with `data`. */
+/** The mutations, each resolving with `data`, and the provider reads, not yet run. */
 export function mockOrganizationActions(
 	results: {
 		createOrganization?: unknown;
 		startIntegrationConnect?: unknown;
 		inviteOrganizationMember?: unknown;
-		integrationPreview?: Array<{ id: string; name: string }>;
 	} = {},
 ) {
 	const createOrganization = vi.fn().mockResolvedValue({
@@ -76,7 +78,6 @@ export function mockOrganizationActions(
 	const invite = vi.fn().mockResolvedValue({
 		data: { inviteOrganizationMember: results.inviteOrganizationMember },
 	});
-	const loadPreview = vi.fn();
 	vi.mocked(useCreateOrganizationMutation).mockReturnValue([
 		createOrganization,
 		{ loading: false },
@@ -93,17 +94,47 @@ export function mockOrganizationActions(
 		invite,
 		{ loading: false },
 	] as never);
-	vi.mocked(useIntegrationPreviewLazyQuery).mockReturnValue([
-		loadPreview,
-		{
-			data: results.integrationPreview
-				? { integrationPreview: results.integrationPreview }
-				: undefined,
-			loading: false,
-			called: Boolean(results.integrationPreview),
-		},
-	] as never);
-	return { createOrganization, startConnect, disconnect, invite, loadPreview };
+	for (const hook of [
+		useGithubOrganizationsLazyQuery,
+		useLinearTeamsLazyQuery,
+		useSlackChannelsLazyQuery,
+	]) {
+		vi.mocked(hook).mockReturnValue([
+			vi.fn(),
+			{ data: undefined, loading: false, called: false },
+		] as never);
+	}
+	return { createOrganization, startConnect, disconnect, invite };
+}
+
+/**
+ * A provider's read: like Apollo, no data until `load` runs; then `data[field]` is `items`.
+ * Answers the `load` function a test asserts on.
+ */
+export function mockRead(
+	hook:
+		| typeof useGithubOrganizationsLazyQuery
+		| typeof useLinearTeamsLazyQuery
+		| typeof useSlackChannelsLazyQuery,
+	field: string,
+	items: unknown[],
+) {
+	const load = vi.fn();
+	vi.mocked(hook).mockImplementation((() => {
+		const [data, setData] = useState<Record<string, unknown>>();
+		load.mockImplementation(() => setData({ [field]: items }));
+		return [load, { data, loading: false, called: Boolean(data) }];
+	}) as never);
+	return load;
+}
+
+export function generateSlackChannel() {
+	return {
+		id: `C${faker.string.alphanumeric(8).toUpperCase()}`,
+		name: faker.lorem.slug(1),
+		isPrivate: faker.datatype.boolean(),
+		memberCount: faker.number.int({ min: 1, max: 500 }),
+	};
 }
 
 export { IntegrationProvider, OrganizationRole };

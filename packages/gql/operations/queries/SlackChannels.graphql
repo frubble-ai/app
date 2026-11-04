@@ -1,0 +1,8 @@
+query SlackChannels($organizationId: String!) {
+	slackChannels(organizationId: $organizationId) {
+		id
+		name
+		isPrivate
+		memberCount
+	}
+}

@@ -1,17 +1,22 @@
 import { faker } from "@faker-js/faker";
-import { useAuth, useIntegrationPreviewLazyQuery } from "@frubble/react-sdk";
+import {
+	useAuth,
+	useLinearTeamsLazyQuery,
+	useSlackChannelsLazyQuery,
+} from "@frubble/react-sdk";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen } from "@/screens/home";
 import { generateAuth } from "@/testing/generate-auth";
 import {
 	generateOrganization,
+	generateSlackChannel,
 	IntegrationProvider,
 	mockIntegrations,
 	mockMyOrganizations,
 	mockOrganizationActions,
+	mockRead,
 	OrganizationRole,
 } from "@/testing/mock-organization-sdk";
 import { renderWithProviders } from "@/testing/testing";
@@ -59,10 +64,8 @@ describe("HomeScreen", () => {
 		expect(screen.getByTestId("integration-status-slack")).toHaveTextContent(
 			"home.integrations.notConnected",
 		);
-		expect(
-			screen.getByTestId("integration-preview-github"),
-		).toBeInTheDocument();
-		expect(screen.queryByTestId("integration-preview-slack")).toBeNull();
+		expect(screen.getByTestId("github-organizations")).toBeInTheDocument();
+		expect(screen.queryByTestId("slack-channels")).toBeNull();
 	});
 
 	it("sends an owner to the provider's consent page to connect", async () => {
@@ -90,42 +93,72 @@ describe("HomeScreen", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("reads through a connected tool on demand and lists what it returned", async () => {
+	it("lists a connected Linear's teams on demand", async () => {
+		const organization = generateOrganization(OrganizationRole.Member);
+		mockMyOrganizations([organization]);
+		mockIntegrations([IntegrationProvider.Linear]);
+		const team = { id: faker.string.uuid(), name: faker.company.name() };
+		const load = mockRead(useLinearTeamsLazyQuery, "linearTeams", [team]);
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.queryByTestId("linear-teams-items")).toBeNull();
+		await userEvent.click(screen.getByTestId("linear-teams-load"));
+
+		expect(load).toHaveBeenCalledWith({
+			variables: { organizationId: organization.id },
+		});
+		expect(await screen.findByTestId("linear-teams-items")).toHaveTextContent(
+			team.name,
+		);
+	});
+
+	it("says when a connected Linear has no teams", async () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Linear]);
+		mockRead(useLinearTeamsLazyQuery, "linearTeams", []);
+		renderWithProviders(<HomeScreen />);
+
+		await userEvent.click(screen.getByTestId("linear-teams-load"));
+
+		expect(await screen.findByTestId("linear-teams-empty")).toBeInTheDocument();
+	});
+
+	it("says when reading Linear fails", () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Linear]);
+		vi.mocked(useLinearTeamsLazyQuery).mockReturnValue([
+			vi.fn(),
+			{
+				data: undefined,
+				loading: false,
+				called: true,
+				error: new Error("down"),
+			},
+		] as never);
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("linear-teams-error")).toBeInTheDocument();
+	});
+
+	it("lists a connected Slack's channels on demand", async () => {
 		const organization = generateOrganization(OrganizationRole.Member);
 		mockMyOrganizations([organization]);
 		mockIntegrations([IntegrationProvider.Slack]);
-		const items = [
-			{ id: "C1", name: "general" },
-			{ id: "C2", name: "design" },
-		];
-		const loadPreview = vi.fn();
-		// Like Apollo: no data until the query has been run.
-		vi.mocked(useIntegrationPreviewLazyQuery).mockImplementation(() => {
-			const [data, setData] = useState<{ integrationPreview: typeof items }>();
-			loadPreview.mockImplementation(() =>
-				setData({ integrationPreview: items }),
-			);
-			return [
-				loadPreview,
-				{ data, loading: false, called: Boolean(data) },
-			] as never;
-		});
+		const channel = generateSlackChannel();
+		const load = mockRead(useSlackChannelsLazyQuery, "slackChannels", [
+			channel,
+		]);
 		renderWithProviders(<HomeScreen />);
 
-		expect(screen.queryByTestId("integration-preview-items-slack")).toBeNull();
-		await userEvent.click(screen.getByTestId("integration-preview-load-slack"));
+		expect(screen.queryByTestId("slack-channels-items")).toBeNull();
+		await userEvent.click(screen.getByTestId("slack-channels-load"));
 
-		expect(loadPreview).toHaveBeenCalledWith({
-			variables: {
-				input: {
-					organizationId: organization.id,
-					provider: IntegrationProvider.Slack,
-				},
-			},
+		expect(load).toHaveBeenCalledWith({
+			variables: { organizationId: organization.id },
 		});
-		expect(
-			await screen.findByTestId("integration-preview-items-slack"),
-		).toHaveTextContent("generaldesign");
+		expect(await screen.findByTestId("slack-channels-items")).toHaveTextContent(
+			`#${channel.name}`,
+		);
 	});
 
 	it("gives a plain member no connect or invite controls", () => {

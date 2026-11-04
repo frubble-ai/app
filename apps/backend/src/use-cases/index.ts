@@ -2,12 +2,15 @@ import type { TDb } from "@frubble/db";
 import type { TMessageBus } from "@frubble/events";
 import { DateTime } from "luxon";
 import type { TAuth, TAuthSessionCache } from "@/better-auth";
-import type { TIntegrationsClient } from "@/composio";
+import type { TComposio } from "@/composio";
 import type { TConfig } from "@/config";
 import type { TLogger } from "@/logger";
 import { betterAuthClientErrorToDomainError } from "@/use-cases/lib/auth/better-auth-error";
 
-/** The context every use case receives. Only use cases touch these clients. */
+/**
+ * The context every use case receives: the configured clients and nothing that runs on its own.
+ * Only use cases receive it; a `lib` function takes the parts it needs (`ctx.db`, `ctx.composio`).
+ */
 export type TUseCaseContext = {
 	config: TConfig;
 	db: TDb;
@@ -15,8 +18,8 @@ export type TUseCaseContext = {
 	messages: TMessageBus;
 	auth: TAuth;
 	sessionCache: TAuthSessionCache;
-	/** The organizations' connected tools (Composio). */
-	integrations: TIntegrationsClient;
+	/** Composio, set up with the project's key; use cases make the calls. */
+	composio: TComposio;
 	logger: TLogger;
 };
 

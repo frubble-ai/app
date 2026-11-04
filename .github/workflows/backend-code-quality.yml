@@ -118,6 +118,9 @@ jobs:
       - uses: ./.github/actions/setup-monorepo
 
       - name: Typecheck, lint and format
+        # The backend's codegen reads Composio's tool schemas.
+        env:
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
         run: yarn turbo run typecheck lint format
 
   tests:
@@ -135,6 +138,9 @@ jobs:
       # Every workspace's coverage, then merged into coverage/ at the root:
       # the one report fallow reads.
       - name: Test with coverage
+        # The backend's codegen reads Composio's tool schemas.
+        env:
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
         run: yarn test:coverage
 
       - name: Fallow
@@ -167,6 +173,8 @@ jobs:
         with:
           context: .
           file: apps/backend/Dockerfile
+          secrets: |
+            composio_api_key=${{ secrets.COMPOSIO_API_KEY }}
           push: false
           tags: frubble-backend:pr-${{ github.event.number }}
           build-args: |

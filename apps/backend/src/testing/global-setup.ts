@@ -1,15 +1,15 @@
 import path from "node:path";
 import { createDb } from "@frubble/db";
-import { runSeed, type TSeedContext } from "@frubble/seed";
 import {
 	PostgreSqlContainer,
 	type StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { createComposio } from "@/composio";
 import { setConfigForTests } from "@/config";
 import { resetCtx, setCtxForTests } from "@/use-cases";
+import { seedLocalUsersUseCase } from "@/use-cases/cases/seed-local-users.use-case";
 import { createCapturedMessages } from "./capture-messages";
-import { createMockIntegrationsClient } from "./mock-integrations-client";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -55,16 +55,11 @@ export async function setup(): Promise<void> {
 		messages: captured.messages,
 		auth,
 		sessionCache,
-		integrations: createMockIntegrationsClient(),
+		composio: createComposio("test-composio-key"),
 		logger: testLogger,
 	});
 
-	const seedContext: TSeedContext = {
-		db: baseDb,
-		users: {},
-		signUp: async (body) => (await auth.api.signUpEmail({ body })).user,
-	};
-	await runSeed(seedContext);
+	const seedUsers = await seedLocalUsersUseCase({});
 
 	// Postgres needs no live session on the source to take a template snapshot.
 	await baseDb.$client.end();
@@ -75,7 +70,7 @@ export async function setup(): Promise<void> {
 
 	// Vitest forks its workers after `setup()` resolves, so they inherit these.
 	process.env[TEST_DB_CONNECTION_ENV] = connectionString;
-	process.env[TEST_SEED_USERS_ENV] = JSON.stringify(seedContext.users);
+	process.env[TEST_SEED_USERS_ENV] = JSON.stringify(seedUsers);
 }
 
 export async function teardown(): Promise<void> {
