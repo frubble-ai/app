@@ -1,14 +1,7 @@
-import type { TComposio } from "@/composio";
-import { executeTool } from "@/use-cases/lib/composio/lib/execute-tool";
-import type { TSession } from "@/use-cases/lib/composio/lib/session";
-
-/** A Slack channel the connected user can see. */
-export type TSlackChannel = {
-	id: string;
-	name: string;
-	isPrivate: boolean;
-	memberCount: number | null;
-};
+import type { TComposio } from "@/composio/lib/client";
+import { executeTool } from "@/composio/lib/execute-tool";
+import type { TSession } from "@/composio/lib/session";
+import type { TSlackChannel } from "@/integrations";
 
 /** The workspace's channels the connected user can see, archived ones left out. */
 export async function listSlackChannels(

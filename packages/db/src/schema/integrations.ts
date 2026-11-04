@@ -17,8 +17,17 @@ export const INTEGRATION_PROVIDERS = ["github", "linear", "slack"] as const;
 export type TIntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
 
 /**
+ * Who holds a connection's grant and runs its actions: rows of `integration_broker`. A connection
+ * stays with the broker it was made through, so two can serve side by side while one replaces the
+ * other.
+ */
+export const INTEGRATION_BROKERS = ["composio"] as const;
+
+export type TIntegrationBroker = (typeof INTEGRATION_BROKERS)[number];
+
+/**
  * `pending` until the provider's consent finishes, then `active`. `retiring`: replaced, failed or
- * abandoned, kept until Composio confirms the account is removed. Rows of `integration_status`.
+ * abandoned, kept until its broker confirms the account is removed. Rows of `integration_status`.
  */
 export const INTEGRATION_STATUSES = ["pending", "active", "retiring"] as const;
 
@@ -34,7 +43,11 @@ export const integrationStatus = pgTable("integration_status", {
 	key: varchar("key", { length: 32 }).primaryKey(),
 });
 
-/** One attempt or connection of an organization to a provider; the tokens stay at Composio. */
+export const integrationBroker = pgTable("integration_broker", {
+	key: varchar("key", { length: 32 }).primaryKey(),
+});
+
+/** One attempt or connection of an organization to a provider; the tokens stay at its broker. */
 export const integrationConnection = pgTable(
 	"integration_connection",
 	{
@@ -51,9 +64,13 @@ export const integrationConnection = pgTable(
 			.default("pending")
 			.notNull()
 			.references(() => integrationStatus.key),
-		// Null while Composio is still creating the account: the row exists first, so a disconnect
-		// in the meantime sees and retires it.
-		composioConnectedAccountId: text("composio_connected_account_id").unique(),
+		broker: varchar("broker", { length: 32 })
+			.$type<TIntegrationBroker>()
+			.notNull()
+			.references(() => integrationBroker.key),
+		// The broker's id for the account. Null while the broker is still creating it: the row exists
+		// first, so a disconnect in the meantime sees and retires it.
+		externalAccountRef: text("external_account_ref"),
 		connectedById: text("connected_by_id").references(() => user.id, {
 			onDelete: "set null",
 		}),
@@ -68,6 +85,10 @@ export const integrationConnection = pgTable(
 	(table) => [
 		index("integration_connection_organization_id_idx").on(
 			table.organizationId,
+		),
+		uniqueIndex("integration_connection_external_account_idx").on(
+			table.broker,
+			table.externalAccountRef,
 		),
 		// One live connection per organization and provider.
 		uniqueIndex("integration_connection_active_idx")

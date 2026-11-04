@@ -22,8 +22,8 @@ const disconnectIntegrationArgsSchema = z.object({
 
 /**
  * Disconnect a provider (owners and admins only). Every row for it retires, an unfinished attempt
- * too, so no earlier consent can bring the connection back. Done only once Composio confirms each
- * account removed; otherwise this fails, the provider stays off for the organization, and the
+ * too, so no earlier consent can bring the connection back. Done only once the broker confirms
+ * each account removed; otherwise this fails, the provider stays off for the organization, and the
  * removal is retried on every later look at its tools.
  */
 export const disconnectIntegrationUseCase = defineUseCase(
@@ -58,7 +58,7 @@ export const disconnectIntegrationUseCase = defineUseCase(
 			connectionIds: ids,
 		});
 
-		// A row still without an account is an attempt Composio has not answered: its connect
+		// A row still without an account is an attempt the broker has not answered: its connect
 		// records the account when the answer comes and removes it, so it is not ours to confirm.
 		const unconfirmed = await ctx.db
 			.select({ id: integrationConnection.id })
@@ -66,7 +66,7 @@ export const disconnectIntegrationUseCase = defineUseCase(
 			.where(
 				and(
 					inArray(integrationConnection.id, ids),
-					isNotNull(integrationConnection.composioConnectedAccountId),
+					isNotNull(integrationConnection.externalAccountRef),
 				),
 			);
 		if (unconfirmed.length > 0) {

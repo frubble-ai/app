@@ -3,7 +3,6 @@ import { and, eq } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import { accountsByAlias, isAlreadyGone } from "@/use-cases/lib/composio";
 import { betterAuthIdSchema } from "@/use-cases/lib/organizations/membership";
 
 const sweepRetiringIntegrationsArgsSchema = z.object({
@@ -11,17 +10,17 @@ const sweepRetiringIntegrationsArgsSchema = z.object({
 });
 
 /**
- * How long a row whose account id never arrived keeps being looked up by alias. Composio documents
- * no expiry for an unfinished connection, so this is ours: long enough for an account it made to
- * show up in its listing.
+ * How long a row whose account never arrived keeps being looked up by its attempt. No broker
+ * documents an expiry for an unfinished connection, so this is ours: long enough for an account it
+ * made to show up in its listing.
  */
-const ALIAS_LOOKUP_HOURS = 1;
+const ATTEMPT_LOOKUP_HOURS = 1;
 
 /**
- * Remove the organization's retiring accounts at Composio, deleting each row only once Composio
- * confirms. One that fails stays and is tried again on the next sweep. A row without an account
- * id finds its account by alias (the row id), in case Composio made one and its answer was lost;
- * it stays until an account is found and removed, or ALIAS_LOOKUP_HOURS have passed.
+ * Remove the organization's retiring accounts at their brokers, deleting each row only once its
+ * broker confirms. One that fails stays and is tried again on the next sweep. A row without an
+ * account finds it by its attempt (the row id), in case the broker made one and its answer was
+ * lost; it stays until an account is found and removed, or ATTEMPT_LOOKUP_HOURS have passed.
  */
 export const sweepRetiringIntegrationsUseCase = defineUseCase(
 	async function sweepRetiringIntegrationsUseCase(
@@ -33,7 +32,8 @@ export const sweepRetiringIntegrationsUseCase = defineUseCase(
 			.select({
 				id: integrationConnection.id,
 				provider: integrationConnection.provider,
-				accountId: integrationConnection.composioConnectedAccountId,
+				broker: integrationConnection.broker,
+				accountRef: integrationConnection.externalAccountRef,
 				createdAt: integrationConnection.createdAt,
 			})
 			.from(integrationConnection)
@@ -44,34 +44,31 @@ export const sweepRetiringIntegrationsUseCase = defineUseCase(
 				),
 			);
 		for (const row of rows) {
+			const broker = ctx.integrations.brokers[row.broker];
 			try {
-				// No account id: Composio's answer never arrived, so any account it made for this
-				// attempt carries the row id as its alias.
-				const accountIds = row.accountId
-					? [row.accountId]
-					: await accountsByAlias(ctx.composio, {
+				// No account: the broker's answer never arrived, so look for what it made for this
+				// attempt, the row id.
+				const accountRefs = row.accountRef
+					? [row.accountRef]
+					: await broker.findAccountsByAttempt({
 							organizationId,
 							provider: row.provider,
-							alias: row.id,
+							attemptId: row.id,
 						});
 				const lookingUntil = DateTime.fromJSDate(row.createdAt).plus({
-					hours: ALIAS_LOOKUP_HOURS,
+					hours: ATTEMPT_LOOKUP_HOURS,
 				});
-				if (accountIds.length === 0 && DateTime.now() < lookingUntil) continue;
-				for (const accountId of accountIds) {
-					await ctx.composio.connectedAccounts
-						.delete(accountId)
-						.catch((err: unknown) => {
-							if (!isAlreadyGone(err)) throw err;
-						});
+				if (accountRefs.length === 0 && DateTime.now() < lookingUntil) continue;
+				for (const accountRef of accountRefs) {
+					await broker.removeAccount(accountRef);
 				}
 				await ctx.db
 					.delete(integrationConnection)
 					.where(eq(integrationConnection.id, row.id));
 			} catch (err) {
 				ctx.logger.warn(
-					{ err, connectedAccountId: row.accountId },
-					"Composio connected account not removed; retried on the next sweep",
+					{ err, broker: row.broker, accountRef: row.accountRef },
+					"Broker account not removed; retried on the next sweep",
 				);
 			}
 		}

@@ -1,10 +1,6 @@
 import { z } from "zod";
+import type { TGithubOrganization } from "@/integrations";
 import { defineUseCase } from "@/use-cases";
-import {
-	listGithubOrganizations,
-	openSession,
-	type TGithubOrganization,
-} from "@/use-cases/lib/composio";
 import { requireActiveConnection } from "@/use-cases/lib/integrations/connections";
 import {
 	betterAuthIdSchema,
@@ -29,12 +25,10 @@ export const listGithubOrganizationsUseCase = defineUseCase(
 			organizationId,
 			provider: "github",
 		});
-		const session = await openSession(ctx.composio, {
-			organizationId,
-			toolkit: "github",
-			authConfigId: ctx.config.composio.authConfigIds.github,
-			connectedAccountId: connection.composioConnectedAccountId,
-		});
-		return listGithubOrganizations(ctx.composio, session);
+		return ctx.integrations.brokers[connection.broker].run(
+			"github.listOrganizations",
+			{ organizationId, provider: "github", accountRef: connection.accountRef },
+			{},
+		);
 	},
 );

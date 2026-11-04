@@ -1,4 +1,4 @@
-import { generateComposioTool } from "@/testing/generate-composio-tool";
+import { generateComposioTool } from "./generate-composio-tool";
 
 /**
  * GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER as Composio defines it: `data` through

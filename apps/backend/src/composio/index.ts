@@ -1,13 +1,103 @@
-import { Composio } from "@composio/core";
+import type { TIntegrationProvider } from "@frubble/db";
+import type {
+	TConnectionBroker,
+	TIntegrationAction,
+	TIntegrationActions,
+} from "@/integrations";
+import { listGithubOrganizations } from "./github";
+import { accountState, isAlreadyGone } from "./lib/account-state";
+import { accountsByAlias } from "./lib/accounts-by-alias";
+import { createComposio, type TComposio } from "./lib/client";
+import { openSession, type TSession } from "./lib/session";
+import { listLinearTeams } from "./linear";
+import { listSlackChannels } from "./slack";
 
-/** The configured Composio client. Setup only: use cases make every call through `ctx.composio`. */
-export type TComposio = Composio;
+/** Composio's toolkit for each provider. */
+const TOOLKITS: Record<TIntegrationProvider, string> = {
+	github: "github",
+	linear: "linear",
+	slack: "slack",
+};
 
-/** No telemetry and no npm version check: the client only talks to Composio's API. */
-export function createComposio(apiKey: string): TComposio {
-	return new Composio({
-		apiKey,
-		allowTracking: false,
-		disableVersionCheck: true,
-	});
+/** Each action as Composio runs it: one of its tools, read into our output. */
+const ACTIONS: {
+	[TAction in TIntegrationAction]: (
+		composio: TComposio,
+		session: TSession,
+	) => Promise<TIntegrationActions[TAction]["output"]>;
+} = {
+	"github.listOrganizations": listGithubOrganizations,
+	"linear.listTeams": listLinearTeams,
+	"slack.listChannels": listSlackChannels,
+};
+
+/**
+ * Composio as a broker: each organization is a Composio user, each connection a connected account
+ * on our own OAuth app (an auth config per provider), each action one of its tools run in a
+ * session. No telemetry and no npm version check.
+ */
+export function createComposioBroker(config: {
+	apiKey: string;
+	/** The auth config (our OAuth app at Composio) per provider. */
+	authConfigIds: Record<TIntegrationProvider, string>;
+}): TConnectionBroker {
+	const composio = createComposio(config.apiKey);
+	return {
+		async startConnect(args) {
+			// Straight to the provider's consent for our OAuth app: `initiate` with an unshortened
+			// URL, Composio's app-owned path for custom auth configs, so no Composio page is shown.
+			// The attempt id is the account's alias, which `findAccountsByAttempt` looks for.
+			const request = await composio.connectedAccounts.initiate(
+				args.organizationId,
+				config.authConfigIds[args.provider],
+				{
+					callbackUrl: args.callbackUrl,
+					allowMultiple: true,
+					alias: args.attemptId,
+					config: {
+						authScheme: "OAUTH2",
+						val: { status: "INITIALIZING", long_redirect_url: true },
+					},
+				},
+			);
+			return {
+				accountRef: request.id,
+				redirectUrl: request.redirectUrl ?? undefined,
+			};
+		},
+
+		async accountState(accountRef, options = {}) {
+			// Aborting also stops the SDK's own retries.
+			const account = await composio.connectedAccounts.get(accountRef, {
+				signal: options.signal,
+			});
+			return accountState(account.status);
+		},
+
+		async removeAccount(accountRef) {
+			await composio.connectedAccounts
+				.delete(accountRef)
+				.catch((err: unknown) => {
+					if (!isAlreadyGone(err)) throw err;
+				});
+		},
+
+		findAccountsByAttempt(args) {
+			return accountsByAlias(composio, {
+				organizationId: args.organizationId,
+				provider: TOOLKITS[args.provider],
+				alias: args.attemptId,
+			});
+		},
+
+		async run(action, connection) {
+			const session = await openSession(composio, {
+				organizationId: connection.organizationId,
+				toolkit: TOOLKITS[connection.provider],
+				authConfigId: config.authConfigIds[connection.provider],
+				connectedAccountId: connection.accountRef,
+			});
+			return ACTIONS[action](composio, session);
+		},
+	};
 }

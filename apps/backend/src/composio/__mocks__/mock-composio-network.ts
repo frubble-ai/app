@@ -1,5 +1,6 @@
 import { delay, HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll } from "vitest";
 import { generateComposioConnectedAccount } from "./generate-composio-connected-account";
 import { generateComposioSession } from "./generate-composio-session";
 import type { generateComposioTool } from "./generate-composio-tool";
@@ -27,7 +28,7 @@ export const composioRequests: Array<{
 	body: unknown;
 }> = [];
 
-export const composioNetwork = setupServer(
+const composioNetwork = setupServer(
 	http.delete(`${API}/connected_accounts/:id`, () =>
 		HttpResponse.json({ success: true }),
 	),
@@ -50,6 +51,19 @@ composioNetwork.events.on("request:start", async ({ request }) => {
 		body: text ? JSON.parse(text) : null,
 	});
 });
+
+/**
+ * Registers the network for a test file: a request no test answered fails the test instead of
+ * reaching Composio, and each test starts with the default answers and no recorded requests.
+ */
+export function setupComposioNetwork() {
+	beforeAll(() => composioNetwork.listen({ onUnhandledFrame: "error" }));
+	afterEach(() => {
+		composioNetwork.resetHandlers();
+		composioRequests.length = 0;
+	});
+	afterAll(() => composioNetwork.close());
+}
 
 /**
  * `connectedAccounts.initiate` answers this account and consent page, once. `before` runs while
@@ -98,11 +112,6 @@ export function lastInitiateRequest() {
 				};
 		  }
 		| undefined;
-}
-
-/** The callback URL the last `initiate` sent Composio. */
-export function lastCallbackUrl(): string {
-	return lastInitiateRequest()?.connection?.callback_url ?? "";
 }
 
 /** `session.execute` of `slug` answers `data`, or fails. */
@@ -194,19 +203,8 @@ export function answerAccountMadeForLastAttempt(connectedAccountId: string) {
 	answerAccountPages([[{ id: connectedAccountId, madeForLastAttempt: true }]]);
 }
 
-/** `connectedAccounts.get` fails once, as Composio would when unreachable. */
-export function failConnectedAccount(connectedAccountId: string) {
-	composioNetwork.use(
-		http.get(
-			`${API}/connected_accounts/${connectedAccountId}`,
-			() => HttpResponse.json({ error: "unavailable" }, { status: 503 }),
-			{ once: true },
-		),
-	);
-}
-
 /**
- * `connectedAccounts.delete` fails until `restoreDelete`, as Composio would while down. The SDK
+ * `connectedAccounts.delete` fails for the rest of the test, as Composio would while down. The SDK
  * retries a failure itself, so a single failed answer would not reach our code.
  */
 export function failDelete() {
@@ -217,20 +215,13 @@ export function failDelete() {
 	);
 }
 
-/** `connectedAccounts.delete` works again after `failDelete`. */
-export function restoreDelete() {
+/** `connectedAccounts.delete` of the account answers that it is gone already. */
+export function answerAccountGone(connectedAccountId: string) {
 	composioNetwork.use(
-		http.delete(`${API}/connected_accounts/:id`, () =>
-			HttpResponse.json({ success: true }),
+		http.delete(`${API}/connected_accounts/${connectedAccountId}`, () =>
+			HttpResponse.json({ error: "not found" }, { status: 404 }),
 		),
 	);
-}
-
-/** The ids of the accounts the SDK asked Composio to delete. */
-export function deletedAccounts(): string[] {
-	return composioRequests
-		.filter((entry) => entry.method === "DELETE")
-		.map((entry) => entry.path.split("/").pop() ?? "");
 }
 
 /** `getRawComposioToolBySlug` answers this tool (see `generateComposioTool`). */
@@ -238,31 +229,6 @@ export function answerTool(tool: ReturnType<typeof generateComposioTool>) {
 	composioNetwork.use(
 		http.get(`${API}/tools/${tool.slug}`, () => HttpResponse.json(tool)),
 	);
-}
-
-/**
- * `connectedAccounts.get` answers `statuses` in turn, each held briefly, and counts how many
- * were in flight at once: what a test reads to prove settles ask Composio one at a time.
- */
-export function answerConnectedAccountInTurn(
-	connectedAccountId: string,
-	statuses: Array<"INITIATED" | "ACTIVE" | "FAILED">,
-) {
-	const reads = { inFlight: 0, mostAtOnce: 0 };
-	const queue = [...statuses];
-	composioNetwork.use(
-		http.get(`${API}/connected_accounts/${connectedAccountId}`, async () => {
-			reads.inFlight += 1;
-			reads.mostAtOnce = Math.max(reads.mostAtOnce, reads.inFlight);
-			const status = queue.shift() ?? "ACTIVE";
-			await delay(50);
-			reads.inFlight -= 1;
-			return HttpResponse.json(
-				generateComposioConnectedAccount(connectedAccountId, status),
-			);
-		}),
-	);
-	return reads;
 }
 
 /** `connectedAccounts.get` never answers, as when Composio hangs. */

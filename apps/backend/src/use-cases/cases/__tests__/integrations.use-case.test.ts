@@ -2,32 +2,13 @@ import { faker } from "@faker-js/faker";
 import { integrationConnection } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { generateGithubOrganization } from "@/shared/__mocks__/generate-github-organization";
 import type { TTestClone } from "@/testing/integration-bootstrap";
-import {
-	answerAccountMadeForLastAttempt,
-	answerAccountPages,
-	answerConnectedAccount,
-	answerConnectedAccountInTurn,
-	answerExecute,
-	answerInitiate,
-	answerTool,
-	composioRequests,
-	deletedAccounts,
-	failConnectedAccount,
-	failDelete,
-	failInitiate,
-	hangConnectedAccount,
-	lastCallbackUrl,
-	lastInitiateRequest,
-	restoreDelete,
-} from "@/testing/mock-composio-network";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import {
 	signedInTestUser,
 	type TSignedInTestUser,
 } from "@/testing/signed-in-test-user";
-import { generateGithubOrganization } from "@/use-cases/cases/__mocks__/generate-github-organization";
-import { generateGithubOrganizationsTool } from "@/use-cases/cases/__mocks__/generate-github-organizations-tool";
 import { acceptOrganizationInvitationUseCase } from "@/use-cases/cases/accept-organization-invitation.use-case";
 import { completeIntegrationConnectUseCase } from "@/use-cases/cases/complete-integration-connect.use-case";
 import { createOrganizationUseCase } from "@/use-cases/cases/create-organization.use-case";
@@ -38,9 +19,11 @@ import { listIntegrationsUseCase } from "@/use-cases/cases/list-integrations.use
 import { listLinearTeamsUseCase } from "@/use-cases/cases/list-linear-teams.use-case";
 import { startIntegrationConnectUseCase } from "@/use-cases/cases/start-integration-connect.use-case";
 
-const { getClone } = setupIntegrationTestContext();
+// The use cases on a broker held in memory: each test sets what the broker answers
+// (src/testing/mock-connection-broker.ts). Every broker owes the same behaviour
+// (src/testing/connection-broker-contract.ts).
 
-const CONSENT_PAGE = "https://github.com/login/oauth/authorize?client_id=test";
+const { getClone } = setupIntegrationTestContext();
 
 async function ownerWithOrganization(clone: TTestClone) {
 	const owner = await signedInTestUser(clone);
@@ -73,24 +56,26 @@ async function plainMember(
 	return joined;
 }
 
-/** Start connecting GitHub; the connection id our callback will carry. */
-async function startConnecting(args: {
-	userId: string;
-	organizationId: string;
-}) {
-	const connectedAccountId = `ca_${faker.string.alphanumeric(10)}`;
-	answerInitiate({ connectedAccountId, redirectUrl: CONSENT_PAGE });
+/** Start connecting GitHub; the connection id our callback will carry, and the broker's account. */
+async function startConnecting(
+	clone: TTestClone,
+	args: { userId: string; organizationId: string },
+) {
 	await startIntegrationConnectUseCase({ ...args, provider: "github" });
+	const connect = clone.broker.lastConnect();
 	return {
 		connectionId:
-			new URL(lastCallbackUrl()).searchParams.get("connection") ?? "",
-		connectedAccountId,
+			new URL(connect.callbackUrl).searchParams.get("connection") ?? "",
+		accountRef: connect.accountRef,
 	};
 }
 
-async function connected(args: { userId: string; organizationId: string }) {
-	const attempt = await startConnecting(args);
-	answerConnectedAccount(attempt.connectedAccountId, "ACTIVE", { once: true });
+async function connected(
+	clone: TTestClone,
+	args: { userId: string; organizationId: string },
+) {
+	const attempt = await startConnecting(clone, args);
+	clone.broker.answerState(attempt.accountRef, "active", { once: true });
 	await completeIntegrationConnectUseCase({
 		connectionId: attempt.connectionId,
 	});
@@ -101,17 +86,18 @@ async function rowsOf(clone: TTestClone, organizationId: string) {
 	return clone.db
 		.select({
 			status: integrationConnection.status,
-			account: integrationConnection.composioConnectedAccountId,
+			account: integrationConnection.externalAccountRef,
 		})
 		.from(integrationConnection)
 		.where(eq(integrationConnection.organizationId, organizationId));
 }
 
 describe("connecting a provider", () => {
-	it("sends the user straight to the provider's consent on our auth config, with our callback", async () => {
+	it("sends the user to the provider's consent, with our callback, on the broker new connections use", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		answerInitiate({ connectedAccountId: "ca_1", redirectUrl: CONSENT_PAGE });
+		const consentPage = faker.internet.url();
+		clone.broker.answerConnect({ redirectUrl: consentPage });
 
 		await expect(
 			startIntegrationConnectUseCase({
@@ -119,29 +105,27 @@ describe("connecting a provider", () => {
 				organizationId,
 				provider: "github",
 			}),
-		).resolves.toEqual({ redirectUrl: CONSENT_PAGE });
+		).resolves.toEqual({ redirectUrl: consentPage });
 
-		const initiated = lastInitiateRequest();
-		expect(initiated?.auth_config?.id).toBe("ac_test_github");
-		expect(initiated?.connection).toMatchObject({
-			user_id: organizationId,
-			state: {
-				authScheme: "OAUTH2",
-				val: { status: "INITIALIZING", long_redirect_url: true },
-			},
-		});
-		expect(initiated?.connection?.callback_url).toBe(
-			`http://localhost:8080/integrations/callback?connection=${initiated?.connection?.alias}`,
+		const connect = clone.broker.lastConnect();
+		expect(connect.callbackUrl).toBe(
+			`http://localhost:8080/integrations/callback?connection=${connect.attemptId}`,
 		);
+		await expect(
+			clone.db
+				.select({ broker: integrationConnection.broker })
+				.from(integrationConnection)
+				.where(eq(integrationConnection.id, connect.attemptId)),
+		).resolves.toEqual([{ broker: "composio" }]);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
 		).resolves.toEqual([]);
 	});
 
-	it("retires the attempt when Composio gives no page to send the user to", async () => {
+	it("retires the attempt when the broker gives no page to send the user to", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		answerInitiate({ connectedAccountId: "ca_no_page", redirectUrl: null });
+		clone.broker.answerConnect({ redirectUrl: undefined });
 
 		await expect(
 			startIntegrationConnectUseCase({
@@ -151,36 +135,16 @@ describe("connecting a provider", () => {
 			}),
 		).rejects.toThrow();
 
-		expect(deletedAccounts()).toEqual(["ca_no_page"]);
-		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
-	});
-
-	it("removes an account Composio made though its answer to initiate was lost", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		failInitiate();
-		answerAccountMadeForLastAttempt("ca_lost");
-
-		await expect(
-			startIntegrationConnectUseCase({
-				userId: owner.id,
-				organizationId,
-				provider: "github",
-			}),
-		).rejects.toThrow();
-
-		expect(deletedAccounts()).toEqual(["ca_lost"]);
-		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
-	});
-
-	it("finds a lost answer's account on a later page of Composio's listing", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		failInitiate();
-		answerAccountPages([
-			[{ id: "ca_other" }],
-			[{ id: "ca_lost", madeForLastAttempt: true }],
+		expect(clone.broker.removedAccounts()).toEqual([
+			clone.broker.lastConnect().accountRef,
 		]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+
+	it("removes an account the broker made though its answer to the connect was lost", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		clone.broker.loseConnect({ listed: true });
 
 		await expect(
 			startIntegrationConnectUseCase({
@@ -190,14 +154,16 @@ describe("connecting a provider", () => {
 			}),
 		).rejects.toThrow();
 
-		expect(deletedAccounts()).toEqual(["ca_lost"]);
+		expect(clone.broker.removedAccounts()).toEqual([
+			clone.broker.lastLostAccount(),
+		]);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("keeps looking for a lost answer's account until Composio lists it", async () => {
+	it("keeps looking for a lost answer's account until the broker lists it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		failInitiate();
+		clone.broker.loseConnect({ listed: false });
 		await expect(
 			startIntegrationConnectUseCase({
 				userId: owner.id,
@@ -209,17 +175,19 @@ describe("connecting a provider", () => {
 			{ status: "retiring", account: null },
 		]);
 
-		answerAccountMadeForLastAttempt("ca_late");
+		clone.broker.listLostAccounts();
 		await listIntegrationsUseCase({ userId: owner.id, organizationId });
 
-		expect(deletedAccounts()).toEqual(["ca_late"]);
+		expect(clone.broker.removedAccounts()).toEqual([
+			clone.broker.lastLostAccount(),
+		]);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
 	it("stops looking for a lost answer's account after an hour", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		failInitiate();
+		clone.broker.loseConnect({ listed: false });
 		await expect(
 			startIntegrationConnectUseCase({
 				userId: owner.id,
@@ -234,18 +202,18 @@ describe("connecting a provider", () => {
 
 		await listIntegrationsUseCase({ userId: owner.id, organizationId });
 
-		expect(deletedAccounts()).toEqual([]);
+		expect(clone.broker.removedAccounts()).toEqual([]);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("keeps a connection active when a later answer from Composio says it failed", async () => {
+	it("keeps a connection active when a later answer from the broker says it failed", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		answerConnectedAccountInTurn(attempt.connectedAccountId, [
-			"ACTIVE",
-			"FAILED",
-		]);
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.broker.answerStatesInTurn(attempt.accountRef, ["active", "failed"]);
 
 		await completeIntegrationConnectUseCase({
 			connectionId: attempt.connectionId,
@@ -255,18 +223,21 @@ describe("connecting a provider", () => {
 		});
 
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
-			{ status: "active", account: attempt.connectedAccountId },
+			{ status: "active", account: attempt.accountRef },
 		]);
-		expect(deletedAccounts()).toEqual([]);
+		expect(clone.broker.removedAccounts()).toEqual([]);
 	});
 
-	it("asks Composio one settle at a time, whichever answer comes first", async () => {
+	it("asks the broker one settle at a time, whichever answer comes first", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		const reads = answerConnectedAccountInTurn(attempt.connectedAccountId, [
-			"FAILED",
-			"ACTIVE",
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		const reads = clone.broker.answerStatesInTurn(attempt.accountRef, [
+			"failed",
+			"active",
 		]);
 
 		await Promise.all([
@@ -277,14 +248,17 @@ describe("connecting a provider", () => {
 		// The first answer decided; the second settle found the row already settled and never asked.
 		expect(reads.mostAtOnce).toBe(1);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
-		expect(deletedAccounts()).toEqual([attempt.connectedAccountId]);
+		expect(clone.broker.removedAccounts()).toEqual([attempt.accountRef]);
 	});
 
-	it("gives up on a Composio that hangs and leaves the connection pending", async () => {
+	it("gives up on a broker that hangs and leaves the connection pending", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		hangConnectedAccount(attempt.connectedAccountId);
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.broker.hangState(attempt.accountRef);
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -293,15 +267,18 @@ describe("connecting a provider", () => {
 				"http://localhost:3000/?integration=github&integration_status=pending",
 		});
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
-			{ status: "pending", account: attempt.connectedAccountId },
+			{ status: "pending", account: attempt.accountRef },
 		]);
 	}, 15_000);
 
-	it("activates the connection when Composio says it is live", async () => {
+	it("activates the connection when the broker says it is live", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.broker.answerState(attempt.accountRef, "active");
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -316,25 +293,28 @@ describe("connecting a provider", () => {
 		]);
 	});
 
-	it("replaces the previous connection and removes it at Composio", async () => {
+	it("replaces the previous connection and removes it at the broker", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const first = await connected(args);
+		const first = await connected(clone, args);
 
-		const second = await connected(args);
+		const second = await connected(clone, args);
 
-		expect(deletedAccounts()).toContain(first.connectedAccountId);
+		expect(clone.broker.removedAccounts()).toContain(first.accountRef);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
-			{ status: "active", account: second.connectedAccountId },
+			{ status: "active", account: second.accountRef },
 		]);
 	});
 
-	it("drops a failed attempt at Composio and says it failed", async () => {
+	it("drops a failed attempt at the broker and says it failed", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		answerConnectedAccount(attempt.connectedAccountId, "FAILED");
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.broker.answerState(attempt.accountRef, "failed");
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -342,24 +322,24 @@ describe("connecting a provider", () => {
 			redirectUrl:
 				"http://localhost:3000/?integration=github&integration_status=failed",
 		});
-		expect(deletedAccounts()).toEqual([attempt.connectedAccountId]);
+		expect(clone.broker.removedAccounts()).toEqual([attempt.accountRef]);
 	});
 
-	it("keeps a replaced account until Composio confirms its removal, then retries", async () => {
+	it("keeps a replaced account until the broker confirms its removal, then retries", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const first = await connected(args);
-		failDelete();
+		const first = await connected(clone, args);
+		clone.broker.failRemove();
 
-		await connected(args);
+		await connected(clone, args);
 		expect(
 			(await rowsOf(clone, organizationId)).find(
 				(row) => row.status === "retiring",
 			),
-		).toEqual({ status: "retiring", account: first.connectedAccountId });
+		).toEqual({ status: "retiring", account: first.accountRef });
 
-		restoreDelete();
+		clone.broker.restoreRemove();
 		await listIntegrationsUseCase(args);
 
 		expect(
@@ -371,11 +351,9 @@ describe("connecting a provider", () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const attempt = await startConnecting(args);
-		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
-		answerConnectedAccount(attempt.connectedAccountId, "INITIATED", {
-			once: true,
-		});
+		const attempt = await startConnecting(clone, args);
+		clone.broker.answerState(attempt.accountRef, "active");
+		clone.broker.answerState(attempt.accountRef, "pending", { once: true });
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -388,11 +366,14 @@ describe("connecting a provider", () => {
 		]);
 	});
 
-	it("still sends the browser back to the app when Composio cannot be reached", async () => {
+	it("still sends the browser back to the app when the broker cannot be reached", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		failConnectedAccount(attempt.connectedAccountId);
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.broker.failState(attempt.accountRef);
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -434,14 +415,17 @@ describe("connecting a provider", () => {
 				provider: "slack",
 			}),
 		).rejects.toMatchObject({ name: "NotFoundError" });
-		expect(composioRequests).toEqual([]);
+		expect(clone.broker.calls()).toEqual([]);
 	});
 
 	it("reports connected to both callbacks when two settle the same attempt at once", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const attempt = await startConnecting({ userId: owner.id, organizationId });
-		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		clone.broker.answerState(attempt.accountRef, "active");
 		const connectedUrl =
 			"http://localhost:3000/?integration=github&integration_status=connected";
 
@@ -465,78 +449,23 @@ describe("reading through a connection", () => {
 	it("lists the GitHub organizations for any member, through the organization's own account", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
-		const { connectedAccountId } = await connected({
+		const { accountRef } = await connected(clone, {
 			userId: owner.id,
 			organizationId,
 		});
 		const joined = await plainMember(clone, owner, organizationId);
-		const organization = generateGithubOrganization();
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
-			data: { organizations: [organization] },
-		});
+		const organizations = [generateGithubOrganization()];
+		clone.broker.answerAction("github.listOrganizations", organizations);
 
 		await expect(
 			listGithubOrganizationsUseCase({ userId: joined.id, organizationId }),
-		).resolves.toEqual([
+		).resolves.toEqual(organizations);
+		expect(clone.broker.runs()).toEqual([
 			{
-				id: String(organization.id),
-				login: organization.login,
-				description: null,
-				avatarUrl: organization.avatar_url,
+				action: "github.listOrganizations",
+				connection: { organizationId, provider: "github", accountRef },
 			},
 		]);
-		expect(
-			composioRequests.findLast((entry) =>
-				entry.path.endsWith("/tool_router/session"),
-			)?.body,
-		).toMatchObject({
-			user_id: organizationId,
-			connected_accounts: { github: [connectedAccountId] },
-		});
-	});
-
-	it("refuses a response that the tool's output schema refuses", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		await connected({ userId: owner.id, organizationId });
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
-			data: { message: "hello world" },
-		});
-
-		await expect(
-			listGithubOrganizationsUseCase({ userId: owner.id, organizationId }),
-		).rejects.toThrow("output schema refuses");
-	});
-
-	it("checks again against Composio's current schema before refusing a response", async () => {
-		const clone = getClone();
-		const { owner, organizationId } = await ownerWithOrganization(clone);
-		await connected({ userId: owner.id, organizationId });
-		const organization = generateGithubOrganization();
-		// An older schema, kept from an earlier read, that wanted a field GitHub no longer sends.
-		answerTool(
-			generateGithubOrganizationsTool({
-				required: ["id", "login", "avatar_url", "url"],
-			}),
-		);
-		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
-			data: {
-				organizations: [
-					{ ...organization, url: "https://api.github.com/orgs/x" },
-				],
-			},
-		});
-		await listGithubOrganizationsUseCase({ userId: owner.id, organizationId });
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute("GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER", {
-			data: { organizations: [organization] },
-		});
-
-		await expect(
-			listGithubOrganizationsUseCase({ userId: owner.id, organizationId }),
-		).resolves.toHaveLength(1);
 	});
 
 	it("says a provider that is not connected is not found", async () => {
@@ -546,19 +475,20 @@ describe("reading through a connection", () => {
 		await expect(
 			listLinearTeamsUseCase({ userId: owner.id, organizationId }),
 		).rejects.toMatchObject({ name: "NotFoundError" });
+		expect(clone.broker.runs()).toEqual([]);
 	});
 });
 
 describe("disconnecting", () => {
-	it("removes the account at Composio and the organization no longer has it", async () => {
+	it("removes the account at the broker and the organization no longer has it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		const { connectedAccountId } = await connected(args);
+		const { accountRef } = await connected(clone, args);
 
 		await disconnectIntegrationUseCase({ ...args, provider: "github" });
 
-		expect(deletedAccounts()).toEqual([connectedAccountId]);
+		expect(clone.broker.removedAccounts()).toEqual([accountRef]);
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
 	});
 
@@ -566,11 +496,10 @@ describe("disconnecting", () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		await connected(args);
-		const attempt = await startConnecting(args);
+		await connected(clone, args);
+		const attempt = await startConnecting(clone, args);
 
 		await disconnectIntegrationUseCase({ ...args, provider: "github" });
-		answerConnectedAccount(attempt.connectedAccountId, "ACTIVE");
 
 		await expect(
 			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
@@ -580,30 +509,29 @@ describe("disconnecting", () => {
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
 	});
 
-	it("does not report a disconnect Composio has not confirmed, and keeps retrying it", async () => {
+	it("does not report a disconnect the broker has not confirmed, and keeps retrying it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		await connected(args);
-		failDelete();
+		await connected(clone, args);
+		clone.broker.failRemove();
 
 		await expect(
 			disconnectIntegrationUseCase({ ...args, provider: "github" }),
 		).rejects.toMatchObject({ name: "InternalServerError" });
 
-		restoreDelete();
+		clone.broker.restoreRemove();
 		await expect(listIntegrationsUseCase(args)).resolves.toEqual([]);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("fails a connect that a disconnect overtook while Composio created the account", async () => {
+	it("fails a connect that a disconnect overtook while the broker created the account", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		await connected(args);
-		answerInitiate({
-			connectedAccountId: "ca_overtaken",
-			redirectUrl: CONSENT_PAGE,
+		await connected(clone, args);
+		clone.broker.answerConnect({
+			redirectUrl: faker.internet.url(),
 			before: () =>
 				disconnectIntegrationUseCase({ ...args, provider: "github" }),
 		});
@@ -612,38 +540,37 @@ describe("disconnecting", () => {
 			startIntegrationConnectUseCase({ ...args, provider: "github" }),
 		).rejects.toMatchObject({ name: "BadInputError" });
 
-		expect(deletedAccounts()).toContain("ca_overtaken");
+		expect(clone.broker.removedAccounts()).toContain(
+			clone.broker.lastConnect().accountRef,
+		);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
-	it("keeps the overtaken account on a retiring row when Composio fails to remove it", async () => {
+	it("keeps the overtaken account on a retiring row when the broker fails to remove it", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const args = { userId: owner.id, organizationId };
-		await connected(args);
-		answerInitiate({
-			connectedAccountId: "ca_overtaken",
-			redirectUrl: CONSENT_PAGE,
+		await connected(clone, args);
+		clone.broker.answerConnect({
+			redirectUrl: faker.internet.url(),
 			before: async () => {
 				await disconnectIntegrationUseCase({ ...args, provider: "github" });
-				failDelete();
+				clone.broker.failRemove();
 			},
 		});
 
 		await expect(
 			startIntegrationConnectUseCase({ ...args, provider: "github" }),
 		).rejects.toMatchObject({ name: "BadInputError" });
+		const overtaken = clone.broker.lastConnect().accountRef;
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
-			{ status: "retiring", account: "ca_overtaken" },
+			{ status: "retiring", account: overtaken },
 		]);
 
-		restoreDelete();
+		clone.broker.restoreRemove();
 		await listIntegrationsUseCase(args);
 
-		// The failed attempts (the SDK retries them) and the one that worked.
-		expect(
-			deletedAccounts().filter((id) => id === "ca_overtaken").length,
-		).toBeGreaterThan(1);
+		expect(clone.broker.removedAccounts()).toContain(overtaken);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 });

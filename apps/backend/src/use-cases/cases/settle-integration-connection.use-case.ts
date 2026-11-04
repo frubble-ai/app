@@ -1,30 +1,27 @@
 import { integrationConnection, organization } from "@frubble/db";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
+import type { TAccountState } from "@/integrations";
 import { defineUseCase } from "@/use-cases";
 import { sweepRetiringIntegrationsUseCase } from "@/use-cases/cases/sweep-retiring-integrations.use-case";
-import {
-	accountState,
-	type TConnectedAccountState,
-} from "@/use-cases/lib/composio";
 
 /** How long the lookup may hold the organization's lock; past it the row waits for the next look. */
-const COMPOSIO_LOOKUP_TIMEOUT_MS = 5_000;
+const BROKER_LOOKUP_TIMEOUT_MS = 5_000;
 
 const settleIntegrationConnectionArgsSchema = z.object({
 	connectionId: z.uuid(),
 });
 
 /**
- * Bring a connection in line with Composio. Live: it becomes the organization's connection to the
- * provider and every other row for that provider retires. Failed: it retires. Still pending, or
- * Composio unreachable: it waits for the next look. Gone or retired: failed.
+ * Bring a connection in line with its broker. Live: it becomes the organization's connection to
+ * the provider and every other row for that provider retires. Failed: it retires. Still pending,
+ * or the broker unreachable: it waits for the next look. Gone or retired: failed.
  */
 export const settleIntegrationConnectionUseCase = defineUseCase(
 	async function settleIntegrationConnectionUseCase(
 		ctx,
 		args: { connectionId: string },
-	): Promise<TConnectedAccountState> {
+	): Promise<TAccountState> {
 		const { connectionId } = settleIntegrationConnectionArgsSchema.parse(args);
 		const [row] = await ctx.db
 			.select()
@@ -33,11 +30,11 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 			.limit(1);
 		if (!row || row.status === "retiring") return "failed";
 		if (row.status === "active") return "active";
-		// Composio is still creating the account.
-		const accountId = row.composioConnectedAccountId;
-		if (!accountId) return "pending";
+		// The broker is still creating the account.
+		const accountRef = row.externalAccountRef;
+		if (!accountRef) return "pending";
 
-		// Composio is asked under the organization's lock, so answers are read one at a time and each
+		// The broker is asked under the organization's lock, so answers are read one at a time and each
 		// acts on the row as the previous one left it: a later "failed" never retires a connection
 		// an earlier "live" activated, whichever settle asked first.
 		const settled = await ctx.db.transaction(async (tx) => {
@@ -56,17 +53,17 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 			if (current?.status === "active") return "active" as const;
 			if (current?.status !== "pending") return "failed" as const;
 
-			let state: TConnectedAccountState;
+			let state: TAccountState;
 			try {
-				// Aborting also stops the SDK's own retries, so the lock is never held longer.
-				const account = await ctx.composio.connectedAccounts.get(accountId, {
-					signal: AbortSignal.timeout(COMPOSIO_LOOKUP_TIMEOUT_MS),
-				});
-				state = accountState(account.status);
+				// The broker stops at the signal, so the lock is never held longer.
+				state = await ctx.integrations.brokers[row.broker].accountState(
+					accountRef,
+					{ signal: AbortSignal.timeout(BROKER_LOOKUP_TIMEOUT_MS) },
+				);
 			} catch (err) {
 				ctx.logger.warn(
-					{ err, connectionId },
-					"Composio state unknown; the connection stays pending",
+					{ err, connectionId, broker: row.broker },
+					"Broker state unknown; the connection stays pending",
 				);
 				return "pending" as const;
 			}

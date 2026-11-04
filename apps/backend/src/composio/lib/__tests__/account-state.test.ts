@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	accountState,
-	isAlreadyGone,
-} from "@/use-cases/lib/composio/lib/account-state";
+import { accountState, isAlreadyGone } from "@/composio/lib/account-state";
 
 describe("accountState", () => {
 	it.each([

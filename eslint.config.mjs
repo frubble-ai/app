@@ -33,6 +33,31 @@ export default [
 		...frubblePlugin.configs.recommended,
 	},
 	{
+		// Composio is one broker among those that could be: only its own folder knows it, and
+		// everything else reaches it through `createComposioBroker` (docs/integrations.md).
+		files: ["apps/backend/src/**/*.{ts,tsx}"],
+		ignores: ["apps/backend/src/composio/**"],
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					patterns: [
+						{
+							group: ["@composio/*"],
+							message:
+								"Only src/composio/ talks to Composio; use a broker from ctx.integrations.",
+						},
+						{
+							group: ["@/composio/*"],
+							message:
+								"src/composio/ is reached through its index, `createComposioBroker`.",
+						},
+					],
+				},
+			],
+		},
+	},
+	{
 		files: ["packages/*/src/**/*.{ts,tsx}"],
 		plugins: { "@frubble": frubblePlugin },
 		rules: {

@@ -3,9 +3,10 @@ import { databaseUrl } from "@frubble/db/env";
 import { createPubSubTransport } from "@frubble/events/pubsub";
 import { PubSub } from "@google-cloud/pubsub";
 import { createAuth } from "@/better-auth";
-import { createComposio } from "@/composio";
+import { createComposioBroker } from "@/composio";
 import { getConfig } from "@/config";
 import { createAppMessageBus } from "@/events";
+import type { TIntegrations } from "@/integrations";
 import { logger } from "@/logger";
 import type { TUseCaseContext } from "@/use-cases";
 
@@ -42,7 +43,11 @@ export async function buildUseCaseContext(): Promise<TUseCaseContext> {
 
 	const { auth, sessionCache } = createAuth(db, config);
 
-	const composio = createComposio(config.composio.apiKey);
+	// Every broker a connection may be on; new connections go through `connectThrough`.
+	const integrations: TIntegrations = {
+		brokers: { composio: createComposioBroker(config.composio) },
+		connectThrough: "composio",
+	};
 
-	return { config, db, messages, auth, sessionCache, composio, logger };
+	return { config, db, messages, auth, sessionCache, integrations, logger };
 }
