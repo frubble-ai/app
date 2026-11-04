@@ -7,10 +7,9 @@ import type { TIntegrationBroker, TIntegrationProvider } from "@frubble/db";
 /** Where a broker's account stands: consent still open, live, or failed. */
 export type TAccountState = "pending" | "active" | "failed";
 
-/** An organization's account at its broker, for one provider. */
+/** An organization's account at its broker. Its provider is the action's (INTEGRATION_ACTION_PROVIDERS). */
 export type TConnectionRef = {
 	organizationId: string;
-	provider: TIntegrationProvider;
 	/** The broker's id for the account. */
 	accountRef: string;
 };
@@ -52,6 +51,15 @@ export type TIntegrationActions = {
 
 export type TIntegrationAction = keyof TIntegrationActions;
 
+/** The provider each action runs against, so a caller never names it twice. */
+export const INTEGRATION_ACTION_PROVIDERS: {
+	[TAction in TIntegrationAction]: TIntegrationProvider;
+} = {
+	"github.listOrganizations": "github",
+	"linear.listTeams": "linear",
+	"slack.listChannels": "slack",
+};
+
 /** Holds an organization's grants to providers and runs actions with them. */
 export type TConnectionBroker = {
 	/**
@@ -78,7 +86,10 @@ export type TConnectionBroker = {
 		provider: TIntegrationProvider;
 		attemptId: string;
 	}): Promise<string[]>;
-	/** Run one action with the connection; its output is checked, nothing unchecked comes back. */
+	/**
+	 * Run one action with the connection, on the action's provider; its output is checked, nothing
+	 * unchecked comes back.
+	 */
 	run<TAction extends TIntegrationAction>(
 		action: TAction,
 		connection: TConnectionRef,

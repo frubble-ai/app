@@ -1,9 +1,14 @@
 import { faker } from "@faker-js/faker";
-import { integrationConnection } from "@frubble/db";
+import {
+	integrationBroker,
+	integrationConnection,
+	type TIntegrationBroker,
+} from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { generateGithubOrganization } from "@/shared/__mocks__/generate-github-organization";
 import type { TTestClone } from "@/testing/integration-bootstrap";
+import { createMockConnectionBroker } from "@/testing/mock-connection-broker";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import {
 	signedInTestUser,
@@ -80,6 +85,17 @@ async function connected(
 		connectionId: attempt.connectionId,
 	});
 	return attempt;
+}
+
+/** A second broker beside the first; new connections go through it from now on. */
+async function replaceBroker(clone: TTestClone) {
+	// Only `composio` exists; a real replacement adds its key to INTEGRATION_BROKERS and its row.
+	const key = "replacement" as TIntegrationBroker;
+	await clone.db.insert(integrationBroker).values({ key });
+	const replacement = createMockConnectionBroker();
+	clone.integrations.brokers[key] = replacement.broker;
+	clone.integrations.connectThrough = key;
+	return replacement;
 }
 
 async function rowsOf(clone: TTestClone, organizationId: string) {
@@ -463,7 +479,7 @@ describe("reading through a connection", () => {
 		expect(clone.broker.runs()).toEqual([
 			{
 				action: "github.listOrganizations",
-				connection: { organizationId, provider: "github", accountRef },
+				connection: { organizationId, accountRef },
 			},
 		]);
 	});
@@ -572,5 +588,62 @@ describe("disconnecting", () => {
 
 		expect(clone.broker.removedAccounts()).toContain(overtaken);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
+	});
+});
+
+describe("replacing a broker", () => {
+	it("keeps each connection on the broker it was made through while new ones go through the other", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const args = { userId: owner.id, organizationId };
+		const first = await connected(clone, args);
+		const replacement = await replaceBroker(clone);
+		const organizations = [generateGithubOrganization()];
+		clone.broker.answerAction("github.listOrganizations", organizations);
+
+		await expect(listGithubOrganizationsUseCase(args)).resolves.toEqual(
+			organizations,
+		);
+		expect(replacement.calls()).toEqual([]);
+
+		await startIntegrationConnectUseCase({ ...args, provider: "github" });
+		const attempt = replacement.lastConnect();
+		replacement.answerState(attempt.accountRef, "active");
+		await completeIntegrationConnectUseCase({
+			connectionId: attempt.attemptId,
+		});
+
+		// The replaced connection was removed where its tokens were.
+		expect(clone.broker.removedAccounts()).toEqual([first.accountRef]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "active", account: attempt.accountRef },
+		]);
+		replacement.answerAction("github.listOrganizations", organizations);
+		await listGithubOrganizationsUseCase(args);
+		expect(replacement.runs()).toEqual([
+			{
+				action: "github.listOrganizations",
+				connection: { organizationId, accountRef: attempt.accountRef },
+			},
+		]);
+	});
+
+	it("settles an attempt made before the switch on the broker it was made on", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		const replacement = await replaceBroker(clone);
+		clone.broker.answerState(attempt.accountRef, "active");
+
+		await expect(
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+		).resolves.toEqual({
+			redirectUrl:
+				"http://localhost:3000/?integration=github&integration_status=connected",
+		});
+		expect(replacement.calls()).toEqual([]);
 	});
 });

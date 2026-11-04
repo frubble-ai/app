@@ -1,8 +1,9 @@
 import type { TIntegrationProvider } from "@frubble/db";
-import type {
-	TConnectionBroker,
-	TIntegrationAction,
-	TIntegrationActions,
+import {
+	INTEGRATION_ACTION_PROVIDERS,
+	type TConnectionBroker,
+	type TIntegrationAction,
+	type TIntegrationActions,
 } from "@/integrations";
 import { listGithubOrganizations } from "./github";
 import { accountState, isAlreadyGone } from "./lib/account-state";
@@ -19,11 +20,12 @@ const TOOLKITS: Record<TIntegrationProvider, string> = {
 	slack: "slack",
 };
 
-/** Each action as Composio runs it: one of its tools, read into our output. */
+/** Each action as Composio runs it: one of its tools with the action's input, read into our output. */
 const ACTIONS: {
 	[TAction in TIntegrationAction]: (
 		composio: TComposio,
 		session: TSession,
+		input: TIntegrationActions[TAction]["input"],
 	) => Promise<TIntegrationActions[TAction]["output"]>;
 } = {
 	"github.listOrganizations": listGithubOrganizations,
@@ -90,14 +92,15 @@ export function createComposioBroker(config: {
 			});
 		},
 
-		async run(action, connection) {
+		async run(action, connection, input) {
+			const provider = INTEGRATION_ACTION_PROVIDERS[action];
 			const session = await openSession(composio, {
 				organizationId: connection.organizationId,
-				toolkit: TOOLKITS[connection.provider],
-				authConfigId: config.authConfigIds[connection.provider],
+				toolkit: TOOLKITS[provider],
+				authConfigId: config.authConfigIds[provider],
 				connectedAccountId: connection.accountRef,
 			});
-			return ACTIONS[action](composio, session);
+			return ACTIONS[action](composio, session, input);
 		},
 	};
 }

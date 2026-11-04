@@ -4,9 +4,10 @@ Where the backend's work happens (`apps/backend/src/use-cases`).
 
 ## The boundary
 
-1. **The context is setup, not behaviour.** `TUseCaseContext` carries configured clients:
-   `db`, `auth`, `messages`, `integrations`, `config`, `logger`. Nothing on it runs a flow of its own;
-   a client is the library's own, set up once at boot (`build-use-case-context`).
+1. **The context is setup, not behaviour.** `TUseCaseContext` carries what is configured once at
+   boot (`build-use-case-context`): `db`, `auth`, `messages`, `integrations`, `config`, `logger`.
+   Nothing on it runs a flow of its own. Each is a library's own client, or a vendor behind a type
+   of ours, as the brokers in `integrations` are ([third-party clients](#third-party-clients)).
 2. **Only a use case receives the context.** Anything that needs `ctx` is a use case in `cases/`,
    one file each, defined with `defineUseCase`. A use case may call another use case.
 3. **`lib/` takes parts of the context, never the context.** A function there receives what it

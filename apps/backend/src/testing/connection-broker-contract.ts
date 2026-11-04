@@ -114,11 +114,7 @@ export function describeConnectionBrokerContract(
 			await expect(
 				broker.run(
 					"github.listOrganizations",
-					{
-						organizationId: attempt.organizationId,
-						provider: "github",
-						accountRef,
-					},
+					{ organizationId: attempt.organizationId, accountRef },
 					{},
 				),
 			).resolves.toEqual(organizations);

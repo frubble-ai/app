@@ -1,5 +1,6 @@
 import type { TDb } from "@frubble/db";
 import { setConfigForTests, type TConfig } from "@/config";
+import type { TIntegrations } from "@/integrations";
 import { resetCtx, setCtxForTests } from "@/use-cases";
 import {
 	createCapturedMessages,
@@ -30,8 +31,10 @@ export type TTestClone = {
 	auth: ReturnType<typeof buildTestAuth>["auth"];
 	sessionCache: ReturnType<typeof buildTestAuth>["sessionCache"];
 	captured: TCapturedMessages;
-	/** The broker every connection in this test is on: the test sets its answers. */
+	/** The broker new connections in this test go through: the test sets its answers. */
 	broker: TMockConnectionBroker;
+	/** The context's brokers, which a test may add to, as when one broker replaces another. */
+	integrations: TIntegrations;
 	cleanup: () => Promise<void>;
 };
 
@@ -67,6 +70,10 @@ export async function cloneForTest(
 	const { auth, sessionCache } = buildTestAuth(clone.db, config);
 	const captured = createCapturedMessages();
 	const broker = createMockConnectionBroker();
+	const integrations: TIntegrations = {
+		brokers: { composio: broker.broker },
+		connectThrough: "composio",
+	};
 
 	setConfigForTests(config);
 	setCtxForTests({
@@ -75,10 +82,7 @@ export async function cloneForTest(
 		messages: captured.messages,
 		auth,
 		sessionCache,
-		integrations: {
-			brokers: { composio: broker.broker },
-			connectThrough: "composio",
-		},
+		integrations,
 		logger: testLogger,
 	});
 
@@ -88,6 +92,7 @@ export async function cloneForTest(
 		sessionCache,
 		captured,
 		broker,
+		integrations,
 		async cleanup() {
 			resetCtx();
 			await clone.cleanup();

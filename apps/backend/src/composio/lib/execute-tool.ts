@@ -1,5 +1,5 @@
 import type { TComposioToolData } from "@/__generated__/composio";
-import type { TComposio } from "@/composio/lib/client";
+import type { TComposio } from "./client";
 import { type TSchemaPatch, toolOutputSchema } from "./output-schema";
 import type { TSession } from "./session";
 

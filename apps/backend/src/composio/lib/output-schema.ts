@@ -3,7 +3,7 @@ import {
 	jsonSchemaToZod,
 } from "@composio/json-schema-to-zod/v4";
 import type { ZodType } from "zod";
-import type { TComposio } from "@/composio/lib/client";
+import type { TComposio } from "./client";
 
 /** A JSON Schema as Composio serves it: an object whose shape we don't model. */
 export type TJsonSchema = Record<string, unknown>;

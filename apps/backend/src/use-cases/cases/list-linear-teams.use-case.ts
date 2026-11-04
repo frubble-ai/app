@@ -26,7 +26,7 @@ export const listLinearTeamsUseCase = defineUseCase(
 		});
 		return ctx.integrations.brokers[connection.broker].run(
 			"linear.listTeams",
-			{ organizationId, provider: "linear", accountRef: connection.accountRef },
+			{ organizationId, accountRef: connection.accountRef },
 			{},
 		);
 	},

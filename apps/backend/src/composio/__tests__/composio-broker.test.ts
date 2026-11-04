@@ -148,7 +148,6 @@ describe("running an action through Composio", () => {
 	function connection() {
 		return {
 			organizationId: faker.string.alphanumeric(32),
-			provider: "github" as const,
 			accountRef: generateConnectedAccountId(),
 		};
 	}

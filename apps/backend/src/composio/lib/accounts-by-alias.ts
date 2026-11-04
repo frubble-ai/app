@@ -1,4 +1,4 @@
-import type { TComposio } from "@/composio/lib/client";
+import type { TComposio } from "./client";
 
 /** The organization's accounts for a provider whose alias is `alias`, across every page. */
 export async function accountsByAlias(

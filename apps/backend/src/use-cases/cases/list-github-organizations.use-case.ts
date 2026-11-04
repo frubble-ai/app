@@ -27,7 +27,7 @@ export const listGithubOrganizationsUseCase = defineUseCase(
 		});
 		return ctx.integrations.brokers[connection.broker].run(
 			"github.listOrganizations",
-			{ organizationId, provider: "github", accountRef: connection.accountRef },
+			{ organizationId, accountRef: connection.accountRef },
 			{},
 		);
 	},

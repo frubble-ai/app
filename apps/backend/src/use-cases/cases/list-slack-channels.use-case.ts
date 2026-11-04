@@ -26,7 +26,7 @@ export const listSlackChannelsUseCase = defineUseCase(
 		});
 		return ctx.integrations.brokers[connection.broker].run(
 			"slack.listChannels",
-			{ organizationId, provider: "slack", accountRef: connection.accountRef },
+			{ organizationId, accountRef: connection.accountRef },
 			{},
 		);
 	},
