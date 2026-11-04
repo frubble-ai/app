@@ -14,8 +14,8 @@ the registry, the deploy identity) lives in [`platform`](https://github.com/frub
 | Push to `stg`                                                   | `backend-stg` | the API to stg                                                   |
 | Manual run (Actions → Run workflow) from `stg`                  | `backend-stg` | the API to stg, even if nothing in the path filter changed       |
 | Push to `dev` (every merged pull request)                       | `backend-dev` | the API to dev                                                   |
-| Manual run from `dev`, `ref` empty                              | `backend-dev` | the current `dev` to dev                                         |
-| Manual run from `dev`, `ref` set to a branch, tag or commit     | `backend-dev` | that ref to dev                                                  |
+| Manual run from any other branch (`dev` or a feature branch)    | `backend-dev` | that branch to dev                                               |
+| Manual run from `prd` or a tag                                  | refused       |                                                                  |
 
 The same holds for the app with `app-cd`, `app-stg` and `app-dev`. A push deploys only when it
 touches `apps/backend`, `packages`, the root manifests, the Dockerfile's inputs,
@@ -24,14 +24,16 @@ environment; a newer one waits.
 
 ### Deploying a branch to dev
 
-Actions → Backend - CD (or App - CD) → Run workflow, **Use workflow from `dev`**, and put the
-branch, tag or commit in `ref`; or `gh workflow run backend-cd.yml --ref dev -f ref=my-branch`.
-The run stays on `dev`, so the Google sign-in, which trusts only `refs/heads/dev` for dev, still
-works; only the image is built from `ref`, and the deploy scripts are `dev`'s. The image is
-tagged with the commit `ref` resolved to, and the API is asked for that commit. A run from any
-other branch is refused, and so is `ref` on a run from `stg`. The next push to `dev` puts dev back
-on `dev`. Dev's database migrates forward with the deployed branch; deploying a branch with an
-older schema afterwards needs a reset (Resetting the database).
+Actions → Backend - CD (or App - CD) → Run workflow, and in **Use workflow from** pick the
+branch; or `gh workflow run backend-cd.yml --ref my-branch` (and `app-cd.yml`). The run is on
+that branch, so it deploys that branch's commit, with that branch's workflow and deploy scripts,
+to dev: any branch but `stg` targets `backend-dev` / `app-dev`. Only a run on `stg` targets stg,
+and even a branch that edits the workflow cannot reach it: `backend-stg` and `app-stg` accept
+deployments from `stg` only, and Google trusts stg's deploy from `refs/heads/stg` only. A run
+from `prd` or a tag is refused. Deploys to dev queue one at a time, whichever branch they come
+from, and the next push to `dev` puts dev back on `dev`. Dev's database migrates forward with the
+deployed branch; deploying a branch with an older schema afterwards needs a reset (Resetting the
+database).
 
 ## What a deploy does
 
@@ -115,25 +117,25 @@ same is `yarn db:reset`.
 | Workflow               | Trigger                                  | Does                                                                                                  |
 | ---------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `backend-code-quality` | PR → `dev` / `stg`                       | scan, lint, typecheck, tests, docker build                                                            |
-| `backend-cd`           | push → `stg` / `dev`, or by hand from `stg` / `dev` (dev: any `ref`) | build, trivy scan, push image, migrate, roll out to Cloud Run                     |
+| `backend-cd`           | push → `stg` / `dev`, or by hand from `stg` (stg) or any other branch (dev) | build, trivy scan, push image, migrate, roll out to Cloud Run              |
 | `app-code-quality`     | PR → `dev` / `stg`                       | the same checks for `apps/app`                                                                        |
-| `app-cd`               | push → `stg` / `dev`, or by hand from `stg` / `dev` (dev: any `ref`) | build, trivy scan, push image, roll out the web app                               |
+| `app-cd`               | push → `stg` / `dev`, or by hand from `stg` (stg) or any other branch (dev) | build, trivy scan, push image, roll out the web app                        |
 | `db-reset`             | by hand, from `stg` or `dev`             | drop and migrate that environment's database (Resetting the database, above)                          |
 | `pr-template`          | PR opened, edited, reopened or pushed to | conventional title on every PR; every template section filled and checklist answered, except for bots |
 
 `Backend - Code Quality Summary`, `App - Code Quality Summary` and `Quality — PR Template` are the required checks. Each summary checks something only while `BACKEND_CODE_QUALITY_ENABLED` or `APP_CODE_QUALITY_ENABLED` is `true`; otherwise it passes with every check skipped. Backend deploys run in the `backend-stg`
 or `backend-dev` environment and app deploys in `app-stg` or `app-dev`; the stg ones accept
-deployments from `stg` only, the dev ones from `dev` only, and their names are part of the
+deployments from `stg` only, the dev ones from any branch, and their names are part of the
 identity `platform` trusts. They use OIDC, no keys. Which variables the deploy
 reads, and where each lives, is the table in GitHub configuration, below.
 
 ## GitHub configuration
 
 Deploy values live on the environment. Values a job-level `if:` reads cannot come from an
-environment and stay on the repository. The environment is `backend-<branch>`, and the
-`APP_ENV` and `APP_VERSION` baked in are the branch's name too, so a prd deploy would add a
-`backend-prd` environment holding the same names, the `prd` branch to the build's gate, and its
-entry to the trust rule in `platform`. The tables name stg's values; `backend-dev` and
+environment and stay on the repository. The environment is `backend-stg` on `stg` and
+`backend-dev` on any other branch, and the `APP_ENV` and `APP_VERSION` baked in name the same
+target, so a prd deploy would add a `backend-prd` environment holding the same names, a `prd`
+target to that expression, and its entry to the trust rule in `platform`. The tables name stg's values; `backend-dev` and
 `app-dev` hold the same names with dev's (`frubble-dev`, `frubble-dev-deploy-hub`,
 `api.dev.frubble.ai`, ...), never stg's.
 
@@ -152,9 +154,10 @@ entry to the trust rule in `platform`. The tables name stg's values; `backend-de
 | `COMPOSIO_API_KEY`                     | repository secret      | the stg Composio project key; the backend codegen reads its tool schemas in the lint, test and image-build jobs            |
 | `COMPOSIO_API_KEY`                     | `backend-dev` secret   | dev's own Composio project key, which the dev image build reads instead of the repository's                             |
 
-The `backend-stg` environment accepts deployments from `stg` only, and `backend-dev` from `dev`
-only: a branch reaches dev through `ref` on a run from `dev`, never as the run's own branch. Its name, the workflow
-file name and the branch are the identity `platform` trusts; renaming any of them stops the
+The `backend-stg` environment accepts deployments from `stg` only, and `backend-dev` from any
+branch, so a branch can be deployed to dev before it merges. The environment's name, the
+workflow file name and, for stg, the branch are the identity `platform` trusts (dev's trust
+takes any branch, never a tag or a pull request); renaming any of them stops the
 Google sign-in. Authentication is OIDC; the one secret is `COMPOSIO_API_KEY`, for codegen, which reaches
 the image build as a BuildKit secret and never a layer.
 
@@ -178,5 +181,6 @@ service name.
 | `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_REGISTRY` | `app-stg` variable  | as `backend-stg`                                                                                                 |
 | `GCP_RUN_SERVICE`                              | `app-stg` variable  | `frubble-stg-app`                                                                                                |
 
-The `app-stg` environment accepts deployments from `stg` only, and `app-dev` from `dev` only; its name, the workflow file name
-and the branch are an entry in the deploy hub's trust rule in `platform`.
+The `app-stg` environment accepts deployments from `stg` only, and `app-dev` from any branch; the
+environment's name, the workflow file name and, for stg, the branch are an entry in the deploy
+hub's trust rule in `platform`.
