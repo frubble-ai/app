@@ -33,26 +33,16 @@ When a schema change needs a new migration, keep the constants last:
 3. `drizzle-kit generate --custom --name=constants`, then put the constants SQL back in the new
    file, with any new rows.
 
-This holds while no long-lived database has to keep its applied migrations: stg is reset by
-`db-reset.yml` ([deployment](../deployment.md)). Once a database must keep them, constants
-change through new custom migrations instead.
+This holds while only stg exists (below). Once a database must keep its data, constants change
+through new custom migrations instead.
 
-## Rewriting history while only stg exists
+## While only stg exists
 
-**Decision:** until a database must keep its data (production), a schema change may rewrite
-migrations that already ran on stg (regenerate them, rename a column in place, squash them) instead
-of adding a forward migration, and stg is then reset with `db-reset.yml`
-([deployment](../deployment.md#resetting-the-database)). Every stg account, session and
-integration connection goes with the reset; that is accepted, since stg holds no data worth a
-backfill.
+No database has to keep its data yet, so a schema change may rewrite migrations stg already ran
+(regenerate them, rename a column in place, squash them) instead of adding a forward migration.
+`0000_auth`, Better Auth's, stays as it is unless auth changes.
 
-- **Why:** the migrations stay one readable schema, not a trail of renames and backfills nobody
-  will run against real data. PR #27 (integrations behind a broker) is an example: it regenerated
-  `0001_organizations_integrations` and `0002_constants` and resets stg.
-- **What it asks of a PR:** say in its _Risk and rollback_ that stg needs DB - Reset after the
-  deploy, and keep `0000_auth` (Better Auth's) as it is unless auth itself changes.
-- **Review:** a rewritten, already-applied migration with a planned stg reset is not a finding. Do
-  not ask for a forward migration, a backfill or a data-preserving rename for it.
-- **When it ends:** the first database that must keep its data. From then on every change is a new
-  forward migration, constants included (see [Constants](#constants)), and this section is
-  replaced.
+Such a change resets stg after its deploy with `db-reset.yml`
+([deployment](../deployment.md#resetting-the-database)), which drops every account, session and
+integration connection there; its pull request says so under _Risk and rollback_. Once a database
+must keep its data, every change is a new forward migration.

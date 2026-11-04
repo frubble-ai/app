@@ -3,9 +3,7 @@ reviews:
   path_instructions:
     - path: "packages/db/drizzle/**"
       instructions: |
-        Until a database must keep its data, migrations that already ran on stg may be rewritten
-        (regenerated, renamed in place, squashed) and stg reset with db-reset.yml; this is a
-        recorded decision (docs/style-guide/migrations.md, "Rewriting history while only stg
-        exists"). Do not ask for a forward migration, a backfill or a data-preserving rename for a
-        rewritten migration when the PR plans the stg reset. Do flag a rewritten 0000_auth that the
-        change does not need, and a PR that rewrites history without planning the reset.
+        While only stg exists, a change may rewrite migrations stg already ran and reset stg with
+        db-reset.yml instead of adding a forward migration (docs/style-guide/migrations.md, "While
+        only stg exists"). Do not ask for a forward migration or a backfill when the pull request
+        plans that reset.
