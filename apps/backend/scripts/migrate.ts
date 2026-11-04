@@ -20,7 +20,8 @@ if (SHOULD_RUN_MIGRATION !== "true") {
 }
 
 // `--reset` drops what the migrations made first, so they run on an empty database: the reset
-// workflow passes it, on stg only. Only local and stg take it; any other APP_ENV, or none, refuses.
+// workflow passes it, on dev or stg only. Only local, dev and stg take it; any other APP_ENV, or
+// none, refuses.
 const reset = process.argv.includes("--reset");
 
 // Only the database variables, not the API's whole config.
@@ -30,10 +31,10 @@ const env = parseEnv(
 	"migration environment",
 );
 
-const RESETTABLE_ENVS = ["local", "stg"];
+const RESETTABLE_ENVS = ["local", "dev", "stg"];
 if (reset && !RESETTABLE_ENVS.includes(env.APP_ENV ?? "")) {
 	logger.error(
-		`--reset is refused with APP_ENV '${env.APP_ENV ?? "unset"}': only local and stg reset`,
+		`--reset is refused with APP_ENV '${env.APP_ENV ?? "unset"}': only local, dev and stg reset`,
 	);
 	process.exit(1);
 }

@@ -26,7 +26,7 @@ export type TCodeFlowConfig = {
 };
 
 /** `local` is docker-compose; `stg` and `prd` are the deployed environments. */
-const APP_ENVS = ["local", "stg", "prd"] as const;
+const APP_ENVS = ["local", "dev", "stg", "prd"] as const;
 export type TAppEnv = (typeof APP_ENVS)[number];
 
 /** The schema every process parses `APP_ENV` with. */

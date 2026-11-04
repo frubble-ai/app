@@ -9,21 +9,36 @@ the registry, the deploy identity) lives in [`platform`](https://github.com/frub
 
 ## Branches and environments
 
-| Trigger                                        | Environment   | Deploys                                                    |
-| ---------------------------------------------- | ------------- | ---------------------------------------------------------- |
-| Push to `stg`                                  | `backend-stg` | the API to stg                                             |
-| Manual run (Actions → Run workflow) from `stg` | `backend-stg` | the API to stg, even if nothing in the path filter changed |
-| Push to `dev`                                  | nothing       |                                                            |
+| Trigger                                                         | Environment   | Deploys                                                          |
+| --------------------------------------------------------------- | ------------- | ---------------------------------------------------------------- |
+| Push to `stg`                                                   | `backend-stg` | the API to stg                                                   |
+| Manual run (Actions → Run workflow) from `stg`                  | `backend-stg` | the API to stg, even if nothing in the path filter changed       |
+| Push to `dev` (every merged pull request)                       | `backend-dev` | the API to dev                                                   |
+| Manual run from `dev`, `ref` empty                              | `backend-dev` | the current `dev` to dev                                         |
+| Manual run from `dev`, `ref` set to a branch, tag or commit     | `backend-dev` | that ref to dev                                                  |
 
-A push deploys only when it touches `apps/backend`, `packages`, the root manifests, the
-Dockerfile's inputs, `.github/workflows/backend-cd.yml` or `.github/scripts/deploy/`. One rollout runs at a time; a newer one waits.
+The same holds for the app with `app-cd`, `app-stg` and `app-dev`. A push deploys only when it
+touches `apps/backend`, `packages`, the root manifests, the Dockerfile's inputs,
+`.github/workflows/backend-cd.yml` or `.github/scripts/deploy/`. One rollout runs at a time per
+environment; a newer one waits.
+
+### Deploying a branch to dev
+
+Actions → Backend - CD (or App - CD) → Run workflow, **Use workflow from `dev`**, and put the
+branch, tag or commit in `ref`; or `gh workflow run backend-cd.yml --ref dev -f ref=my-branch`.
+The run stays on `dev`, so the Google sign-in, which trusts only `refs/heads/dev` for dev, still
+works; only the image is built from `ref`, and the deploy scripts are `dev`'s. The image is
+tagged with the commit `ref` resolved to, and the API is asked for that commit. A run from any
+other branch is refused, and so is `ref` on a run from `stg`. The next push to `dev` puts dev back
+on `dev`. Dev's database migrates forward with the deployed branch; deploying a branch with an
+older schema afterwards needs a reset (Resetting the database).
 
 ## What a deploy does
 
 1. **Build and scan**, with no cloud credentials. Builds `apps/backend/Dockerfile` once,
    tagged by commit, with the version, commit and environment baked in. Trivy fails the run
    on any CRITICAL vulnerability.
-2. **Deploy**, in the `backend-stg` environment, as the deploy identity `platform` trusts:
+2. **Deploy**, in the `backend-stg` or `backend-dev` environment, as the deploy identity `platform` trusts:
    1. Pushes the image to Artifact Registry as `frubble-backend:<commit>`
       ([`push-image.sh`](../.github/scripts/deploy/push-image.sh)). A tag is pushed once and
       never pushed over: a re-run of the same commit reuses the image it already pushed, after
@@ -62,12 +77,12 @@ gcloud run services update-traffic frubble-stg-api --region us-central1 --projec
 
 The pin stays until the next deploy from `stg`, which moves traffic to the latest revision
 again. The worker rolls back the same way, with `frubble-stg-worker`. A migration is not
-rolled back: write a new one.
+rolled back: write a new one. dev is the same with `frubble-dev-*` in `frubble-dev`.
 
 ## Resetting the database
 
 [`db-reset.yml`](../.github/workflows/db-reset.yml) drops every table and enum the migrations
-made in stg's database and runs the migrations again from nothing, as one execution of the
+made in stg's or dev's database (the branch it is run from) and runs the migrations again from nothing, as one execution of the
 migration job with `--reset` ([`reset-db.sh`](../.github/scripts/deploy/reset-db.sh)), on the image
 the job already has. It then rolls the worker, then the API, onto that image with the deploy's
 rollout script, the worker first so it reads what the new API publishes before the API publishes
@@ -88,10 +103,10 @@ migration step moves the job onto the older image, then another reset, which run
 An image that predates `--reset` only migrates, so the way back stops at the first commit that has
 it.
 
-It runs by hand only (Actions → DB - Reset → Run workflow, from `stg`) and only for `drn1996`: the
-job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never
+It runs by hand only (Actions → DB - Reset → Run workflow, from `stg` or `dev`) and only for
+`drn1996`: the job refuses anyone else and any other branch. It shares the deploy's concurrency group, so it never
 runs beside a deploy, and it signs in as the deploy identity, whose trust rule in `platform` names
-the workflow file. The migration script takes `--reset` only with `APP_ENV` `local` or `stg`, and refuses it otherwise,
+the workflow file. The migration script takes `--reset` only with `APP_ENV` `local`, `dev` or `stg`, and refuses it otherwise,
 whatever calls it. Locally the
 same is `yarn db:reset`.
 
@@ -100,24 +115,27 @@ same is `yarn db:reset`.
 | Workflow               | Trigger                                  | Does                                                                                                  |
 | ---------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `backend-code-quality` | PR → `dev` / `stg`                       | scan, lint, typecheck, tests, docker build                                                            |
-| `backend-cd`           | push → `stg`, or by hand from `stg`      | build, trivy scan, push image, migrate, roll out to Cloud Run                                         |
+| `backend-cd`           | push → `stg` / `dev`, or by hand from `stg` / `dev` (dev: any `ref`) | build, trivy scan, push image, migrate, roll out to Cloud Run                     |
 | `app-code-quality`     | PR → `dev` / `stg`                       | the same checks for `apps/app`                                                                        |
-| `app-cd`               | push → `stg`, or by hand from `stg`      | build, trivy scan, push image, roll out the web app                                                   |
-| `db-reset`             | by hand, from `stg`                      | drop and migrate stg's database (Resetting the database, above)                                       |
+| `app-cd`               | push → `stg` / `dev`, or by hand from `stg` / `dev` (dev: any `ref`) | build, trivy scan, push image, roll out the web app                               |
+| `db-reset`             | by hand, from `stg` or `dev`             | drop and migrate that environment's database (Resetting the database, above)                          |
 | `pr-template`          | PR opened, edited, reopened or pushed to | conventional title on every PR; every template section filled and checklist answered, except for bots |
 
 `Backend - Code Quality Summary`, `App - Code Quality Summary` and `Quality — PR Template` are the required checks. Each summary checks something only while `BACKEND_CODE_QUALITY_ENABLED` or `APP_CODE_QUALITY_ENABLED` is `true`; otherwise it passes with every check skipped. Backend deploys run in the `backend-stg`
-environment and app deploys in `app-stg`, which accept deployments from `stg` only and whose names are part of the
+or `backend-dev` environment and app deploys in `app-stg` or `app-dev`; the stg ones accept
+deployments from `stg` only, the dev ones from `dev` only, and their names are part of the
 identity `platform` trusts. They use OIDC, no keys. Which variables the deploy
 reads, and where each lives, is the table in GitHub configuration, below.
 
 ## GitHub configuration
 
 Deploy values live on the environment. Values a job-level `if:` reads cannot come from an
-environment and stay on the repository. A prd deploy would reuse the deploy job with a
-`backend-prd` environment holding the same names, and still change the workflow in three
-places: the branch the build gates on, the `APP_ENV` and `APP_VERSION` it bakes in, and the
-environment name on the job, which the trust rule in `platform` names too.
+environment and stay on the repository. The environment is `backend-<branch>`, and the
+`APP_ENV` and `APP_VERSION` baked in are the branch's name too, so a prd deploy would add a
+`backend-prd` environment holding the same names, the `prd` branch to the build's gate, and its
+entry to the trust rule in `platform`. The tables name stg's values; `backend-dev` and
+`app-dev` hold the same names with dev's (`frubble-dev`, `frubble-dev-deploy-hub`,
+`api.dev.frubble.ai`, ...), never stg's.
 
 | Name                                   | Where                  | Value                                                                                                                    |
 | -------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -132,18 +150,20 @@ environment name on the job, which the trust rule in `platform` names too.
 | `GCP_RUN_JOB_MIGRATE`                  | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration                                                                         |
 | `API_HOSTNAME`                         | `backend-stg` variable | `api.stg.frubble.ai`                                                                                                     |
 | `COMPOSIO_API_KEY`                     | repository secret      | the stg Composio project key; the backend codegen reads its tool schemas in the lint, test and image-build jobs            |
+| `COMPOSIO_API_KEY`                     | `backend-dev` secret   | dev's own Composio project key, which the dev image build reads instead of the repository's                             |
 
-The `backend-stg` environment accepts deployments from `stg` only. Its name, the workflow
+The `backend-stg` environment accepts deployments from `stg` only, and `backend-dev` from `dev`
+only: a branch reaches dev through `ref` on a run from `dev`, never as the run's own branch. Its name, the workflow
 file name and the branch are the identity `platform` trusts; renaming any of them stops the
 Google sign-in. Authentication is OIDC; the one secret is `COMPOSIO_API_KEY`, for codegen, which reaches
 the image build as a BuildKit secret and never a layer.
 
 ## App
 
-`.github/workflows/app-cd.yml` deploys `apps/app` the same way, on a push to `stg` that touches
+`.github/workflows/app-cd.yml` deploys `apps/app` the same way, on a push to `stg` or `dev` that touches
 the app, the packages it imports, the root config, `.github/workflows/app-cd.yml` or
 `.github/scripts/deploy/`: build and scan `apps/app/Dockerfile` with no
-cloud credentials, then, in the `app-stg` environment, push `frubble-app:<commit>` and roll the
+cloud credentials, then, in the `app-stg` or `app-dev` environment, push `frubble-app:<commit>` and roll the
 app's Cloud Run service onto it with [`rollout.sh`](../.github/scripts/deploy/rollout.sh). The app
 answers no commit, so its check is the worker's: the revision on the new image is ready and holds
 the traffic. One image serves every environment; nothing is baked in but the code
@@ -158,5 +178,5 @@ service name.
 | `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_REGISTRY` | `app-stg` variable  | as `backend-stg`                                                                                                 |
 | `GCP_RUN_SERVICE`                              | `app-stg` variable  | `frubble-stg-app`                                                                                                |
 
-The `app-stg` environment accepts deployments from `stg` only; its name, the workflow file name
+The `app-stg` environment accepts deployments from `stg` only, and `app-dev` from `dev` only; its name, the workflow file name
 and the branch are an entry in the deploy hub's trust rule in `platform`.

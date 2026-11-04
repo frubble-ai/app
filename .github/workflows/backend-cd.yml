@@ -1,21 +1,32 @@
 name: Backend - CD
 
-# The file name, the `backend-stg` environment and the branch are all part of the
-# identity the platform repository trusts (repository|workflow|environment|ref). Renaming
-# any of them makes the Google sign-in fail. The environment is named after the
-# component because its name is what GitHub lists the deployment under.
+# Deploys to stg from the `stg` branch and to dev from the `dev` branch, each into
+# its own environment: `backend-stg` or `backend-dev`, picked by the branch the run
+# is on. The file name, that environment and the branch are all part of the
+# identity the platform repository trusts (repository|workflow|environment|ref).
+# Renaming any of them makes the Google sign-in fail. The environment is named
+# after the component because its name is what GitHub lists the deployment under.
 #
 # The path filter is safe here, unlike on the quality workflow: nothing waits
 # on this run as a required check. A push that touches none of these — a
 # docs-only promotion — has nothing new to deploy.
 #
-# workflow_dispatch redeploys the current `stg` on demand, for a change the path
-# filter skips. The build job refuses any other branch, and Google would refuse
-# its sign-in anyway.
+# workflow_dispatch redeploys on demand, for a change the path filter skips.
+# Run from `stg`, it deploys the current `stg`. Run from `dev`, it deploys `ref`
+# (any branch, tag or commit; `dev` when empty) to dev: the run stays on `dev`,
+# so Google trusts it, and only the image is built from `ref`; the deploy
+# scripts are `dev`'s. The build job refuses any other branch, and Google would
+# refuse its sign-in anyway.
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "dev only: branch, tag or commit to deploy to dev (empty: dev). Run from dev."
+        required: false
+        default: ""
+        type: string
   push:
-    branches: [stg]
+    branches: [stg, dev]
     paths:
       - apps/backend/**
       - packages/**
@@ -31,11 +42,12 @@ on:
       - .github/workflows/backend-cd.yml
       - .github/scripts/deploy/**
 
-# One rollout at a time, never interrupted: Cloud Run keeps the previous
-# revision serving until the new one is healthy, but two rollouts racing
-# would leave the verification below checking the wrong one.
+# One rollout at a time per environment, never interrupted: Cloud Run keeps
+# the previous revision serving until the new one is healthy, but two rollouts
+# racing would leave the verification below checking the wrong one. The group
+# is the branch, which is the environment; db-reset.yml joins the same one.
 concurrency:
-  group: backend-cd
+  group: backend-cd-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -47,16 +59,37 @@ env:
 jobs:
   # No cloud credentials here. The image is built and scanned first, and only
   # an image that passed reaches the job that can push it. It is tagged by
-  # commit only; the registry path is the deploy job's, which is the one that
-  # runs in the environment and can read it.
+  # the commit it was built from only; the registry path is the deploy job's.
+  # The environment is attached without a deployment for its one secret,
+  # COMPOSIO_API_KEY: dev's own Composio project key in `backend-dev`; with
+  # none there (stg), the repository's.
   build:
     name: build
-    if: vars.BACKEND_CD_ENABLED == 'true' && github.ref == 'refs/heads/stg'
+    if: vars.BACKEND_CD_ENABLED == 'true' && (github.ref == 'refs/heads/stg' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
+    environment:
+      name: backend-${{ github.ref_name }}
+      deployment: false
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
     steps:
+      - name: Refuse a ref outside dev
+        if: github.ref != 'refs/heads/dev' && inputs.ref != ''
+        run: |
+          echo "::error::ref is for dev only: stg deploys the stg branch. Run from dev to deploy another ref."
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
+
+      # The commit the image is built from: the pushed one, or what `ref`
+      # names on a manual dev run. It tags the image and is what the API is
+      # asked for after the rollout.
+      - name: Resolve the commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -68,11 +101,11 @@ jobs:
           file: apps/backend/Dockerfile
           secrets: |
             composio_api_key=${{ secrets.COMPOSIO_API_KEY }}
-          tags: frubble-backend:${{ github.sha }}
+          tags: frubble-backend:${{ steps.commit.outputs.sha }}
           build-args: |
-            APP_VERSION=stg-${{ github.run_number }}
-            APP_COMMIT=${{ github.sha }}
-            APP_ENV=stg
+            APP_VERSION=${{ github.ref_name }}-${{ github.run_number }}
+            APP_COMMIT=${{ steps.commit.outputs.sha }}
+            APP_ENV=${{ github.ref_name }}
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -90,21 +123,20 @@ jobs:
           path: ${{ runner.temp }}/image.tar
           retention-days: 1
 
-  # Where it deploys to comes from the `backend-stg` environment's variables.
-  # A prd deploy still changes three things in this file: the branch the build
-  # gates on, the APP_ENV and APP_VERSION it bakes in, and the environment
-  # name here, which the trust rule on the platform side names too.
+  # Where it deploys to comes from the `backend-<branch>` environment's
+  # variables. A prd deploy still changes the branches the build gates on and
+  # the trust rule on the platform side, which names the environment.
   deploy:
     name: deploy
     needs: build
     runs-on: ubuntu-latest
-    environment: backend-stg
+    environment: backend-${{ github.ref_name }}
     permissions:
       contents: read
       id-token: write # the OIDC token Workload Identity Federation exchanges
     env:
-      IMAGE: ${{ vars.GCP_REGISTRY }}/frubble-backend:${{ github.sha }}
-      LOCAL_IMAGE: frubble-backend:${{ github.sha }}
+      IMAGE: ${{ vars.GCP_REGISTRY }}/frubble-backend:${{ needs.build.outputs.commit }}
+      LOCAL_IMAGE: frubble-backend:${{ needs.build.outputs.commit }}
       PROJECT: ${{ vars.GCP_PROJECT_ID }}
       REGION: ${{ vars.GCP_REGION }}
       SERVICE: ${{ vars.GCP_RUN_SERVICE }}
@@ -114,9 +146,10 @@ jobs:
       MIGRATE_JOB: ${{ vars.GCP_RUN_JOB_MIGRATE }}
       WORKER_SERVICE: ${{ vars.GCP_RUN_SERVICE_WORKER }}
       API_HOSTNAME: ${{ vars.API_HOSTNAME }}
-      COMMIT: ${{ github.sha }}
+      COMMIT: ${{ needs.build.outputs.commit }}
     steps:
-      # For the scripts only; no credentials are kept.
+      # For the scripts only, from the branch the run is on, never from `ref`;
+      # no credentials are kept.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

@@ -3,7 +3,7 @@ import { z } from "zod";
 /** The local API, unless GRAPHQL_URL names another; stg and prd always name theirs (platform). */
 const LOCAL_GRAPHQL_URL = "http://localhost:8080/graphql";
 
-const APP_ENVS = ["local", "stg", "prd"] as const;
+const APP_ENVS = ["local", "dev", "stg", "prd"] as const;
 
 /**
  * The app's environment, read by the server at request time (`app/layout.tsx`): one image serves

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { appConfig, applyAppConfig, buildAppConfig } from "@/config/app-config";
 
 describe("buildAppConfig", () => {
-	it.each(["stg", "prd"])(
+	it.each(["dev", "stg", "prd"])(
 		"a %s container talks to the API its service names",
 		(appEnv) => {
 			const graphqlUrl = faker.internet.url();
@@ -14,7 +14,7 @@ describe("buildAppConfig", () => {
 		},
 	);
 
-	it.each(["stg", "prd"])(
+	it.each(["dev", "stg", "prd"])(
 		"fails in %s without GRAPHQL_URL: no API host is built in outside local",
 		(appEnv) => {
 			expect(() => buildAppConfig({ APP_ENV: appEnv })).toThrow(
