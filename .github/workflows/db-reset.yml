@@ -26,9 +26,35 @@ permissions:
   contents: read
 
 jobs:
+  # Stg is switched off (its infra destroyed) only when the STG_ENABLED
+  # repository variable is exactly `false`; unset or anything else means on.
+  # Checked in the shell because expression `==` ignores case. Runs that
+  # target stg while it is off are skipped, not failed; dev is never gated.
+  stg-switch:
+    name: stg switch
+    if: (github.ref == 'refs/heads/stg' || github.ref == 'refs/heads/dev') && github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check STG_ENABLED
+        id: check
+        env:
+          STG_ENABLED: ${{ vars.STG_ENABLED }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" = "refs/heads/stg" ] && [ "$STG_ENABLED" = "false" ]; then
+            echo "::notice::stg is switched off (STG_ENABLED=false); skipping."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
   reset:
     name: reset
-    if: (github.ref == 'refs/heads/stg' || github.ref == 'refs/heads/dev') && github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
+    needs: stg-switch
+    if: needs.stg-switch.outputs.enabled == 'true' && (github.ref == 'refs/heads/stg' || github.ref == 'refs/heads/dev') && github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
     runs-on: ubuntu-latest
     environment: backend-${{ github.ref_name }}
     permissions:
@@ -42,6 +68,18 @@ jobs:
       WORKER_SERVICE: ${{ vars.GCP_RUN_SERVICE_WORKER }}
       API_HOSTNAME: ${{ vars.API_HOSTNAME }}
     steps:
+      # A re-run of this job alone reuses stg-switch's old output, so the
+      # switch is read again here, before any credentials.
+      - name: Refuse stg while it is switched off
+        env:
+          STG_ENABLED: ${{ vars.STG_ENABLED }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" = "refs/heads/stg" ] && [ "$STG_ENABLED" = "false" ]; then
+            echo "::error::stg was switched off after this run started (STG_ENABLED=false)."
+            exit 1
+          fi
+
       # For the script only; no credentials are kept.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

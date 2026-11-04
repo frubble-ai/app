@@ -60,6 +60,31 @@ env:
   TRIVY_VERSION: 0.76.1
 
 jobs:
+  # Stg is switched off (its infra destroyed) only when the STG_ENABLED
+  # repository variable is exactly `false`; unset or anything else means on.
+  # Checked in the shell because expression `==` ignores case. Runs that
+  # target stg while it is off are skipped, not failed; dev is never gated.
+  stg-switch:
+    name: stg switch
+    if: vars.BACKEND_CD_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check STG_ENABLED
+        id: check
+        env:
+          STG_ENABLED: ${{ vars.STG_ENABLED }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" = "refs/heads/stg" ] && [ "$STG_ENABLED" = "false" ]; then
+            echo "::notice::stg is switched off (STG_ENABLED=false); skipping."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # No cloud credentials here. The image is built and scanned first, and only
   # an image that passed reaches the job that can push it. It is tagged by
   # commit only; the registry path is the deploy job's. The environment is
@@ -68,7 +93,8 @@ jobs:
   # repository's.
   build:
     name: build
-    if: vars.BACKEND_CD_ENABLED == 'true'
+    needs: stg-switch
+    if: needs.stg-switch.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: backend-${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}
@@ -143,6 +169,18 @@ jobs:
       API_HOSTNAME: ${{ vars.API_HOSTNAME }}
       COMMIT: ${{ github.sha }}
     steps:
+      # A re-run of this job alone reuses stg-switch's old output, so the
+      # switch is read again here, before any credentials.
+      - name: Refuse stg while it is switched off
+        env:
+          STG_ENABLED: ${{ vars.STG_ENABLED }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" = "refs/heads/stg" ] && [ "$STG_ENABLED" = "false" ]; then
+            echo "::error::stg was switched off after this run started (STG_ENABLED=false)."
+            exit 1
+          fi
+
       # For the scripts only; no credentials are kept.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
