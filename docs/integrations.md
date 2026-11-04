@@ -54,8 +54,10 @@ ours.
 
 Disconnecting retires every row for that provider, an unfinished attempt included, so an
 earlier consent's callback cannot bring the connection back. It answers success only once the
-broker confirms each removal; otherwise it fails, the provider is already off for the organization,
-and the removal is retried.
+broker confirms the removal of each account it knows of; otherwise it fails, the provider is already
+off for the organization, and the removal is retried. An attempt whose account has not arrived yet
+does not hold the answer back: its connect removes the account when the broker's answer comes, and
+until then the sweep looks for it by its attempt, as above.
 
 ## Brokers
 

@@ -55,6 +55,22 @@ export default [
 					],
 				},
 			],
+			// The same boundary for `import("…")`, which no-restricted-imports does not see.
+			"no-restricted-syntax": [
+				"error",
+				{
+					selector:
+						"ImportExpression[source.type='Literal'][source.value=/^@composio\\//]",
+					message:
+						"Only src/composio/ talks to Composio; use a broker from ctx.integrations.",
+				},
+				{
+					selector:
+						"ImportExpression[source.type='Literal'][source.value=/^@\\/composio\\//]",
+					message:
+						"src/composio/ is reached through its index, `createComposioBroker`.",
+				},
+			],
 		},
 	},
 	{
