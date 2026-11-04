@@ -1,21 +1,30 @@
 name: Backend - CD
 
-# The file name, the `backend-stg` environment and the branch are all part of the
-# identity the platform repository trusts (repository|workflow|environment|ref). Renaming
-# any of them makes the Google sign-in fail. The environment is named after the
-# component because its name is what GitHub lists the deployment under.
+# Two targets, picked by the branch the run is on: `stg` deploys to stg, in the
+# `backend-stg` environment; every other branch deploys to dev, in `backend-dev`.
+# A push to `dev` deploys dev, and a run by hand from any branch (Actions → Run
+# workflow → "Use workflow from" that branch, or `gh workflow run backend-cd.yml
+# --ref my-branch`) deploys that branch to dev. Nothing but the `stg` branch can
+# reach stg: the target is stg only when the run is on `stg`, `backend-stg`
+# accepts deployments from `stg` only, and Google trusts stg's deploy from
+# `refs/heads/stg` only. `prd` and tags are refused.
+#
+# The file name, the environment and, for stg, the branch are all part of the
+# identity the platform repository trusts (repository|workflow|environment|ref;
+# for dev, any branch). Renaming any of them makes the Google sign-in fail. The
+# environment is named after the component because its name is what GitHub
+# lists the deployment under.
 #
 # The path filter is safe here, unlike on the quality workflow: nothing waits
 # on this run as a required check. A push that touches none of these — a
 # docs-only promotion — has nothing new to deploy.
 #
-# workflow_dispatch redeploys the current `stg` on demand, for a change the path
-# filter skips. The build job refuses any other branch, and Google would refuse
-# its sign-in anyway.
+# workflow_dispatch also redeploys `stg` or `dev` on demand, for a change the
+# path filter skips.
 on:
   workflow_dispatch:
   push:
-    branches: [stg]
+    branches: [stg, dev]
     paths:
       - apps/backend/**
       - packages/**
@@ -31,12 +40,18 @@ on:
       - .github/workflows/backend-cd.yml
       - .github/scripts/deploy/**
 
-# One rollout at a time, never interrupted: Cloud Run keeps the previous
-# revision serving until the new one is healthy, but two rollouts racing
-# would leave the verification below checking the wrong one.
+# One rollout at a time per environment, never interrupted: Cloud Run keeps
+# the previous revision serving until the new one is healthy, but two rollouts
+# racing would leave the verification below checking the wrong one. The group
+# is the target, so every branch deployed to dev queues behind the others;
+# db-reset.yml joins the same one.
 concurrency:
-  group: backend-cd
+  group: backend-cd-${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}
   cancel-in-progress: false
+  # Every pending run waits its turn. With the default (`single`), a new run
+  # would cancel the one pending, so a branch run could drop a queued push
+  # to `dev` and leave dev on the branch.
+  queue: max
 
 permissions:
   contents: read
@@ -47,13 +62,25 @@ env:
 jobs:
   # No cloud credentials here. The image is built and scanned first, and only
   # an image that passed reaches the job that can push it. It is tagged by
-  # commit only; the registry path is the deploy job's, which is the one that
-  # runs in the environment and can read it.
+  # commit only; the registry path is the deploy job's. The environment is
+  # attached without a deployment for its one secret, COMPOSIO_API_KEY: dev's
+  # own Composio project key in `backend-dev`; with none there (stg), the
+  # repository's.
   build:
     name: build
-    if: vars.BACKEND_CD_ENABLED == 'true' && github.ref == 'refs/heads/stg'
+    if: vars.BACKEND_CD_ENABLED == 'true'
     runs-on: ubuntu-latest
+    environment:
+      name: backend-${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}
+      deployment: false
     steps:
+      # Before anything else: a tag or `prd` would otherwise be built for dev.
+      - name: Refuse a tag or prd
+        if: github.ref_type != 'branch' || github.ref == 'refs/heads/prd'
+        run: |
+          echo "::error::Deploys run from a branch: stg deploys to stg, any other branch but prd to dev."
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -70,9 +97,9 @@ jobs:
             composio_api_key=${{ secrets.COMPOSIO_API_KEY }}
           tags: frubble-backend:${{ github.sha }}
           build-args: |
-            APP_VERSION=stg-${{ github.run_number }}
+            APP_VERSION=${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}-${{ github.run_number }}
             APP_COMMIT=${{ github.sha }}
-            APP_ENV=stg
+            APP_ENV=${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -90,15 +117,15 @@ jobs:
           path: ${{ runner.temp }}/image.tar
           retention-days: 1
 
-  # Where it deploys to comes from the `backend-stg` environment's variables.
-  # A prd deploy still changes three things in this file: the branch the build
-  # gates on, the APP_ENV and APP_VERSION it bakes in, and the environment
-  # name here, which the trust rule on the platform side names too.
+  # Where it deploys to comes from the `backend-stg` or `backend-dev`
+  # environment's variables. A prd deploy still changes the target expression
+  # here and in the build, and the trust rule on the platform side, which
+  # names the environment.
   deploy:
     name: deploy
     needs: build
     runs-on: ubuntu-latest
-    environment: backend-stg
+    environment: backend-${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}
     permissions:
       contents: read
       id-token: write # the OIDC token Workload Identity Federation exchanges
@@ -125,6 +152,19 @@ jobs:
         with:
           name: image
           path: ${{ runner.temp }}
+
+      # Google trusts a dev deploy only from frubble-ai's members, by the
+      # run's actor (platform, dev/gcp/trust.tf). A re-run keeps the original
+      # actor, so it would pass for whoever re-runs it: on dev, only the person
+      # who started the run may re-run it. Anyone else starts a new run.
+      - name: Refuse a dev re-run by someone else
+        if: github.ref != 'refs/heads/stg' && github.triggering_actor != github.actor
+        env:
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          echo "::error::$TRIGGERING_ACTOR re-ran a dev deploy $ACTOR started. Start a new run instead."
+          exit 1
 
       # Signs in as the hub, which holds no permissions of its own. Its only
       # capability is impersonating the spoke, which is what is set next.

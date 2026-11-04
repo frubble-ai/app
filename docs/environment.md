@@ -11,7 +11,7 @@ on the worker service and nothing else about how the image starts.
 
 | Variable                                   | Required       | Stg source            | Notes                                                                             |
 | ------------------------------------------ | -------------- | --------------------- | --------------------------------------------------------------------------------- |
-| `APP_ENV`                                  | yes            | Terraform             | `local`, `stg` or `prd`                                                           |
+| `APP_ENV`                                  | yes            | Terraform             | `local`, `dev`, `stg` or `prd`                                                    |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | yes            | Terraform             | the private Cloud SQL instance                                                    |
 | `DB_PASSWORD`                              | yes            | Secret Manager        |                                                                                   |
 | `DB_CA_PEM`                                | outside local  | Terraform             | the instance's CA; the connection is TLS against it                               |
@@ -53,7 +53,7 @@ environment.
 
 | Variable      | Required      | Stg source        | Notes                                                                                                                    |
 | ------------- | ------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `APP_ENV`     | no            | Terraform         | `local` (the default), `stg` or `prd`                                                                                    |
+| `APP_ENV`     | no            | Terraform         | `local` (the default), `dev`, `stg` or `prd`                                                                             |
 | `GRAPHQL_URL` | outside local | Terraform         | the API's GraphQL URL; locally `http://localhost:8080/graphql` unless set. Its `CORS_ORIGIN` must allow the app's origin |
 | `PORT`        | no            | Cloud Run sets it | default 3000                                                                                                             |
 

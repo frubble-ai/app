@@ -1,21 +1,26 @@
 name: DB - Reset (drop + migrate)
 
-# Wipes stg's database and migrates it again: every table and enum the
+# Wipes stg's or dev's database (the branch the run is on) and migrates it again: every table and enum the
 # migrations made is dropped, then the migration job runs them from nothing,
 # on the image it already has, and the worker, then the API, roll onto that image.
 # For when the schema's history is rewritten (a squashed migration), never as
 # part of a deploy.
 #
-# Run by hand only (Actions → DB - Reset → Run workflow, from `stg`), and only
-# by drn1996: the job refuses anyone else and any other branch. It runs in
-# `backend-stg` as the deploy identity, whose trust rule in `platform` names
-# this file; the migration script refuses `--reset` in prd whatever calls it.
+# Run by hand only (Actions → DB - Reset → Run workflow, from `stg` or `dev`),
+# and only by drn1996: the job refuses anyone else and any other branch. It
+# runs in `backend-stg` or `backend-dev` as the deploy identity, whose trust
+# rule in `platform` names this file; the migration script refuses `--reset`
+# in prd whatever calls it.
 on:
   workflow_dispatch:
 
 concurrency:
-  group: backend-cd
+  group: backend-cd-${{ github.ref_name }}
   cancel-in-progress: false
+  # Every pending run waits its turn. With the default (`single`), a new run
+  # would cancel the one pending, so a branch run could drop a queued push
+  # to `dev` and leave dev on the branch.
+  queue: max
 
 permissions:
   contents: read
@@ -23,9 +28,9 @@ permissions:
 jobs:
   reset:
     name: reset
-    if: github.ref == 'refs/heads/stg' && github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
+    if: (github.ref == 'refs/heads/stg' || github.ref == 'refs/heads/dev') && github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
     runs-on: ubuntu-latest
-    environment: backend-stg
+    environment: backend-${{ github.ref_name }}
     permissions:
       contents: read
       id-token: write # the OIDC token Workload Identity Federation exchanges
