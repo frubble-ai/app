@@ -12,7 +12,7 @@ Rules for every app and package, whatever its framework.
 | [Third-Party Integrations](./third-party-integrations.md) | one folder per library, mirroring the app's domains                      |
 | [Internationalization](./i18n.md)                         | one namespace per domain, keys typed, tests render keys                  |
 | [Use Cases](./use-cases.md)                               | the context is setup only; use cases receive it; lib takes its parts     |
-| [Migrations](./migrations.md)                             | generated migrations untouched, custom ones beside them, constants last  |
+| [Migrations](./migrations.md)                             | generated migrations untouched, custom ones beside them, constants last, history rewritable while only stg exists |
 
 ## Testing
 
