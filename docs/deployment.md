@@ -31,7 +31,9 @@ to dev: any branch but `stg` targets `backend-dev` / `app-dev`. Only a run on `s
 and even a branch that edits the workflow cannot reach it: `backend-stg` and `app-stg` accept
 deployments from `stg` only, and Google trusts stg's deploy from `refs/heads/stg` only. A run
 from `prd` or a tag is refused. Deploys to dev queue one at a time, whichever branch they come
-from, and the next push to `dev` puts dev back on `dev`. Dev's database migrates forward with the
+from (none is dropped). To put dev back on `dev`, run the workflow from `dev`; a push to `dev`
+does it too, but only one the path filter matches, so a docs-only merge leaves the branch
+deployed. Dev's database migrates forward with the
 deployed branch; deploying a branch with an older schema afterwards needs a reset (Resetting the
 database).
 

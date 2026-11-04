@@ -48,6 +48,10 @@ on:
 concurrency:
   group: backend-cd-${{ github.ref == 'refs/heads/stg' && 'stg' || 'dev' }}
   cancel-in-progress: false
+  # Every pending run waits its turn. With the default (`single`), a new run
+  # would cancel the one pending, so a branch run could drop a queued push
+  # to `dev` and leave dev on the branch.
+  queue: max
 
 permissions:
   contents: read
