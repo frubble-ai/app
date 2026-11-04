@@ -16,6 +16,7 @@ import {
 	failConnectedAccount,
 	failDelete,
 	failInitiate,
+	hangConnectedAccount,
 	lastCallbackUrl,
 	lastInitiateRequest,
 	restoreDelete,
@@ -278,6 +279,23 @@ describe("connecting a provider", () => {
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 		expect(deletedAccounts()).toEqual([attempt.connectedAccountId]);
 	});
+
+	it("gives up on a Composio that hangs and leaves the connection pending", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting({ userId: owner.id, organizationId });
+		hangConnectedAccount(attempt.connectedAccountId);
+
+		await expect(
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+		).resolves.toEqual({
+			redirectUrl:
+				"http://localhost:3000/?integration=github&integration_status=pending",
+		});
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
+			{ status: "pending", account: attempt.connectedAccountId },
+		]);
+	}, 15_000);
 
 	it("activates the connection when Composio says it is live", async () => {
 		const clone = getClone();

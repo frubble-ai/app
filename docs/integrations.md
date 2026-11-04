@@ -82,3 +82,17 @@ reads the project key as `COMPOSIO_API_KEY` and the auth configs as `COMPOSIO_AU
 ([environment](environment.md#api-srcservicesapi)). A new provider needs its auth config, its
 pair in that variable, a row in the constants migration's `integration_provider`
 ([migrations](style-guide/migrations.md#constants)), `INTEGRATION_PROVIDERS`, and its own read.
+
+Each auth config asks only for the scopes the tools we call need, read-only, from the tool's own
+`scope_requirements` at Composio:
+
+| Provider | Scopes                                      | For                                                    |
+| -------- | ------------------------------------------- | ------------------------------------------------------ |
+| GitHub   | `read:org`                                  | `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
+| Linear   | `read`                                      | `LINEAR_LIST_LINEAR_TEAMS`                             |
+| Slack    | user `channels:read`, `groups:read`; no bot | `SLACK_LIST_ALL_CHANNELS`, public and private channels |
+
+A new tool adds its scopes to the auth config. Set them with the auth config's `PATCH`
+(`{"type":"custom","credentials":{"scopes":[…]}}`, plus `user_scopes` for Slack): it keeps the
+client id and secret. An account connected before a change keeps its old scopes until it
+reconnects.

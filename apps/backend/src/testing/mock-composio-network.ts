@@ -264,3 +264,13 @@ export function answerConnectedAccountInTurn(
 	);
 	return reads;
 }
+
+/** `connectedAccounts.get` never answers, as when Composio hangs. */
+export function hangConnectedAccount(connectedAccountId: string) {
+	composioNetwork.use(
+		http.get(`${API}/connected_accounts/${connectedAccountId}`, async () => {
+			await delay("infinite");
+			return HttpResponse.json({});
+		}),
+	);
+}

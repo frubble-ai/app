@@ -8,6 +8,9 @@ import {
 	type TConnectedAccountState,
 } from "@/use-cases/lib/composio";
 
+/** How long the lookup may hold the organization's lock; past it the row waits for the next look. */
+const COMPOSIO_LOOKUP_TIMEOUT_MS = 5_000;
+
 const settleIntegrationConnectionArgsSchema = z.object({
 	connectionId: z.uuid(),
 });
@@ -55,7 +58,10 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 
 			let state: TConnectedAccountState;
 			try {
-				const account = await ctx.composio.connectedAccounts.get(accountId);
+				// Aborting also stops the SDK's own retries, so the lock is never held longer.
+				const account = await ctx.composio.connectedAccounts.get(accountId, {
+					signal: AbortSignal.timeout(COMPOSIO_LOOKUP_TIMEOUT_MS),
+				});
 				state = accountState(account.status);
 			} catch (err) {
 				ctx.logger.warn(
