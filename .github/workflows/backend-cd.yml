@@ -169,6 +169,18 @@ jobs:
       API_HOSTNAME: ${{ vars.API_HOSTNAME }}
       COMMIT: ${{ github.sha }}
     steps:
+      # A re-run of this job alone reuses stg-switch's old output, so the
+      # switch is read again here, before any credentials.
+      - name: Refuse stg while it is switched off
+        env:
+          STG_ENABLED: ${{ vars.STG_ENABLED }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" = "refs/heads/stg" ] && [ "$STG_ENABLED" = "false" ]; then
+            echo "::error::stg was switched off after this run started (STG_ENABLED=false)."
+            exit 1
+          fi
+
       # For the scripts only; no credentials are kept.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
