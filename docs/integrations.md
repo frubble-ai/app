@@ -81,8 +81,9 @@ row's own broker (`ctx.integrations.brokers[row.broker]`), so two brokers serve 
 one replaces the other: an organization's existing connection stays where its tokens are until it
 reconnects.
 
-Only a broker's own folder imports its library: ESLint refuses `@composio/*`, and any path into
-`src/composio/` but its index, anywhere else in the backend.
+Only a broker's own folder imports its library: ESLint refuses each broker's library and any path
+into its folder but its index, by `import` or `import("…")`, everywhere else in the backend,
+another broker's folder included. The brokers it knows are `BROKERS` in `eslint.config.mjs`.
 
 To add a broker:
 
@@ -91,7 +92,9 @@ To add a broker:
    ([migrations](style-guide/migrations.md#constants)), and its key in `INTEGRATION_BROKERS`.
 3. Its entry in `brokers` in `build-use-case-context`; moving new connections to it is
    `connectThrough`.
-4. Its contract test: `describeConnectionBrokerContract` (`src/testing/`) with a harness that
+4. Its entry in `BROKERS` in `eslint.config.mjs`: its folder and its libraries, so only its
+   folder may import them.
+5. Its contract test: `describeConnectionBrokerContract` (`src/testing/`) with a harness that
    makes it answer, as `src/composio/__tests__/` does for Composio.
 
 The use-case tests run on an in-memory broker (`src/testing/mock-connection-broker.ts`), and the

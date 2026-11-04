@@ -1,6 +1,10 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { createComposioBroker } from "@/composio";
+import {
+	generateComposioConnectedAccountId,
+	generateComposioConnection,
+} from "@/composio/__mocks__/generate-composio-connection";
 import { generateComposioGithubOrganization } from "@/composio/__mocks__/generate-composio-github-organization";
 import { generateGithubOrganizationsTool } from "@/composio/__mocks__/generate-github-organizations-tool";
 import {
@@ -18,6 +22,7 @@ import {
 	lastInitiateRequest,
 	setupComposioNetwork,
 } from "@/composio/__mocks__/mock-composio-network";
+import { generateConnectAttempt } from "@/shared/__mocks__/generate-connect-attempt";
 import { describeConnectionBrokerContract } from "@/testing/connection-broker-contract";
 import { buildTestConfig } from "@/testing/test-environment";
 
@@ -37,23 +42,10 @@ function composioBroker() {
 	return createComposioBroker(buildTestConfig().composio);
 }
 
-function generateConnectedAccountId() {
-	return `ca_${faker.string.alphanumeric(10)}`;
-}
-
-function generateAttempt() {
-	return {
-		organizationId: faker.string.alphanumeric(32),
-		provider: "github" as const,
-		attemptId: faker.string.uuid(),
-		callbackUrl: `${faker.internet.url()}/integrations/callback`,
-	};
-}
-
 describeConnectionBrokerContract("Composio", () => ({
 	broker: composioBroker(),
 	answerConnect(redirectUrl) {
-		const connectedAccountId = generateConnectedAccountId();
+		const connectedAccountId = generateComposioConnectedAccountId();
 		answerInitiate({ connectedAccountId, redirectUrl });
 		return { accountRef: () => connectedAccountId };
 	},
@@ -61,7 +53,7 @@ describeConnectionBrokerContract("Composio", () => ({
 		answerConnectedAccount(accountRef, STATUSES[state]),
 	hangState: (accountRef) => hangConnectedAccount(accountRef),
 	loseConnect() {
-		const connectedAccountId = generateConnectedAccountId();
+		const connectedAccountId = generateComposioConnectedAccountId();
 		failInitiate();
 		answerAccountMadeForLastAttempt(connectedAccountId);
 		return { accountRef: () => connectedAccountId };
@@ -84,9 +76,9 @@ describeConnectionBrokerContract("Composio", () => ({
 
 describe("connecting through Composio", () => {
 	it("opens the provider's own consent on our auth config, marked with the attempt, with our callback", async () => {
-		const attempt = generateAttempt();
+		const attempt = generateConnectAttempt();
 		answerInitiate({
-			connectedAccountId: generateConnectedAccountId(),
+			connectedAccountId: generateComposioConnectedAccountId(),
 			redirectUrl: faker.internet.url(),
 		});
 
@@ -108,11 +100,11 @@ describe("connecting through Composio", () => {
 	});
 
 	it("gives no page when Composio has none to send the user to", async () => {
-		const connectedAccountId = generateConnectedAccountId();
+		const connectedAccountId = generateComposioConnectedAccountId();
 		answerInitiate({ connectedAccountId, redirectUrl: null });
 
 		await expect(
-			composioBroker().startConnect(generateAttempt()),
+			composioBroker().startConnect(generateConnectAttempt()),
 		).resolves.toEqual({
 			accountRef: connectedAccountId,
 			redirectUrl: undefined,
@@ -120,11 +112,11 @@ describe("connecting through Composio", () => {
 	});
 
 	it("finds a lost answer's account on a later page of Composio's listing", async () => {
-		const attempt = generateAttempt();
-		const lost = generateConnectedAccountId();
+		const attempt = generateConnectAttempt();
+		const lost = generateComposioConnectedAccountId();
 		failInitiate();
 		answerAccountPages([
-			[{ id: generateConnectedAccountId() }],
+			[{ id: generateComposioConnectedAccountId() }],
 			[{ id: lost, madeForLastAttempt: true }],
 		]);
 		const broker = composioBroker();
@@ -139,21 +131,14 @@ describe("connecting through Composio", () => {
 		failDelete();
 
 		await expect(
-			composioBroker().removeAccount(generateConnectedAccountId()),
+			composioBroker().removeAccount(generateComposioConnectedAccountId()),
 		).rejects.toThrow();
 	});
 });
 
 describe("running an action through Composio", () => {
-	function connection() {
-		return {
-			organizationId: faker.string.alphanumeric(32),
-			accountRef: generateConnectedAccountId(),
-		};
-	}
-
 	it("runs the tool in a session on the organization's own account", async () => {
-		const through = connection();
+		const through = generateComposioConnection();
 		answerTool(generateGithubOrganizationsTool());
 		answerExecute(LIST_ORGANIZATIONS, {
 			data: { organizations: [generateComposioGithubOrganization()] },
@@ -176,13 +161,16 @@ describe("running an action through Composio", () => {
 		answerExecute(LIST_ORGANIZATIONS, { data: { message: "hello world" } });
 
 		await expect(
-			composioBroker().run("github.listOrganizations", connection(), {}),
+			composioBroker().run(
+				"github.listOrganizations",
+				generateComposioConnection(),
+				{},
+			),
 		).rejects.toThrow("output schema refuses");
 	});
 
 	it("checks again against Composio's current schema before refusing a response", async () => {
 		const broker = composioBroker();
-		const organization = generateComposioGithubOrganization();
 		// An older schema, kept from an earlier read, that wanted a field GitHub no longer sends.
 		answerTool(
 			generateGithubOrganizationsTool({
@@ -192,18 +180,22 @@ describe("running an action through Composio", () => {
 		answerExecute(LIST_ORGANIZATIONS, {
 			data: {
 				organizations: [
-					{ ...organization, url: "https://api.github.com/orgs/x" },
+					generateComposioGithubOrganization({ url: faker.internet.url() }),
 				],
 			},
 		});
-		await broker.run("github.listOrganizations", connection(), {});
+		await broker.run(
+			"github.listOrganizations",
+			generateComposioConnection(),
+			{},
+		);
 		answerTool(generateGithubOrganizationsTool());
 		answerExecute(LIST_ORGANIZATIONS, {
-			data: { organizations: [organization] },
+			data: { organizations: [generateComposioGithubOrganization()] },
 		});
 
 		await expect(
-			broker.run("github.listOrganizations", connection(), {}),
+			broker.run("github.listOrganizations", generateComposioConnection(), {}),
 		).resolves.toHaveLength(1);
 	});
 });

@@ -1,6 +1,59 @@
 import frubblePlugin from "@frubble/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 
+// Each integration broker in the backend: its folder, and the libraries only that folder imports
+// (docs/integrations.md, "Brokers"). A new broker is a new entry.
+const BROKERS = [{ folder: "composio", libraries: ["@composio"] }];
+
+/** `text` as it reads inside an esquery regex literal. */
+function regexSource(text) {
+	return text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+}
+
+/**
+ * Refuses the brokers' libraries and any path into their folders, by `import` and by `import("…")`
+ * (a string or a template without expressions), which no-restricted-imports does not see.
+ */
+function brokerBoundary(brokers) {
+	const refused = brokers.flatMap((broker) => [
+		...broker.libraries.map((library) => ({
+			prefix: `${library}/`,
+			message: `Only src/${broker.folder}/ imports ${library}/*; use a broker from ctx.integrations.`,
+		})),
+		{
+			prefix: `@/${broker.folder}/`,
+			message: `src/${broker.folder}/ is reached through its index.`,
+		},
+	]);
+	return {
+		"no-restricted-imports": [
+			"error",
+			{
+				patterns: refused.map(({ prefix, message }) => ({
+					group: [`${prefix}*`],
+					message,
+				})),
+			},
+		],
+		"no-restricted-syntax": [
+			"error",
+			...refused.flatMap(({ prefix, message }) => {
+				const pattern = `/^${regexSource(prefix)}/`;
+				return [
+					{
+						selector: `ImportExpression[source.type='Literal'][source.value=${pattern}]`,
+						message,
+					},
+					{
+						selector: `ImportExpression[source.type='TemplateLiteral'][source.expressions.length=0][source.quasis.0.value.cooked=${pattern}]`,
+						message,
+					},
+				];
+			}),
+		],
+	};
+}
+
 export default [
 	{
 		ignores: [
@@ -32,47 +85,17 @@ export default [
 		files: ["apps/*/src/**/*.{ts,tsx}"],
 		...frubblePlugin.configs.recommended,
 	},
+	// Outside the broker folders, no broker is reachable but through its index; inside one, no
+	// other broker's library or folder is.
 	{
-		// Composio is one broker among those that could be: only its own folder knows it, and
-		// everything else reaches it through `createComposioBroker` (docs/integrations.md).
 		files: ["apps/backend/src/**/*.{ts,tsx}"],
-		ignores: ["apps/backend/src/composio/**"],
-		rules: {
-			"no-restricted-imports": [
-				"error",
-				{
-					patterns: [
-						{
-							group: ["@composio/*"],
-							message:
-								"Only src/composio/ talks to Composio; use a broker from ctx.integrations.",
-						},
-						{
-							group: ["@/composio/*"],
-							message:
-								"src/composio/ is reached through its index, `createComposioBroker`.",
-						},
-					],
-				},
-			],
-			// The same boundary for `import("…")`, which no-restricted-imports does not see.
-			"no-restricted-syntax": [
-				"error",
-				{
-					selector:
-						"ImportExpression[source.type='Literal'][source.value=/^@composio\\//]",
-					message:
-						"Only src/composio/ talks to Composio; use a broker from ctx.integrations.",
-				},
-				{
-					selector:
-						"ImportExpression[source.type='Literal'][source.value=/^@\\/composio\\//]",
-					message:
-						"src/composio/ is reached through its index, `createComposioBroker`.",
-				},
-			],
-		},
+		ignores: BROKERS.map((broker) => `apps/backend/src/${broker.folder}/**`),
+		rules: brokerBoundary(BROKERS),
 	},
+	...BROKERS.filter(() => BROKERS.length > 1).map((broker) => ({
+		files: [`apps/backend/src/${broker.folder}/**/*.{ts,tsx}`],
+		rules: brokerBoundary(BROKERS.filter((other) => other !== broker)),
+	})),
 	{
 		files: ["packages/*/src/**/*.{ts,tsx}"],
 		plugins: { "@frubble": frubblePlugin },

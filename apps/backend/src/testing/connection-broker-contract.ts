@@ -5,6 +5,7 @@ import type {
 	TConnectionBroker,
 	TGithubOrganization,
 } from "@/integrations";
+import { generateConnectAttempt } from "@/shared/__mocks__/generate-connect-attempt";
 import { generateGithubOrganization } from "@/shared/__mocks__/generate-github-organization";
 
 /**
@@ -27,15 +28,6 @@ export type TBrokerHarness = {
 	answerGithubOrganizations(organizations: TGithubOrganization[]): void;
 };
 
-function generateAttempt() {
-	return {
-		organizationId: faker.string.alphanumeric(32),
-		provider: "github" as const,
-		attemptId: faker.string.uuid(),
-		callbackUrl: `${faker.internet.url()}/integrations/callback`,
-	};
-}
-
 /** The behaviour every broker owes the use cases, run against one of them. */
 export function describeConnectionBrokerContract(
 	name: string,
@@ -47,17 +39,19 @@ export function describeConnectionBrokerContract(
 			const redirectUrl = faker.internet.url();
 			const made = answerConnect(redirectUrl);
 
-			const connect = await broker.startConnect(generateAttempt());
+			const connect = await broker.startConnect(generateConnectAttempt());
 
 			expect(connect).toEqual({ accountRef: made.accountRef(), redirectUrl });
 		});
 
 		it.each<TAccountState>(["pending", "active", "failed"])(
-			"reads an account whose consent is %s as %s",
+			"reads an account whose consent is %s",
 			async (state) => {
 				const { broker, answerConnect, answerState } = harness();
 				answerConnect(faker.internet.url());
-				const { accountRef } = await broker.startConnect(generateAttempt());
+				const { accountRef } = await broker.startConnect(
+					generateConnectAttempt(),
+				);
 				answerState(accountRef, state);
 
 				await expect(broker.accountState(accountRef)).resolves.toBe(state);
@@ -67,7 +61,9 @@ export function describeConnectionBrokerContract(
 		it("stops waiting for an account's state when the caller gives up", async () => {
 			const { broker, answerConnect, hangState } = harness();
 			answerConnect(faker.internet.url());
-			const { accountRef } = await broker.startConnect(generateAttempt());
+			const { accountRef } = await broker.startConnect(
+				generateConnectAttempt(),
+			);
 			hangState(accountRef);
 
 			await expect(
@@ -78,7 +74,9 @@ export function describeConnectionBrokerContract(
 		it("counts removing an account that is already gone as removed", async () => {
 			const { broker, answerConnect, removedElsewhere } = harness();
 			answerConnect(faker.internet.url());
-			const { accountRef } = await broker.startConnect(generateAttempt());
+			const { accountRef } = await broker.startConnect(
+				generateConnectAttempt(),
+			);
 			removedElsewhere(accountRef);
 
 			await expect(broker.removeAccount(accountRef)).resolves.toBeUndefined();
@@ -86,7 +84,7 @@ export function describeConnectionBrokerContract(
 
 		it("finds the account made for an attempt whose answer was lost, and no other", async () => {
 			const { broker, loseConnect } = harness();
-			const attempt = generateAttempt();
+			const attempt = generateConnectAttempt();
 			const made = loseConnect();
 			await expect(broker.startConnect(attempt)).rejects.toThrow();
 
@@ -104,7 +102,7 @@ export function describeConnectionBrokerContract(
 		it("lists the GitHub organizations through the connection", async () => {
 			const { broker, answerConnect, answerState, answerGithubOrganizations } =
 				harness();
-			const attempt = generateAttempt();
+			const attempt = generateConnectAttempt();
 			answerConnect(faker.internet.url());
 			const { accountRef } = await broker.startConnect(attempt);
 			answerState(accountRef, "active");
