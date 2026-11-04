@@ -15,7 +15,7 @@ extend type Query {
 
 	"""
 	Where to install our GitHub App on an organization. A GitHub connection lists
-	only the organizations the app is installed on. Null when there is no app.
+	only the organizations the app is installed on.
 	"""
-	githubAppInstallUrl: String
+	githubAppInstallUrl: String!
 }

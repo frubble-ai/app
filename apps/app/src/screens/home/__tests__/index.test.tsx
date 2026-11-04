@@ -109,36 +109,19 @@ describe("HomeScreen", () => {
 		);
 	});
 
-	it.each([
-		{
-			label: "the app is not installed anywhere yet",
-			installUrl: faker.internet.url(),
-			message: "home.integrations.github.emptyNotInstalled",
-		},
-		{
-			label: "there is no app to install",
-			installUrl: null,
-			message: "home.integrations.github.empty",
-		},
-	])(
-		"says why a connected GitHub lists no organization when $label",
-		async ({ installUrl, message }) => {
-			mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
-			mockIntegrations([IntegrationProvider.Github]);
-			if (installUrl) mockGithubAppInstallUrl(installUrl);
-			mockRead(useGithubOrganizationsLazyQuery, "githubOrganizations", []);
-			renderWithProviders(<HomeScreen />);
+	it("says why a connected GitHub lists no organization, and offers the install again", async () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Github]);
+		mockRead(useGithubOrganizationsLazyQuery, "githubOrganizations", []);
+		renderWithProviders(<HomeScreen />);
 
-			await userEvent.click(screen.getByTestId("github-organizations-load"));
+		await userEvent.click(screen.getByTestId("github-organizations-load"));
 
-			expect(
-				await screen.findByTestId("github-organizations-empty"),
-			).toHaveTextContent(message);
-			expect(screen.queryByTestId("github-app-install") !== null).toBe(
-				Boolean(installUrl),
-			);
-		},
-	);
+		expect(
+			await screen.findByTestId("github-organizations-empty"),
+		).toHaveTextContent("home.integrations.github.empty");
+		expect(screen.getByTestId("github-app-install")).toBeInTheDocument();
+	});
 
 	it("lists a connected Linear's teams on demand", async () => {
 		const organization = generateOrganization(OrganizationRole.Member);

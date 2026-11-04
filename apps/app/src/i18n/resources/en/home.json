@@ -33,8 +33,7 @@
 		"github": {
 			"load": "List GitHub organizations",
 			"install": "Install Frubble AI on an organization",
-			"empty": "This account belongs to no organization.",
-			"emptyNotInstalled": "Frubble AI isn't installed on any organization you belong to yet. Install it, then list again."
+			"empty": "Frubble AI isn't installed on any organization you belong to yet. Install it, then list again."
 		},
 		"linear": {
 			"load": "List Linear teams",

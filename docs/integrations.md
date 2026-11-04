@@ -110,9 +110,9 @@ domain in every layer: `src/composio/<provider>/`, the resolvers in
 beside `integrations` for what they share (connecting, disconnecting, listing).
 
 GitHub's connection goes through our GitHub App, which sees only the organizations it is
-installed on: connecting alone lists none. `githubAppInstallUrl` answers where to install it
-(`github.com/apps/<GITHUB_APP_SLUG>/installations/new`), and the GitHub card offers that link
-once connected, and again when the list comes back empty. Null when the environment has no app.
+installed on: connecting alone lists none. `githubAppInstallUrl` answers where to install it,
+`github.com/apps/frubble-ai/installations/new` (`config/integrations/github/`), and the GitHub
+card offers that link once connected, and says why when the list comes back empty.
 
 At Composio, an action is one tool run in a session opened for the organization with its
 connected account. Sessions choose the toolkit version.

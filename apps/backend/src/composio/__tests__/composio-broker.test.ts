@@ -43,7 +43,7 @@ const LIST_ORGANIZATIONS =
 	"GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER";
 
 function composioBroker() {
-	return createComposioBroker(buildTestConfig().composio);
+	return createComposioBroker(buildTestConfig().integrations.composio);
 }
 
 describeConnectionBrokerContract("Composio", () => ({
@@ -90,7 +90,7 @@ describe("connecting through Composio", () => {
 
 		const initiated = lastInitiateRequest();
 		expect(initiated?.auth_config?.id).toBe(
-			buildTestConfig().composio.authConfigIds.github,
+			buildTestConfig().integrations.composio.authConfigIds.github,
 		);
 		expect(initiated?.connection).toMatchObject({
 			user_id: attempt.organizationId,
@@ -213,7 +213,8 @@ describe("running an action through Composio", () => {
 			).toMatchObject({
 				user_id: through.organizationId,
 				auth_configs: {
-					[toolkit]: buildTestConfig().composio.authConfigIds[toolkit],
+					[toolkit]:
+						buildTestConfig().integrations.composio.authConfigIds[toolkit],
 				},
 				connected_accounts: { [toolkit]: [through.accountRef] },
 			});

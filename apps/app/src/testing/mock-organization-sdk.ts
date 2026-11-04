@@ -96,7 +96,7 @@ export function mockOrganizationActions(
 		{ loading: false },
 	] as never);
 	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({
-		data: { githubAppInstallUrl: null },
+		data: { githubAppInstallUrl: faker.internet.url() },
 	} as never);
 	for (const hook of [
 		useGithubOrganizationsLazyQuery,
@@ -132,7 +132,7 @@ export function mockRead(
 	return load;
 }
 
-/** The API has a GitHub App to install, at `url`. */
+/** Our GitHub App installs at `url`. */
 export function mockGithubAppInstallUrl(url: string) {
 	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({
 		data: { githubAppInstallUrl: url },

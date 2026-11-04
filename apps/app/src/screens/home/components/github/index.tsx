@@ -43,9 +43,7 @@ export function GithubOrganizations({
 			) : null}
 			{called && !loading && !error && organizations.length === 0 ? (
 				<p data-testid="github-organizations-empty">
-					{installUrl
-						? t("integrations.github.emptyNotInstalled")
-						: t("integrations.github.empty")}
+					{t("integrations.github.empty")}
 				</p>
 			) : null}
 			{organizations.length > 0 ? (

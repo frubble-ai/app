@@ -1,7 +1,11 @@
-import { INTEGRATION_PROVIDERS, type TIntegrationProvider } from "@frubble/db";
 import { dbEnvSchema } from "@frubble/db/env";
 import { z } from "zod";
 import { envVar, listenEnvFields, parseEnv } from "@/shared/env";
+import {
+	integrationsConfig,
+	integrationsEnvFields,
+	type TIntegrationsConfig,
+} from "./integrations";
 
 // Typed config parsed from env once at boot, so a missing key fails startup. Tests swap in a
 // fixture with `setConfigForTests`.
@@ -52,18 +56,8 @@ export type TConfig = {
 	publicUrl: string;
 	/** Public origin of the web app, where links in emails and redirects land. */
 	appUrl: string;
-	composio: {
-		apiKey: string;
-		/** The auth config (our OAuth app at Composio) per provider. */
-		authConfigIds: Record<TIntegrationProvider, string>;
-	};
-	github: {
-		/**
-		 * Where to install our GitHub App on an organization, so its connection can list it. Unset
-		 * when the environment has no GitHub App.
-		 */
-		appInstallUrl: string | undefined;
-	};
+	/** The broker and the providers, a module per domain (`config/integrations/`). */
+	integrations: TIntegrationsConfig;
 	pubsub: {
 		emailsTopic: string;
 	};
@@ -133,38 +127,6 @@ function parseCorsOrigins(raw: string, context: z.RefinementCtx): string[] {
 	return entries;
 }
 
-const authConfigIdsSchema = z.object(
-	Object.fromEntries(
-		INTEGRATION_PROVIDERS.map((provider) => [
-			provider,
-			z.string().startsWith("ac_", `${provider} needs an ac_ auth config id`),
-		]),
-	) as Record<TIntegrationProvider, z.ZodString>,
-);
-
-/** `github=ac_…,linear=ac_…`: one auth config per provider, every provider present. */
-function parseAuthConfigIds(
-	raw: string,
-	context: z.RefinementCtx,
-): Record<TIntegrationProvider, string> {
-	const pairs = raw
-		.split(",")
-		.map((entry) => entry.trim())
-		.filter((entry) => entry.length > 0)
-		.map((entry) => entry.split("=").map((part) => part.trim()));
-	const parsed = authConfigIdsSchema.safeParse(Object.fromEntries(pairs));
-	if (!parsed.success) {
-		for (const issue of parsed.error.issues) {
-			context.addIssue({
-				code: "custom",
-				message: `${issue.path.join(".") || "value"}: ${issue.message}; expected provider=ac_… pairs separated by commas`,
-			});
-		}
-		return z.NEVER;
-	}
-	return parsed.data;
-}
-
 /** The code accepted beside the emailed one when emails are not delivered (never in prd). */
 
 const apiEnvSchema = z
@@ -176,15 +138,7 @@ const apiEnvSchema = z
 		CORS_ORIGIN: envVar(z.string().default("").transform(parseCorsOrigins)),
 		PUBSUB_EMAILS_TOPIC: envVar(z.string().min(1)),
 		APP_URL: envVar(z.url({ protocol: /^https?$/ })),
-		COMPOSIO_API_KEY: envVar(z.string().min(1)),
-		COMPOSIO_AUTH_CONFIG_IDS: envVar(z.string().transform(parseAuthConfigIds)),
-		// The GitHub App's slug, as in github.com/apps/<slug>.
-		GITHUB_APP_SLUG: envVar(
-			z
-				.string()
-				.regex(/^[a-z0-9-]+$/)
-				.optional(),
-		),
+		...integrationsEnvFields,
 		// Google's external load balancer is one hop; it appends the client, then itself. Zero
 		// would read the balancer's own address as every client's.
 		TRUSTED_PROXIES: envVar(z.coerce.number().int().min(1).default(1)),
@@ -220,15 +174,7 @@ export function buildConfig(): TConfig {
 		cors: { origin: env.CORS_ORIGIN },
 		publicUrl: env.BETTER_AUTH_URL.replace(/\/+$/, ""),
 		appUrl: env.APP_URL.replace(/\/+$/, ""),
-		composio: {
-			apiKey: env.COMPOSIO_API_KEY,
-			authConfigIds: env.COMPOSIO_AUTH_CONFIG_IDS,
-		},
-		github: {
-			appInstallUrl: env.GITHUB_APP_SLUG
-				? `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new`
-				: undefined,
-		},
+		integrations: integrationsConfig(env),
 		pubsub: { emailsTopic: env.PUBSUB_EMAILS_TOPIC },
 		api: {
 			host: env.HOST,

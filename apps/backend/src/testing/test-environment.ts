@@ -1,6 +1,7 @@
 import type { TDb } from "@frubble/db";
 import { createAuth, type TAuth, type TAuthSessionCache } from "@/better-auth";
 import { staticConfigSections, type TConfig } from "@/config";
+import { githubConfig } from "@/config/integrations/github";
 
 /** createAuth for tests. */
 export function buildTestAuth(
@@ -30,16 +31,16 @@ export function buildTestConfig(): TConfig {
 		cors: { origin: ["http://localhost:3000"] },
 		publicUrl: "http://localhost:8080",
 		appUrl: "http://localhost:3000",
-		composio: {
-			apiKey: "test-composio-key",
-			authConfigIds: {
-				github: "ac_test_github",
-				linear: "ac_test_linear",
-				slack: "ac_test_slack",
+		integrations: {
+			composio: {
+				apiKey: "test-composio-key",
+				authConfigIds: {
+					github: "ac_test_github",
+					linear: "ac_test_linear",
+					slack: "ac_test_slack",
+				},
 			},
-		},
-		github: {
-			appInstallUrl: "https://github.com/apps/frubble-test/installations/new",
+			github: githubConfig(),
 		},
 		pubsub: { emailsTopic: "emails" },
 		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },

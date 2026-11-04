@@ -22,7 +22,6 @@ on the worker service and nothing else about how the image starts.
 | `APP_URL`                                  | yes            | Terraform             | the web app's origin: invitation links and the redirect after connecting a tool   |
 | `COMPOSIO_API_KEY`                         | yes            | Secret Manager        | the environment's Composio project key; codegen reads it too (`.env.local`, CI secret) |
 | `COMPOSIO_AUTH_CONFIG_IDS`                 | yes            | Terraform             | `github=ac_…,linear=ac_…,slack=ac_…`, every provider ([integrations](integrations.md)) |
-| `GITHUB_APP_SLUG`                          | no             | Terraform             | our GitHub App's slug (`github.com/apps/<slug>`); unset, the app offers no install link ([integrations](integrations.md#reading)) |
 | `TRUSTED_PROXIES`                          | no             |                       | proxies appending to `X-Forwarded-For`, at least 1; default 1, the load balancer  |
 | `HOST`, `PORT`                             | no             | Cloud Run sets `PORT` | default `0.0.0.0:8080`                                                            |
 | `LOG_LEVEL`, `LOG_FORMAT`                  | no             |                       | `json` when `NODE_ENV=production`, else pretty                                    |

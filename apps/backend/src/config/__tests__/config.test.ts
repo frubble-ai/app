@@ -48,29 +48,23 @@ describe("buildConfig", () => {
 			},
 			publicUrl: "http://localhost:8080",
 			appUrl: "http://localhost:3000",
-			composio: {
-				apiKey: env.COMPOSIO_API_KEY,
-				authConfigIds: {
-					github: "ac_github1",
-					linear: "ac_linear1",
-					slack: "ac_slack1",
+			integrations: {
+				composio: {
+					apiKey: env.COMPOSIO_API_KEY,
+					authConfigIds: {
+						github: "ac_github1",
+						linear: "ac_linear1",
+						slack: "ac_slack1",
+					},
+				},
+				github: {
+					appInstallUrl: "https://github.com/apps/frubble-ai/installations/new",
 				},
 			},
 			cors: { origin: [] },
 			api: { host: "0.0.0.0", port: 8080, trustedProxies: 1 },
 			pubsub: { emailsTopic: "emails" },
 		});
-	});
-
-	it("installs the GitHub App from github.com/apps/<slug>, and has nothing to install without one", () => {
-		const slug = faker.helpers.slugify(faker.lorem.words(2)).toLowerCase();
-		withEnv(generateEnv({ GITHUB_APP_SLUG: slug }));
-		expect(buildConfig().github.appInstallUrl).toBe(
-			`https://github.com/apps/${slug}/installations/new`,
-		);
-
-		withEnv(generateEnv({ GITHUB_APP_SLUG: undefined }));
-		expect(buildConfig().github.appInstallUrl).toBeUndefined();
 	});
 
 	it("splits CORS origins and keeps them whole", () => {
@@ -103,11 +97,6 @@ describe("buildConfig", () => {
 			message: /BETTER_AUTH_SECRET/,
 		},
 		{ label: "an unknown APP_ENV", env: { APP_ENV: "qa" }, message: /APP_ENV/ },
-		{
-			label: "a GitHub App slug that is not one",
-			env: { GITHUB_APP_SLUG: "Frubble AI/../x" },
-			message: /GITHUB_APP_SLUG/,
-		},
 		{
 			label: "no database CA outside local",
 			env: { APP_ENV: "stg" },
