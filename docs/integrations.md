@@ -104,7 +104,15 @@ same contract holds it to what the real ones do.
 ## Reading
 
 Each provider has its own read: `githubOrganizations`, `linearTeams`, `slackChannels`, each a
-use case that runs one action through the organization's connection.
+use case that runs one action through the organization's connection. Each provider is its own
+domain in every layer: `src/composio/<provider>/`, the resolvers in
+`services/api/graphql/<provider>/` and its schema in `packages/gql/schema/<provider>.graphql`,
+beside `integrations` for what they share (connecting, disconnecting, listing).
+
+GitHub's connection goes through our GitHub App, which sees only the organizations it is
+installed on: connecting alone lists none. `githubAppInstallUrl` answers where to install it
+(`github.com/apps/<GITHUB_APP_SLUG>/installations/new`), and the GitHub card offers that link
+once connected, and again when the list comes back empty. Null when the environment has no app.
 
 At Composio, an action is one tool run in a session opened for the organization with its
 connected account. Sessions choose the toolkit version.
@@ -124,8 +132,10 @@ tool in `src/composio/`.
 
 ## Composio setup
 
-Per environment, a Composio project with one auth config per provider, each on our own OAuth
-app with the redirect URI `https://backend.composio.dev/api/v3/toolkits/auth/callback`.
+Per environment, a Composio project with one auth config per provider, each on our own app with
+the redirect URI `https://backend.composio.dev/api/v3/toolkits/auth/callback`: an OAuth app for
+Linear and Slack, and for GitHub our GitHub App. The GitHub App's Setup URL is the web app's
+origin, so GitHub sends the user back after an installation.
 Composio's `startConnect` calls `connectedAccounts.initiate` on that auth config with
 `config: { authScheme: "OAUTH2", val: { status: "INITIALIZING", long_redirect_url: true } }`, so
 the `redirectUrl` it returns is the provider's own consent URL rather than a Composio short link,
@@ -137,12 +147,13 @@ pair in that variable, its toolkit in `src/composio/`, a row in the constants mi
 `integration_provider` ([migrations](style-guide/migrations.md#constants)),
 `INTEGRATION_PROVIDERS`, and its own read.
 
-Each auth config asks only for the scopes the tools we call need, read-only, from the tool's own
-`scope_requirements` at Composio:
+Each auth config asks only for the access the tools we call need, read-only, from the tool's own
+`scope_requirements` at Composio. A GitHub App takes no scopes: its permissions decide, and it
+answers only for the organizations it is installed on.
 
-| Provider | Scopes                                      | For                                                    |
-| -------- | ------------------------------------------- | ------------------------------------------------------ |
-| GitHub   | `read:org`                                  | `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
+| Provider | Access                                                   | For                                                    |
+| -------- | -------------------------------------------------------- | ------------------------------------------------------ |
+| GitHub   | GitHub App permission _Members: read_, installed per org | `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
 | Linear   | `read`                                      | `LINEAR_LIST_LINEAR_TEAMS`                             |
 | Slack    | user `channels:read`, `groups:read`; no bot | `SLACK_LIST_ALL_CHANNELS`, public and private channels |
 

@@ -1,0 +1,15 @@
+"A Slack channel the connected user can see."
+type SlackChannel {
+	id: String!
+	name: String!
+	isPrivate: Boolean!
+	memberCount: Int
+}
+
+extend type Query {
+	"""
+	The Slack channels the connected user can see, archived ones left out.
+	`NOT_FOUND` when Slack is not connected.
+	"""
+	slackChannels(organizationId: String!): [SlackChannel!]!
+}

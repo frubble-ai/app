@@ -38,6 +38,9 @@ export function buildTestConfig(): TConfig {
 				slack: "ac_test_slack",
 			},
 		},
+		github: {
+			appInstallUrl: "https://github.com/apps/frubble-test/installations/new",
+		},
 		pubsub: { emailsTopic: "emails" },
 		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },
 		...staticConfigSections(),

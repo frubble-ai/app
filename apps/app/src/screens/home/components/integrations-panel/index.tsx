@@ -6,9 +6,9 @@ import {
 } from "@frubble/react-sdk";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GithubOrganizations } from "@/screens/home/components/github-organizations";
-import { LinearTeams } from "@/screens/home/components/linear-teams";
-import { SlackChannels } from "@/screens/home/components/slack-channels";
+import { GithubOrganizations } from "@/screens/home/components/github";
+import { LinearTeams } from "@/screens/home/components/linear";
+import { SlackChannels } from "@/screens/home/components/slack";
 import { PROVIDERS, providerSlug } from "@/screens/home/lib/providers";
 
 /** What a connected provider shows: its own read. */

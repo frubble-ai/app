@@ -1,7 +1,13 @@
-import { useGithubOrganizationsLazyQuery } from "@frubble/react-sdk";
+import {
+	useGithubAppInstallUrlQuery,
+	useGithubOrganizationsLazyQuery,
+} from "@frubble/react-sdk";
 import { useTranslation } from "react-i18next";
 
-/** The GitHub organizations the connected account belongs to, read on demand. */
+/**
+ * The GitHub organizations the connected account belongs to, read on demand. Our GitHub App sees
+ * only the organizations it is installed on, so the card always offers to install it.
+ */
 export function GithubOrganizations({
 	organizationId,
 }: {
@@ -13,6 +19,7 @@ export function GithubOrganizations({
 			fetchPolicy: "network-only",
 		});
 	const organizations = data?.githubOrganizations ?? [];
+	const installUrl = useGithubAppInstallUrlQuery().data?.githubAppInstallUrl;
 
 	return (
 		<div className="provider-read" data-testid="github-organizations">
@@ -29,9 +36,16 @@ export function GithubOrganizations({
 					{t("integrations.readFailed")}
 				</p>
 			) : null}
+			{installUrl ? (
+				<a href={installUrl} data-testid="github-app-install">
+					{t("integrations.github.install")}
+				</a>
+			) : null}
 			{called && !loading && !error && organizations.length === 0 ? (
 				<p data-testid="github-organizations-empty">
-					{t("integrations.github.empty")}
+					{installUrl
+						? t("integrations.github.emptyNotInstalled")
+						: t("integrations.github.empty")}
 				</p>
 			) : null}
 			{organizations.length > 0 ? (

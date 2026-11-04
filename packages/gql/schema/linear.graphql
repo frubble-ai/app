@@ -1,0 +1,10 @@
+"A Linear team the connected user can see."
+type LinearTeam {
+	id: String!
+	name: String!
+}
+
+extend type Query {
+	"The Linear teams the connected user can see. `NOT_FOUND` when not connected."
+	linearTeams(organizationId: String!): [LinearTeam!]!
+}

@@ -57,6 +57,13 @@ export type TConfig = {
 		/** The auth config (our OAuth app at Composio) per provider. */
 		authConfigIds: Record<TIntegrationProvider, string>;
 	};
+	github: {
+		/**
+		 * Where to install our GitHub App on an organization, so its connection can list it. Unset
+		 * when the environment has no GitHub App.
+		 */
+		appInstallUrl: string | undefined;
+	};
 	pubsub: {
 		emailsTopic: string;
 	};
@@ -171,6 +178,13 @@ const apiEnvSchema = z
 		APP_URL: envVar(z.url({ protocol: /^https?$/ })),
 		COMPOSIO_API_KEY: envVar(z.string().min(1)),
 		COMPOSIO_AUTH_CONFIG_IDS: envVar(z.string().transform(parseAuthConfigIds)),
+		// The GitHub App's slug, as in github.com/apps/<slug>.
+		GITHUB_APP_SLUG: envVar(
+			z
+				.string()
+				.regex(/^[a-z0-9-]+$/)
+				.optional(),
+		),
 		// Google's external load balancer is one hop; it appends the client, then itself. Zero
 		// would read the balancer's own address as every client's.
 		TRUSTED_PROXIES: envVar(z.coerce.number().int().min(1).default(1)),
@@ -209,6 +223,11 @@ export function buildConfig(): TConfig {
 		composio: {
 			apiKey: env.COMPOSIO_API_KEY,
 			authConfigIds: env.COMPOSIO_AUTH_CONFIG_IDS,
+		},
+		github: {
+			appInstallUrl: env.GITHUB_APP_SLUG
+				? `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new`
+				: undefined,
 		},
 		pubsub: { emailsTopic: env.PUBSUB_EMAILS_TOPIC },
 		api: {

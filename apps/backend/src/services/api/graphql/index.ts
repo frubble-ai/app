@@ -3,11 +3,14 @@ import { GraphQLError } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import { ZodError, z } from "zod";
 import { createAuthResolvers } from "@/services/api/graphql/auth";
+import { createGithubResolvers } from "@/services/api/graphql/github";
 import { createIntegrationResolvers } from "@/services/api/graphql/integrations";
 import { ErrorCode, formatZodIssues } from "@/services/api/graphql/lib/errors";
 import { createYogaLogger } from "@/services/api/graphql/lib/yoga-logger";
+import { createLinearResolvers } from "@/services/api/graphql/linear";
 import { createOrganizationResolvers } from "@/services/api/graphql/organizations";
 import type { IAuthenticatedUser } from "@/services/api/graphql/shared/lib/guards";
+import { createSlackResolvers } from "@/services/api/graphql/slack";
 import { loadAuthenticatedUserFromRequestUseCase } from "@/use-cases/cases/load-authenticated-user-from-request.use-case";
 import { clientIpFromHeaders } from "@/use-cases/lib/auth/rate-limit";
 import { DOMAIN_ERROR_NAMES } from "@/use-cases/lib/shared/domain-errors";
@@ -38,6 +41,9 @@ export function buildYoga(args: {
 				createAuthResolvers(),
 				createOrganizationResolvers(),
 				createIntegrationResolvers(),
+				createGithubResolvers(),
+				createLinearResolvers(),
+				createSlackResolvers(),
 			],
 		}),
 		logging: createYogaLogger(),

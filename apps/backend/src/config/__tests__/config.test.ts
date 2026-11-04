@@ -62,6 +62,17 @@ describe("buildConfig", () => {
 		});
 	});
 
+	it("installs the GitHub App from github.com/apps/<slug>, and has nothing to install without one", () => {
+		const slug = faker.helpers.slugify(faker.lorem.words(2)).toLowerCase();
+		withEnv(generateEnv({ GITHUB_APP_SLUG: slug }));
+		expect(buildConfig().github.appInstallUrl).toBe(
+			`https://github.com/apps/${slug}/installations/new`,
+		);
+
+		withEnv(generateEnv({ GITHUB_APP_SLUG: undefined }));
+		expect(buildConfig().github.appInstallUrl).toBeUndefined();
+	});
+
 	it("splits CORS origins and keeps them whole", () => {
 		withEnv(
 			generateEnv({
@@ -92,6 +103,11 @@ describe("buildConfig", () => {
 			message: /BETTER_AUTH_SECRET/,
 		},
 		{ label: "an unknown APP_ENV", env: { APP_ENV: "qa" }, message: /APP_ENV/ },
+		{
+			label: "a GitHub App slug that is not one",
+			env: { GITHUB_APP_SLUG: "Frubble AI/../x" },
+			message: /GITHUB_APP_SLUG/,
+		},
 		{
 			label: "no database CA outside local",
 			env: { APP_ENV: "stg" },

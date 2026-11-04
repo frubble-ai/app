@@ -4,6 +4,7 @@ import {
 	OrganizationRole,
 	useCreateOrganizationMutation,
 	useDisconnectIntegrationMutation,
+	useGithubAppInstallUrlQuery,
 	useGithubOrganizationsLazyQuery,
 	useIntegrationsQuery,
 	useInviteOrganizationMemberMutation,
@@ -94,6 +95,9 @@ export function mockOrganizationActions(
 		invite,
 		{ loading: false },
 	] as never);
+	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({
+		data: { githubAppInstallUrl: null },
+	} as never);
 	for (const hook of [
 		useGithubOrganizationsLazyQuery,
 		useLinearTeamsLazyQuery,
@@ -126,6 +130,13 @@ export function mockRead(
 		return [load, { data, loading: false, called: Boolean(data) }];
 	}) as never);
 	return load;
+}
+
+/** The API has a GitHub App to install, at `url`. */
+export function mockGithubAppInstallUrl(url: string) {
+	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({
+		data: { githubAppInstallUrl: url },
+	} as never);
 }
 
 export function generateSlackChannel() {
