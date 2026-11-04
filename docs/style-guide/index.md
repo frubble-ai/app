@@ -11,6 +11,7 @@ Rules for every app and package, whatever its framework.
 | [Packages](./packages.md)                                 | when code moves to `packages/`, flat exports, the `testing` subpath      |
 | [Third-Party Integrations](./third-party-integrations.md) | one folder per library, mirroring the app's domains                      |
 | [Internationalization](./i18n.md)                         | one namespace per domain, keys typed, tests render keys                  |
+| [Use Cases](./use-cases.md)                               | the context is setup only; use cases receive it; lib takes its parts     |
 | [Migrations](./migrations.md)                             | generated migrations untouched, custom ones beside them, constants last  |
 
 ## Testing

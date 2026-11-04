@@ -1,0 +1,8 @@
+query GithubOrganizations($organizationId: String!) {
+	githubOrganizations(organizationId: $organizationId) {
+		id
+		login
+		description
+		avatarUrl
+	}
+}

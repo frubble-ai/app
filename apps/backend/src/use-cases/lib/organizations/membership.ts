@@ -1,7 +1,6 @@
-import { member, organization } from "@frubble/db";
+import { member, organization, type TDb } from "@frubble/db";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import type { TUseCaseContext } from "@/use-cases";
 import { forbidden, notFound } from "@/use-cases/lib/shared/domain-errors";
 
 /** The organization plugin's default roles. */
@@ -27,14 +26,14 @@ export type TMembership = {
  * organizations reveal nothing; a member without one of `roles` is forbidden.
  */
 export async function requireMembership(
-	ctx: TUseCaseContext,
+	db: TDb,
 	args: {
 		userId: string;
 		organizationId: string;
 		roles?: readonly TOrganizationRole[];
 	},
 ): Promise<TMembership> {
-	const [row] = await ctx.db
+	const [row] = await db
 		.select({ role: member.role, name: organization.name })
 		.from(member)
 		.innerJoin(organization, eq(organization.id, member.organizationId))

@@ -131,10 +131,12 @@ environment name on the job, which the trust rule in `platform` names too.
 | `GCP_RUN_SERVICE_WORKER`               | `backend-stg` variable | `frubble-stg-worker`; unset skips the worker rollout                                                                     |
 | `GCP_RUN_JOB_MIGRATE`                  | `backend-stg` variable | `frubble-stg-migrate`; unset skips the migration                                                                         |
 | `API_HOSTNAME`                         | `backend-stg` variable | `api.stg.frubble.ai`                                                                                                     |
+| `COMPOSIO_API_KEY`                     | repository secret      | the stg Composio project key; the backend codegen reads its tool schemas in the lint, test and image-build jobs            |
 
 The `backend-stg` environment accepts deployments from `stg` only. Its name, the workflow
 file name and the branch are the identity `platform` trusts; renaming any of them stops the
-Google sign-in. No secrets are needed: authentication is OIDC.
+Google sign-in. Authentication is OIDC; the one secret is `COMPOSIO_API_KEY`, for codegen, which reaches
+the image build as a BuildKit secret and never a layer.
 
 ## App
 
