@@ -16,6 +16,10 @@ function generateEnv(overrides: Record<string, string | undefined> = {}) {
 		COMPOSIO_API_KEY: faker.string.alphanumeric(32),
 		COMPOSIO_AUTH_CONFIG_IDS:
 			"github=ac_github1, linear=ac_linear1,slack=ac_slack1",
+		OSIRIS_URL: "http://localhost:8090/",
+		OSIRIS_API_KEY: faker.string.alphanumeric(40),
+		OSIRIS_AUTH_CONFIG_IDS:
+			"github=ac_github2,linear=ac_linear2,slack=ac_slack2",
 		...overrides,
 	};
 }
@@ -49,6 +53,16 @@ describe("buildConfig", () => {
 			publicUrl: "http://localhost:8080",
 			appUrl: "http://localhost:3000",
 			integrations: {
+				connectThrough: "composio",
+				osiris: {
+					url: "http://localhost:8090",
+					apiKey: env.OSIRIS_API_KEY,
+					authConfigIds: {
+						github: "ac_github2",
+						linear: "ac_linear2",
+						slack: "ac_slack2",
+					},
+				},
 				composio: {
 					apiKey: env.COMPOSIO_API_KEY,
 					authConfigIds: {
@@ -97,6 +111,16 @@ describe("buildConfig", () => {
 			message: /BETTER_AUTH_SECRET/,
 		},
 		{ label: "an unknown APP_ENV", env: { APP_ENV: "qa" }, message: /APP_ENV/ },
+		{
+			label: "a short osiris API key",
+			env: { OSIRIS_API_KEY: "short" },
+			message: /OSIRIS_API_KEY/,
+		},
+		{
+			label: "a broker that does not exist",
+			env: { INTEGRATIONS_CONNECT_THROUGH: "nango" },
+			message: /INTEGRATIONS_CONNECT_THROUGH/,
+		},
 		{
 			label: "no database CA outside local",
 			env: { APP_ENV: "stg" },

@@ -21,6 +21,7 @@
 	"dependencies": {
 		"@composio/core": "0.27.0",
 		"@composio/json-schema-to-zod": "0.4.0",
+		"@frubble-ai/osiris-client": "portal:../../../../osiris/connections/clients/typescript",
 		"@frubble/db": "workspace:*",
 		"@frubble/emails": "workspace:*",
 		"@frubble/events": "workspace:*",

@@ -8,6 +8,7 @@ import { getConfig } from "@/config";
 import { createAppMessageBus } from "@/events";
 import type { TIntegrations } from "@/integrations";
 import { logger } from "@/logger";
+import { createOsirisBroker } from "@/osiris";
 import type { TUseCaseContext } from "@/use-cases";
 
 /** Postgres dropped an idle pooled connection: the pool replaces it, this reports it. */
@@ -45,8 +46,11 @@ export async function buildUseCaseContext(): Promise<TUseCaseContext> {
 
 	// Every broker a connection may be on; new connections go through `connectThrough`.
 	const integrations: TIntegrations = {
-		brokers: { composio: createComposioBroker(config.integrations.composio) },
-		connectThrough: "composio",
+		brokers: {
+			composio: createComposioBroker(config.integrations.composio),
+			osiris: createOsirisBroker(config.integrations.osiris),
+		},
+		connectThrough: config.integrations.connectThrough,
 	};
 
 	return { config, db, messages, auth, integrations, logger };

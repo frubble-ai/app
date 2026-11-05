@@ -55,7 +55,10 @@ export async function setup(): Promise<void> {
 		messages: captured.messages,
 		auth,
 		integrations: {
-			brokers: { composio: createMockConnectionBroker().broker },
+			brokers: {
+				composio: createMockConnectionBroker().broker,
+				osiris: createMockConnectionBroker().broker,
+			},
 			connectThrough: "composio",
 		},
 		logger: testLogger,

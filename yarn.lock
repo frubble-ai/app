@@ -1822,6 +1822,14 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@frubble-ai/osiris-client@portal:../../../../osiris/connections/clients/typescript::locator=%40frubble%2Fbackend%40workspace%3Aapps%2Fbackend":
+  version: 0.0.0-use.local
+  resolution: "@frubble-ai/osiris-client@portal:../../../../osiris/connections/clients/typescript::locator=%40frubble%2Fbackend%40workspace%3Aapps%2Fbackend"
+  peerDependencies:
+    zod: ^4.0.0
+  languageName: node
+  linkType: soft
+
 "@frubble/app@workspace:apps/app":
   version: 0.0.0-use.local
   resolution: "@frubble/app@workspace:apps/app"
@@ -1862,6 +1870,7 @@ __metadata:
     "@composio/core": "npm:0.27.0"
     "@composio/json-schema-to-zod": "npm:0.4.0"
     "@faker-js/faker": "npm:^10.6.0"
+    "@frubble-ai/osiris-client": "portal:../../../../osiris/connections/clients/typescript"
     "@frubble/db": "workspace:*"
     "@frubble/emails": "workspace:*"
     "@frubble/events": "workspace:*"

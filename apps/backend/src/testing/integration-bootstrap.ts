@@ -70,7 +70,10 @@ export async function cloneForTest(
 	const captured = createCapturedMessages();
 	const broker = createMockConnectionBroker();
 	const integrations: TIntegrations = {
-		brokers: { composio: broker.broker },
+		brokers: {
+			composio: broker.broker,
+			osiris: createMockConnectionBroker().broker,
+		},
 		connectThrough: "composio",
 	};
 

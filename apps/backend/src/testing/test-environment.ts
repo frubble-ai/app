@@ -29,6 +29,16 @@ export function buildTestConfig(): TConfig {
 		publicUrl: "http://localhost:8080",
 		appUrl: "http://localhost:3000",
 		integrations: {
+			connectThrough: "composio",
+			osiris: {
+				url: "http://osiris.test",
+				apiKey: "test-osiris-key",
+				authConfigIds: {
+					github: "ac_test_github",
+					linear: "ac_test_linear",
+					slack: "ac_test_slack",
+				},
+			},
 			composio: {
 				apiKey: "test-composio-key",
 				authConfigIds: {
