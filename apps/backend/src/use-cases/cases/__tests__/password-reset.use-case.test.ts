@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { session } from "@frubble/db";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { getConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import { signUpTestUser } from "@/testing/signup-test-user";
@@ -77,6 +77,68 @@ describe("resetPasswordUseCase", () => {
 		await expect(
 			resetPasswordUseCase({ email, code, newPassword: "another-password" }),
 		).rejects.toThrow(INVALID_RESET_CODE_MESSAGE);
+	});
+
+	it("lets only one of two concurrent requests redeem the same code, and that password is the one that works", async () => {
+		const clone = getClone();
+		const email = newEmail();
+		await signUpTestUser(clone.auth, { email, password: "old-password-1" });
+		const code = await issueOneTimeCode(
+			clone.db,
+			getConfig().passwordReset,
+			email,
+		);
+		const passwords = ["first-password-11", "second-password-22"];
+
+		const settled = await Promise.allSettled(
+			passwords.map((newPassword) =>
+				resetPasswordUseCase({ email, code, newPassword }),
+			),
+		);
+
+		const winners = passwords.filter(
+			(_password, index) => settled[index]?.status === "fulfilled",
+		);
+		expect(winners).toHaveLength(1);
+		const loser = settled.find((outcome) => outcome.status === "rejected");
+		expect(loser).toMatchObject({
+			reason: { message: INVALID_RESET_CODE_MESSAGE },
+		});
+		await expect(
+			signInWithEmailPasswordUseCase({ email, password: winners[0] ?? "" }),
+		).resolves.toBeDefined();
+		const losing = passwords.find((password) => !winners.includes(password));
+		await expect(
+			signInWithEmailPasswordUseCase({ email, password: losing ?? "" }),
+		).rejects.toMatchObject({ name: "BadInputError" });
+	});
+
+	it("keeps the code usable for a retry when the password update fails", async () => {
+		const clone = getClone();
+		const email = newEmail();
+		await signUpTestUser(clone.auth, { email, password: "old-password-1" });
+		const code = await issueOneTimeCode(
+			clone.db,
+			getConfig().passwordReset,
+			email,
+		);
+		const authContext = await clone.auth.$context;
+		const failure = new Error("password update failed");
+		const spy = vi
+			.spyOn(authContext.internalAdapter, "updatePassword")
+			.mockRejectedValueOnce(failure);
+
+		await expect(
+			resetPasswordUseCase({ email, code, newPassword: "new-password-22" }),
+		).rejects.toThrow(failure);
+		spy.mockRestore();
+
+		await expect(
+			resetPasswordUseCase({ email, code, newPassword: "new-password-22" }),
+		).resolves.toBeUndefined();
+		await expect(
+			signInWithEmailPasswordUseCase({ email, password: "new-password-22" }),
+		).resolves.toBeDefined();
 	});
 
 	it.each([

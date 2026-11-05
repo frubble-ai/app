@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { verification } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { DateTime } from "luxon";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { TCodeFlowConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import {
@@ -10,6 +10,7 @@ import {
 	deleteOneTimeCode,
 	issueOneTimeCode,
 	ONE_TIME_CODE_LENGTH,
+	redeemOneTimeCode,
 	verifyOneTimeCode,
 } from "@/use-cases/lib/auth/one-time-code";
 
@@ -143,5 +144,96 @@ describe("one-time codes", () => {
 				code,
 			),
 		).toBe("missing");
+	});
+});
+
+describe("redeemOneTimeCode", () => {
+	it("runs the action for exactly one of many concurrent requests with the same code", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+		let ran = 0;
+
+		const results = await Promise.all(
+			Array.from({ length: 8 }, () =>
+				redeemOneTimeCode(db, FLOW, email, code, async () => {
+					ran += 1;
+					await new Promise((resolve) => setTimeout(resolve, 50));
+				}),
+			),
+		);
+
+		expect(ran).toBe(1);
+		expect(results.filter((result) => result === "redeemed")).toHaveLength(1);
+		expect(results.filter((result) => result === "missing")).toHaveLength(7);
+		expect(await storedRows(email)).toEqual([]);
+	});
+
+	it("does not run the action for a wrong code, and the guess still counts", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+		const action = vi.fn(async () => undefined);
+
+		expect(
+			await redeemOneTimeCode(db, FLOW, email, wrongCode(code), action),
+		).toBe("invalid");
+
+		expect(action).not.toHaveBeenCalled();
+		const [row] = await storedRows(email);
+		expect(JSON.parse(row?.value ?? "{}").attempts).toBe(1);
+	});
+
+	it("gives the code back, attempts and expiry intact, when the action fails", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+		await verifyOneTimeCode(db, FLOW, email, wrongCode(code));
+		const [before] = await storedRows(email);
+		const failure = new Error(faker.lorem.sentence());
+
+		await expect(
+			redeemOneTimeCode(db, FLOW, email, code, async () => {
+				throw failure;
+			}),
+		).rejects.toThrow(failure);
+
+		expect(await storedRows(email)).toEqual([before]);
+		expect(
+			await redeemOneTimeCode(db, FLOW, email, code, async () => undefined),
+		).toBe("redeemed");
+	});
+
+	it("leaves a code issued during the action in place instead of restoring the old one", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const first = await issueOneTimeCode(db, FLOW, email);
+		let second = "";
+
+		await expect(
+			redeemOneTimeCode(db, FLOW, email, first, async () => {
+				second = await issueOneTimeCode(db, FLOW, email);
+				throw new Error(faker.lorem.sentence());
+			}),
+		).rejects.toThrow();
+
+		expect(await storedRows(email)).toHaveLength(1);
+		expect(await verifyOneTimeCode(db, FLOW, email, second)).toBe("valid");
+	});
+
+	it("does not bring back a code that expired while the action ran", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const shortLived = { ...FLOW, codeTtlMs: 150 };
+		const code = await issueOneTimeCode(db, shortLived, email);
+
+		await expect(
+			redeemOneTimeCode(db, shortLived, email, code, async () => {
+				await new Promise((resolve) => setTimeout(resolve, 400));
+				throw new Error(faker.lorem.sentence());
+			}),
+		).rejects.toThrow();
+
+		expect(await storedRows(email)).toEqual([]);
 	});
 });

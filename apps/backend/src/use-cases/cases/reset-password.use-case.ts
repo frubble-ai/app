@@ -2,10 +2,7 @@ import { account } from "@frubble/db/schema";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import {
-	deleteOneTimeCode,
-	verifyOneTimeCode,
-} from "@/use-cases/lib/auth/one-time-code";
+import { redeemOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
 import {
 	authRateLimitChecks,
 	enforceRateLimits,
@@ -55,43 +52,51 @@ export const resetPasswordUseCase = defineUseCase(
 			}),
 		);
 
-		const result = await verifyOneTimeCode(
+		// The code is claimed before the password changes, so two requests with the same code cannot
+		// both succeed; if the change fails the code is put back for a retry.
+		const result = await redeemOneTimeCode(
 			ctx.db,
 			ctx.config.passwordReset,
 			email,
 			code,
+			async () => {
+				const userId = await findUserIdByEmail(ctx.db, email);
+				if (!userId) {
+					throw badInput(INVALID_RESET_CODE_MESSAGE);
+				}
+
+				const authContext = await ctx.auth.$context;
+				const passwordHash = await authContext.password.hash(newPassword);
+
+				const [credential] = await ctx.db
+					.select({ id: account.id })
+					.from(account)
+					.where(
+						and(
+							eq(account.userId, userId),
+							eq(account.providerId, "credential"),
+						),
+					)
+					.limit(1);
+				if (credential) {
+					await authContext.internalAdapter.updatePassword(
+						userId,
+						passwordHash,
+					);
+				} else {
+					await authContext.internalAdapter.linkAccount({
+						userId,
+						providerId: "credential",
+						accountId: userId,
+						password: passwordHash,
+					});
+				}
+
+				await authContext.internalAdapter.deleteUserSessions(userId);
+			},
 		);
-		if (result !== "valid") {
+		if (result !== "redeemed") {
 			throw badInput(INVALID_RESET_CODE_MESSAGE);
 		}
-
-		const userId = await findUserIdByEmail(ctx.db, email);
-		if (!userId) {
-			throw badInput(INVALID_RESET_CODE_MESSAGE);
-		}
-
-		const authContext = await ctx.auth.$context;
-		const passwordHash = await authContext.password.hash(newPassword);
-
-		const [credential] = await ctx.db
-			.select({ id: account.id })
-			.from(account)
-			.where(
-				and(eq(account.userId, userId), eq(account.providerId, "credential")),
-			)
-			.limit(1);
-		if (credential) {
-			await authContext.internalAdapter.updatePassword(userId, passwordHash);
-		} else {
-			await authContext.internalAdapter.linkAccount({
-				userId,
-				providerId: "credential",
-				accountId: userId,
-				password: passwordHash,
-			});
-		}
-
-		await authContext.internalAdapter.deleteUserSessions(userId);
-		await deleteOneTimeCode(ctx.db, ctx.config.passwordReset, email);
 	},
 );
