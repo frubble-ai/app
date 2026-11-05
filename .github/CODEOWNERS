@@ -1,0 +1,12 @@
+# Review is required on everything, and specifically on the paths that decide
+# what CI may do and what the automated review lets through: the workflows,
+# which deploy to dev and stg and hold their credentials, and the review's
+# rules.
+#
+# Once the dev and stg rulesets require code-owner approval, an approval from
+# the automated review never counts toward a merge: only these people's does.
+
+*                               @drn1996
+/.github/workflows/**           @drn1996
+/.github/claude-review/**       @drn1996
+/.github/CODEOWNERS             @drn1996

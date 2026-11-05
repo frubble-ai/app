@@ -134,6 +134,7 @@ same is `yarn db:reset`.
 | `app-cd`               | push → `stg` / `dev`, or by hand from `stg` (stg) or any other branch (dev) | build, trivy scan, push image, roll out the web app                        |
 | `db-reset`             | by hand, from `stg` or `dev`             | drop and migrate that environment's database (Resetting the database, above)                          |
 | `pr-template`          | PR opened, edited, reopened or pushed to | conventional title on every PR; every template section filled and checklist answered, except for bots |
+| `claude-code-review`   | PR → `dev` opened, pushed to, ready or reopened, or by hand with a PR number | a Claude review: seven read-only lenses, then inline `issue (blocking, <lens>)` comments and one verdict review; red while any of its threads is open (`.github/claude-review/`) |
 
 `Backend - Code Quality Summary`, `App - Code Quality Summary` and `Quality — PR Template` are the required checks. Each summary checks something only while `BACKEND_CODE_QUALITY_ENABLED` or `APP_CODE_QUALITY_ENABLED` is `true`; otherwise it passes with every check skipped. Backend deploys run in the `backend-stg`
 or `backend-dev` environment and app deploys in `app-stg` or `app-dev`; the stg ones accept
@@ -165,6 +166,8 @@ target to that expression, and its entry to the trust rule in `platform`. The ta
 | `API_HOSTNAME`                         | `backend-stg` variable | `api.stg.frubble.ai`                                                                                                     |
 | `COMPOSIO_API_KEY`                     | repository secret      | the stg Composio project key; the backend codegen reads its tool schemas in the lint, test and image-build jobs            |
 | `COMPOSIO_API_KEY`                     | `backend-dev` secret   | dev's own Composio project key, which the dev image build reads instead of the repository's                             |
+| `CLAUDE_REVIEW_ENABLED`                | repository variable    | `true` runs `claude-code-review`; anything else skips it                                                                 |
+| `CLAUDE_CODE_OAUTH_TOKEN`              | repository secret      | the Claude subscription token (`claude setup-token`) the review signs in with                                            |
 
 The `backend-stg` environment accepts deployments from `stg` only, and `backend-dev` from any
 branch, so a branch can be deployed to dev before it merges. The environment's name, the
