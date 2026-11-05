@@ -1,3 +1,4 @@
+import { inspect } from "node:util";
 import { faker } from "@faker-js/faker";
 import { GraphQLError } from "graphql";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,5 +61,20 @@ describe("the Yoga logger", () => {
 			expect.anything(),
 			"something odd",
 		);
+	});
+
+	it("does not log the cause of a masked error, where a query's parameters can sit", () => {
+		const secret = faker.string.alphanumeric(40);
+		const cause = new Error(`Failed query: select ... params: ${secret}`);
+		const original = new Error("Failed to get session", { cause });
+		const error = new GraphQLError("Unexpected error.", {
+			originalError: original,
+		});
+
+		createYogaLogger().error({ error }, "request failed");
+
+		expect(
+			inspect(vi.mocked(logger.error).mock.calls, { depth: null }),
+		).not.toContain(secret);
 	});
 });

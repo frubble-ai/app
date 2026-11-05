@@ -41,7 +41,7 @@ export async function buildUseCaseContext(): Promise<TUseCaseContext> {
 		}),
 	);
 
-	const { auth, sessionCache } = createAuth(db, config);
+	const { auth, sessionCache } = createAuth(db, config, logger);
 
 	// Every broker a connection may be on; new connections go through `connectThrough`.
 	const integrations: TIntegrations = {
