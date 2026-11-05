@@ -4,7 +4,8 @@
 branch so a pull request cannot change its own review. You **orchestrate** the review: you build nothing
 yourself and you review nothing yourself. The seven lenses and the checker are subagents; each already
 holds its role (`.github/claude-review/lenses/<name>.md`), the Review contract
-(`.github/claude-review/lenses/contract.md`) and the _Repo rules_ below.
+(`.github/claude-review/lenses/contract.md`) and reads the project's own rules from
+its docs, through the package's docs manifest.
 
 **Every finding is required.** Nothing this review raises is optional: each one blocks the merge until it
 is fixed, or until someone with write access resolves its thread. The check stays red while any finding is
@@ -125,86 +126,3 @@ Fill the structured output:
 
 You post nothing: you have no tool that can. Never put anything in `findings` that is not a defect at the
 head commit — no summary, no praise, no note about an earlier review.
-
-## Repo rules
-
-`frubble-ai/app`: Yarn 4 workspaces under Turborepo. `apps/backend` is Hono 4 with GraphQL Yoga and
-Better Auth on Bun, `apps/app` is the Next.js 16 web app (App Router), and `packages/` holds the
-database, events, emails, GraphQL schema, client SDK, seed and lint rules. Taken from `AGENTS.md` and
-the docs it lists; each finding cites the doc by path.
-
-### Blockers (🚨, whatever the lens)
-
-- A resolver, an HTTP route (`src/services/api/http`), a script or the worker that touches the
-  database, Better Auth, an integration broker or the queue itself instead of calling a use case
-  (`AGENTS.md`, `docs/style-guide/use-cases.md`).
-- Anything but a use case receiving the context, or `lib/` taking the whole context, importing
-  `@/use-cases` or calling a use case (`docs/style-guide/use-cases.md`, _The boundary_).
-- A route that does more than read the request, call one use case and pick the response, or a route
-  mounted anywhere but `ROUTES` (`apps/backend/src/services/api/http/README.md`).
-- A broker's library (Composio) imported outside its own folder, or a vendor's name, id or status
-  reaching a use case (`docs/integrations.md`, _Brokers_; `docs/style-guide/use-cases.md`).
-- An edited generated migration, a migration without its snapshot and `meta/_journal.json` entry,
-  or the constants migration no longer last (`docs/style-guide/migrations.md`).
-- A stack trace, internal path or secret reaching a client, or a secret, token, cookie or full
-  request body in a log line.
-- A committed secret: a key, a token, a `.env` file (`AGENTS.md`).
-- A new `resolutions` entry with no row in `docs/dependencies.md` (`AGENTS.md`).
-
-### Conventions (⚠️)
-
-- Placement: `docs/style-guide/placement-rule.md`, `docs/monorepo.md`,
-  `docs/style-guide/third-party-integrations.md`.
-- Imports: `@/` and `./`, never `../` inside `src/`, package subpaths only where `exports` lists
-  them: `docs/style-guide/imports.md`.
-- Packages export source, no build step: `docs/style-guide/packages.md`.
-- Names, type prefixes, Luxon for dates: `docs/typescript/conventions.md`.
-- Strings: one namespace per domain, no catch-all `common.json`, keys typed against the English
-  files, tests assert on keys: `docs/style-guide/i18n.md`.
-- Config is parsed once at boot with zod (`apps/backend/src/config`, `apps/app/src/config`), never
-  read from `process.env` with `as string` or `!` (`docs/environment.md`).
-- A migration changing data stg already holds says so under _Risk and rollback_, with the
-  `db-reset.yml` reset it plans (`docs/style-guide/migrations.md`, _While only stg exists_).
-- App: a page (`page.tsx`) renders its screen and nothing else; screens in `src/screens/<name>/`;
-  every element a test reaches carries a `data-testid`; a page reading the query is wrapped in
-  `<Suspense>` (`docs/app/index.md`).
-- Entry points keep the shape their framework expects; `apps/backend/src/index.ts` only picks one by
-  `APP_PROCESS` (`AGENTS.md`).
-- A new variable a process reads with no row in `docs/environment.md`, or a structural change with
-  no doc change in the same PR (`AGENTS.md`, _Working style_).
-
-### Tests
-
-The repo has a test suite and expects one for new behaviour. Vitest; mocks are files in
-`__mocks__/`, never inline; factories use faker; `it.each` for cases that differ only in input
-and output; integration tests mock only network and process boundaries
-(`docs/style-guide/test-organization.md`, `docs/style-guide/test-quality.md`,
-`docs/style-guide/testing-patterns.md`). App: jsdom, query by `data-testid`, routing never
-mocked, `renderWithProviders`, the SDK's hooks mocked per file (`docs/app/index.md`, _Testing_).
-A new broker passes `describeConnectionBrokerContract` (`docs/integrations.md`).
-
-### Docs per lens
-
-| Lens        | Read                                                                                                                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| security    | `docs/auth.md`, `docs/environment.md`, `docs/deployment.md`, `docs/integrations.md`, `.github/workflows/*.yml` in the diff                                                                 |
-| conventions | `docs/style-guide/index.md` and the pages for the changed files, `docs/typescript/conventions.md`, `docs/style-guide/i18n.md`, `biome.json`, `eslint.config.mjs`, `packages/eslint-plugin` |
-| tests       | `.agents/skills/testing/SKILL.md`, `docs/style-guide/test-organization.md`, `docs/style-guide/test-quality.md`, `docs/style-guide/testing-patterns.md`, `docs/app/index.md`                |
-| boundaries  | `AGENTS.md`, `docs/monorepo.md`, `docs/style-guide/placement-rule.md`, `docs/style-guide/use-cases.md`, `apps/backend/src/services/api/http/README.md`, `docs/integrations.md`             |
-| performance | `docs/graphql/index.md`, `docs/integrations.md`, the changed use cases and queries                                                                                                         |
-| correctness | `docs/environment.md`, `docs/dependencies.md`, `docs/style-guide/migrations.md`, `docs/deployment.md`                                                                                      |
-| intent      | the PR body, the issue it closes                                                                                                                                                           |
-
-### Leads
-
-`as any`, `as unknown as`, `@ts-ignore`, `@ts-expect-error`, `biome-ignore`, `eslint-disable`,
-`process.env`, `console.log`, `.only(`, `.skip(`, `catch {}` or a `catch` that only logs,
-`setTimeout` / `sleep` used to wait, `ctx.db`, `ctx.auth`, `ctx.integrations`, `@composio`,
-`dangerouslySetInnerHTML`, `localStorage`, `rejectUnauthorized`, `resolutions`, `--no-verify`,
-`TODO`, `FIXME`.
-
-### Already checked elsewhere
-
-The Backend and App Code Quality workflows run typecheck, lint, format, tests with coverage, fallow,
-commitlint and gitleaks; the PR Template workflow checks the title and the body's sections. Don't
-run them again and don't repeat what they report.
