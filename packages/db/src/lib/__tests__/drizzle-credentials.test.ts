@@ -51,6 +51,26 @@ describe("drizzleCredentials", () => {
 		expect(() => drizzleCredentials(parsedDbEnv(ca))).toThrow(/DB_CA_PEM/);
 	});
 
+	it.each([
+		[
+			"a second certificate cut short",
+			(ca: string) =>
+				`${ca}\n-----BEGIN CERTIFICATE-----\n${faker.string.alphanumeric(40)}`,
+		],
+		[
+			"a key after the certificate",
+			(ca: string) =>
+				`${ca}\n-----BEGIN PRIVATE KEY-----\n${faker.string.alphanumeric(40)}\n-----END PRIVATE KEY-----`,
+		],
+	])(
+		"refuses a bundle with %s, rather than trusting only the part that parses",
+		(_name, build) => {
+			expect(() =>
+				drizzleCredentials(parsedDbEnv(build(generateCaPem()))),
+			).toThrow(/DB_CA_PEM/);
+		},
+	);
+
 	it("does not repeat the CA value in the error", () => {
 		const secret = faker.string.alphanumeric(64);
 		const ca = `-----BEGIN CERTIFICATE-----\n${secret}\n-----END CERTIFICATE-----`;

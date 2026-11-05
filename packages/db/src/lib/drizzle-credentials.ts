@@ -30,6 +30,15 @@ function assertUsableCa(caPem: string): void {
 	if (!blocks) {
 		throw new Error("DB_CA_PEM holds no PEM certificate");
 	}
+	// A block cut short has a BEGIN line and no END line, so the pattern above skips it and the
+	// certificates before it would pass alone. Every marker must belong to a whole block.
+	const begins = caPem.match(/-----BEGIN [A-Z ]+-----/g)?.length ?? 0;
+	const ends = caPem.match(/-----END [A-Z ]+-----/g)?.length ?? 0;
+	if (begins !== blocks.length || ends !== blocks.length) {
+		throw new Error(
+			"DB_CA_PEM holds a PEM block that is incomplete or not a certificate",
+		);
+	}
 	for (const block of blocks) {
 		try {
 			new X509Certificate(block);
