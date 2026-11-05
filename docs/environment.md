@@ -14,7 +14,7 @@ on the worker service and nothing else about how the image starts.
 | `APP_ENV`                                  | yes            | Terraform             | `local`, `dev`, `stg` or `prd`                                                    |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | yes            | Terraform             | the private Cloud SQL instance                                                    |
 | `DB_PASSWORD`                              | yes            | Secret Manager        |                                                                                   |
-| `DB_CA_PEM`                                | outside local  | Terraform             | the instance's CA; the connection is TLS against it                               |
+| `DB_CA_PEM`                                | outside local  | Terraform             | the instance's CA; every connection, drizzle-kit's too, is TLS against it         |
 | `BETTER_AUTH_URL`                          | yes            | Terraform             | the API's public origin                                                           |
 | `BETTER_AUTH_SECRET`                       | yes, 32+ chars | Secret Manager        |                                                                                   |
 | `CORS_ORIGIN`                              | no             | Terraform             | comma-separated browser origins, no wildcards; empty means none                   |

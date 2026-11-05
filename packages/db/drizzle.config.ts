@@ -1,5 +1,6 @@
 import { defineConfig } from "drizzle-kit";
-import { databaseUrl, dbConnectionFromEnv, dbEnvSchema } from "./src/lib/env";
+import { drizzleCredentials } from "./src/lib/drizzle-credentials";
+import { dbEnvSchema } from "./src/lib/env";
 
 // drizzle-kit runs from a shell: locally these defaults match docker-compose,
 // and any DB_* variable in the environment overrides them. No dotenv.
@@ -24,7 +25,7 @@ export default defineConfig({
 	dialect: "postgresql",
 	schema: "./src/schema/*.ts",
 	out: "./drizzle",
-	dbCredentials: {
-		url: databaseUrl(dbConnectionFromEnv(env)),
-	},
+	// Structured, not a URL: drizzle-kit reads TLS settings only from structured credentials, and
+	// this throws rather than connect in clear text when DB_CA_PEM is set but unusable.
+	dbCredentials: drizzleCredentials(env, process.env.APP_ENV),
 });
