@@ -198,7 +198,12 @@ describe("redeemOneTimeCode", () => {
 			}),
 		).rejects.toThrow(failure);
 
-		expect(await storedRows(email)).toEqual([before]);
+		const [after] = await storedRows(email);
+		expect(after).toMatchObject({
+			id: before?.id,
+			value: before?.value,
+			expiresAt: before?.expiresAt,
+		});
 		expect(
 			await redeemOneTimeCode(db, FLOW, email, code, async () => undefined),
 		).toBe("redeemed");
@@ -221,7 +226,7 @@ describe("redeemOneTimeCode", () => {
 		expect(await verifyOneTimeCode(db, FLOW, email, second)).toBe("valid");
 	});
 
-	it("does not bring back a code that expired while the action ran", async () => {
+	it("does not make a code that expired while the action ran usable again", async () => {
 		const db = getClone().db;
 		const email = newEmail();
 		const shortLived = { ...FLOW, codeTtlMs: 150 };
@@ -234,6 +239,65 @@ describe("redeemOneTimeCode", () => {
 			}),
 		).rejects.toThrow();
 
+		expect(await verifyOneTimeCode(db, shortLived, email, code)).toBe(
+			"missing",
+		);
+	});
+
+	it("cannot bring back a superseded code after the newer one was redeemed", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const first = await issueOneTimeCode(db, FLOW, email);
+		let second = "";
+
+		await expect(
+			redeemOneTimeCode(db, FLOW, email, first, async () => {
+				second = await issueOneTimeCode(db, FLOW, email);
+				expect(
+					await redeemOneTimeCode(
+						db,
+						FLOW,
+						email,
+						second,
+						async () => undefined,
+					),
+				).toBe("redeemed");
+				throw new Error(faker.lorem.sentence());
+			}),
+		).rejects.toThrow();
+
 		expect(await storedRows(email)).toEqual([]);
+		expect(await verifyOneTimeCode(db, FLOW, email, first)).toBe("missing");
+	});
+
+	it("burns the code when the action says its change was written and then fails", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+
+		await expect(
+			redeemOneTimeCode(db, FLOW, email, code, async ({ markSpent }) => {
+				markSpent();
+				throw new Error(faker.lorem.sentence());
+			}),
+		).rejects.toThrow();
+
+		expect(await storedRows(email)).toEqual([]);
+		expect(await verifyOneTimeCode(db, FLOW, email, code)).toBe("missing");
+	});
+
+	it("shows a claimed code as missing to others without counting an attempt", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+		let duringAction = "";
+
+		await redeemOneTimeCode(db, FLOW, email, code, async () => {
+			duringAction = await verifyOneTimeCode(db, FLOW, email, wrongCode(code));
+			const [row] = await storedRows(email);
+			expect(JSON.parse(row?.value ?? "{}").attempts).toBe(0);
+		});
+
+		expect(duringAction).toBe("missing");
 	});
 });

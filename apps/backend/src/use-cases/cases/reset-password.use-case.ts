@@ -53,13 +53,13 @@ export const resetPasswordUseCase = defineUseCase(
 		);
 
 		// The code is claimed before the password changes, so two requests with the same code cannot
-		// both succeed; if the change fails the code is put back for a retry.
+		// both succeed; if the change fails before it is written the code works again for a retry.
 		const result = await redeemOneTimeCode(
 			ctx.db,
 			ctx.config.passwordReset,
 			email,
 			code,
-			async () => {
+			async ({ markSpent }) => {
 				const userId = await findUserIdByEmail(ctx.db, email);
 				if (!userId) {
 					throw badInput(INVALID_RESET_CODE_MESSAGE);
@@ -92,6 +92,9 @@ export const resetPasswordUseCase = defineUseCase(
 					});
 				}
 
+				// The password is written. A failure from here on must not hand the code back: a retry
+				// would change the password a second time with the same code.
+				markSpent();
 				await authContext.internalAdapter.deleteUserSessions(userId);
 			},
 		);

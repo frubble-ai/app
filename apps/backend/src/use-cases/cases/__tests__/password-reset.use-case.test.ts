@@ -1,10 +1,11 @@
 import { faker } from "@faker-js/faker";
 import { session } from "@frubble/db";
 import { eq } from "drizzle-orm";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import { signUpTestUser } from "@/testing/signup-test-user";
+import { mockAuthAdapterFailureOnce } from "@/use-cases/cases/__mocks__/mock-auth-adapter-failure";
 import { requestPasswordResetUseCase } from "@/use-cases/cases/request-password-reset.use-case";
 import {
 	INVALID_RESET_CODE_MESSAGE,
@@ -124,10 +125,11 @@ describe("resetPasswordUseCase", () => {
 		);
 		const authContext = await clone.auth.$context;
 		const failure = new Error("password update failed");
-		const spy = vi
-			.spyOn(authContext.internalAdapter, "updatePassword")
-			.mockRejectedValueOnce(failure);
-
+		const spy = mockAuthAdapterFailureOnce(
+			authContext.internalAdapter,
+			"updatePassword",
+			failure,
+		);
 		await expect(
 			resetPasswordUseCase({ email, code, newPassword: "new-password-22" }),
 		).rejects.toThrow(failure);
@@ -136,6 +138,36 @@ describe("resetPasswordUseCase", () => {
 		await expect(
 			resetPasswordUseCase({ email, code, newPassword: "new-password-22" }),
 		).resolves.toBeUndefined();
+		await expect(
+			signInWithEmailPasswordUseCase({ email, password: "new-password-22" }),
+		).resolves.toBeDefined();
+	});
+
+	it("burns the code when the password is already written and revoking the sessions fails", async () => {
+		const clone = getClone();
+		const email = newEmail();
+		await signUpTestUser(clone.auth, { email, password: "old-password-1" });
+		const code = await issueOneTimeCode(
+			clone.db,
+			getConfig().passwordReset,
+			email,
+		);
+		const authContext = await clone.auth.$context;
+		const failure = new Error("revoking sessions failed");
+		const spy = mockAuthAdapterFailureOnce(
+			authContext.internalAdapter,
+			"deleteUserSessions",
+			failure,
+		);
+
+		await expect(
+			resetPasswordUseCase({ email, code, newPassword: "new-password-22" }),
+		).rejects.toThrow(failure);
+		spy.mockRestore();
+
+		await expect(
+			resetPasswordUseCase({ email, code, newPassword: "third-password-33" }),
+		).rejects.toThrow(INVALID_RESET_CODE_MESSAGE);
 		await expect(
 			signInWithEmailPasswordUseCase({ email, password: "new-password-22" }),
 		).resolves.toBeDefined();
