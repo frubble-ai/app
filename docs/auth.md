@@ -26,6 +26,15 @@ Better Auth's own HTTP routes are not mounted. Resolvers validate input, call us
 use cases call `ctx.auth.api.*`; the session lookup goes through an in-process cache keyed by
 the token's hash (30 s, evicted on sign-out).
 
+## Logging
+
+Better Auth logs through `createAuthLogger` (`apps/backend/src/better-auth/lib/auth-logger.ts`),
+not its default logger. The default prints the whole error, and when a session lookup fails
+Drizzle's message is the SQL with its parameters, which for that query is the session token.
+A line carries Better Auth's own message and, for a failure, the error's name and the driver's
+code (`57P01`, `ECONNREFUSED`). Messages, stacks, causes and any other argument are dropped,
+because redacting by field name cannot find a token inside message text.
+
 ## Roles
 
 `user.role` has one value, `application_user`, which every account gets at sign-up: Better Auth
