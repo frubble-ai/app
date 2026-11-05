@@ -1,23 +1,17 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { generateCaPem } from "../__mocks__/generate-ca-pem";
+import { generateDbEnv } from "../__mocks__/generate-db-env";
 import { drizzleCredentials } from "../drizzle-credentials";
 import { dbEnvSchema } from "../env";
 
-function generateDbEnv(caPem?: string) {
-	return dbEnvSchema.parse({
-		DB_USER: faker.internet.username(),
-		DB_PASSWORD: faker.internet.password(),
-		DB_HOST: faker.internet.domainName(),
-		DB_PORT: String(faker.internet.port()),
-		DB_NAME: faker.word.noun(),
-		DB_CA_PEM: caPem,
-	});
+function parsedDbEnv(caPem?: string) {
+	return dbEnvSchema.parse(generateDbEnv(caPem));
 }
 
 describe("drizzleCredentials", () => {
 	it("passes the connection as separate fields, never as a URL", () => {
-		const env = generateDbEnv();
+		const env = parsedDbEnv();
 
 		const credentials = drizzleCredentials(env);
 
@@ -34,7 +28,7 @@ describe("drizzleCredentials", () => {
 	it("connects over TLS and verifies the server against the CA when one is set", () => {
 		const ca = generateCaPem();
 
-		const credentials = drizzleCredentials(generateDbEnv(ca), "stg");
+		const credentials = drizzleCredentials(parsedDbEnv(ca), "stg");
 
 		expect(credentials.ssl).toMatchObject({ ca, rejectUnauthorized: true });
 	});
@@ -42,7 +36,7 @@ describe("drizzleCredentials", () => {
 	it("takes a CA bundle of several certificates", () => {
 		const ca = `${generateCaPem()}\n${generateCaPem()}`;
 
-		const credentials = drizzleCredentials(generateDbEnv(ca));
+		const credentials = drizzleCredentials(parsedDbEnv(ca));
 
 		expect(credentials.ssl).toMatchObject({ ca, rejectUnauthorized: true });
 	});
@@ -54,7 +48,7 @@ describe("drizzleCredentials", () => {
 			`-----BEGIN CERTIFICATE-----\n${faker.string.alphanumeric(64)}\n-----END CERTIFICATE-----`,
 		],
 	])("refuses to start when the CA is %s", (_name, ca) => {
-		expect(() => drizzleCredentials(generateDbEnv(ca))).toThrow(/DB_CA_PEM/);
+		expect(() => drizzleCredentials(parsedDbEnv(ca))).toThrow(/DB_CA_PEM/);
 	});
 
 	it("does not repeat the CA value in the error", () => {
@@ -63,7 +57,7 @@ describe("drizzleCredentials", () => {
 		let message = "";
 
 		try {
-			drizzleCredentials(generateDbEnv(ca));
+			drizzleCredentials(parsedDbEnv(ca));
 		} catch (error) {
 			message = (error as Error).message;
 		}
@@ -75,7 +69,7 @@ describe("drizzleCredentials", () => {
 	it.each(["dev", "stg", "prd"])(
 		"refuses a %s environment without a CA, as the API and the migrate script do",
 		(appEnv) => {
-			expect(() => drizzleCredentials(generateDbEnv(), appEnv)).toThrow(
+			expect(() => drizzleCredentials(parsedDbEnv(), appEnv)).toThrow(
 				/DB_CA_PEM is required/,
 			);
 		},
@@ -84,7 +78,7 @@ describe("drizzleCredentials", () => {
 	it.each([undefined, "", "local"])(
 		"says ssl is false, not absent, on a developer's machine (APP_ENV %j): drizzle-kit reads a missing ssl as TLS",
 		(appEnv) => {
-			const credentials = drizzleCredentials(generateDbEnv(), appEnv);
+			const credentials = drizzleCredentials(parsedDbEnv(), appEnv);
 
 			expect(credentials).toHaveProperty("ssl", false);
 		},

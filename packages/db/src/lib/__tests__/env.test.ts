@@ -1,16 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
+import { generateDbEnv } from "../__mocks__/generate-db-env";
 import { databaseUrl, dbConnectionFromEnv, dbEnvSchema } from "../env";
-
-function generateDbEnv() {
-	return {
-		DB_USER: faker.internet.username(),
-		DB_PASSWORD: faker.internet.password(),
-		DB_HOST: faker.internet.domainName(),
-		DB_PORT: String(faker.internet.port()),
-		DB_NAME: faker.word.noun(),
-	};
-}
 
 describe("databaseUrl", () => {
 	it("keeps credentials with URL syntax intact, so a password with @ or / still connects", () => {
