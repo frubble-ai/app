@@ -1,6 +1,7 @@
 import { account } from "@frubble/db/schema";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { safeErrorMetadata } from "@/logger/safe-error-metadata";
 import { defineUseCase } from "@/use-cases";
 import { redeemOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
 import {
@@ -98,8 +99,13 @@ export const resetPasswordUseCase = defineUseCase(
 				await authContext.internalAdapter.deleteUserSessions(userId);
 			},
 			{
+				// Never the error itself: Drizzle's message is the query with its parameters, and
+				// releasing the claim writes the code's hash, which 10^6 guesses can invert.
 				onSettleError: (error) =>
-					ctx.logger.error({ err: error }, "reset code could not be settled"),
+					ctx.logger.error(
+						safeErrorMetadata(error),
+						"reset code could not be settled",
+					),
 			},
 		);
 		if (result !== "redeemed") {
