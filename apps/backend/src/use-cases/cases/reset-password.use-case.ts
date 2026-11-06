@@ -1,11 +1,9 @@
 import { account } from "@frubble/db/schema";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { safeErrorMetadata } from "@/shared/safe-error-metadata";
 import { defineUseCase } from "@/use-cases";
-import {
-	deleteOneTimeCode,
-	verifyOneTimeCode,
-} from "@/use-cases/lib/auth/one-time-code";
+import { redeemOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
 import {
 	authRateLimitChecks,
 	enforceRateLimits,
@@ -55,43 +53,63 @@ export const resetPasswordUseCase = defineUseCase(
 			}),
 		);
 
-		const result = await verifyOneTimeCode(
+		// The code is claimed before the password changes, so two requests with the same code cannot
+		// both succeed; if the change fails before it is written the code works again for a retry.
+		const result = await redeemOneTimeCode(
 			ctx.db,
 			ctx.config.passwordReset,
 			email,
 			code,
+			async ({ markSpent }) => {
+				const userId = await findUserIdByEmail(ctx.db, email);
+				if (!userId) {
+					throw badInput(INVALID_RESET_CODE_MESSAGE);
+				}
+
+				const authContext = await ctx.auth.$context;
+				const passwordHash = await authContext.password.hash(newPassword);
+
+				const [credential] = await ctx.db
+					.select({ id: account.id })
+					.from(account)
+					.where(
+						and(
+							eq(account.userId, userId),
+							eq(account.providerId, "credential"),
+						),
+					)
+					.limit(1);
+				if (credential) {
+					await authContext.internalAdapter.updatePassword(
+						userId,
+						passwordHash,
+					);
+				} else {
+					await authContext.internalAdapter.linkAccount({
+						userId,
+						providerId: "credential",
+						accountId: userId,
+						password: passwordHash,
+					});
+				}
+
+				// The password is written. A failure from here on must not hand the code back: a retry
+				// would change the password a second time with the same code.
+				markSpent();
+				await authContext.internalAdapter.deleteUserSessions(userId);
+			},
+			{
+				// Never the error itself: Drizzle's message is the query with its parameters, and
+				// releasing the claim writes the code's hash, which 10^6 guesses can invert.
+				onSettleError: (error) =>
+					ctx.logger.error(
+						safeErrorMetadata(error),
+						"reset code could not be settled",
+					),
+			},
 		);
-		if (result !== "valid") {
+		if (result !== "redeemed") {
 			throw badInput(INVALID_RESET_CODE_MESSAGE);
 		}
-
-		const userId = await findUserIdByEmail(ctx.db, email);
-		if (!userId) {
-			throw badInput(INVALID_RESET_CODE_MESSAGE);
-		}
-
-		const authContext = await ctx.auth.$context;
-		const passwordHash = await authContext.password.hash(newPassword);
-
-		const [credential] = await ctx.db
-			.select({ id: account.id })
-			.from(account)
-			.where(
-				and(eq(account.userId, userId), eq(account.providerId, "credential")),
-			)
-			.limit(1);
-		if (credential) {
-			await authContext.internalAdapter.updatePassword(userId, passwordHash);
-		} else {
-			await authContext.internalAdapter.linkAccount({
-				userId,
-				providerId: "credential",
-				accountId: userId,
-				password: passwordHash,
-			});
-		}
-
-		await authContext.internalAdapter.deleteUserSessions(userId);
-		await deleteOneTimeCode(ctx.db, ctx.config.passwordReset, email);
 	},
 );

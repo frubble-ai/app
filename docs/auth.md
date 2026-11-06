@@ -19,7 +19,9 @@ worker sends the emails.
    as `Authorization: Bearer <token>` from then on; `me` reads it, `signOut` ends it.
 5. `requestPasswordReset(input: { email })` always answers `sent: true` and emails a code only
    when an account exists. `resetPassword(input: { email, code, newPassword })` sets the
-   password and revokes every session. `changePassword(input: { currentPassword, newPassword })`
+   password and revokes every session; the code is claimed before the password changes, so of two
+   requests with the same code only one succeeds, and a change that fails before the password is
+   written gives the code back for a retry. `changePassword(input: { currentPassword, newPassword })`
    needs the current password, revokes every session and returns the caller's new `token`.
 
 Better Auth's own HTTP routes are not mounted. Resolvers validate input, call use cases, and
