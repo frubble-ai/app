@@ -1,6 +1,11 @@
 /**
- * A real, self-signed certificate (its key is not in the repository), because the credentials builder parses
- * what it is given. A random string cannot stand in for a certificate here.
+ * A real, self-signed certificate (its key is not in the repository), because the credentials
+ * builder parses what it is given and a random string cannot stand in for a certificate: node's
+ * `X509Certificate` rejects it, and faker cannot produce one.
+ *
+ * This is a fixed value on purpose, under rule 9 of `docs/style-guide/test-organization.md`: it
+ * is for tests of a parser or validator, whose exact payload is the thing under test. Do not use
+ * it as general test data, and do not copy this pattern for a factory that could use faker.
  */
 export function generateCaPem(): string {
 	return [

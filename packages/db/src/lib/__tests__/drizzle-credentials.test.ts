@@ -86,8 +86,8 @@ describe("drizzleCredentials", () => {
 		expect(message).not.toContain(secret);
 	});
 
-	it.each(["dev", "stg", "prd"])(
-		"refuses a %s environment without a CA, as the API and the migrate script do",
+	it.each(["dev", "stg", "prd", "production", faker.word.noun()])(
+		"refuses APP_ENV=%s without a CA, as the API and the migrate script do for anything but local",
 		(appEnv) => {
 			expect(() => drizzleCredentials(parsedDbEnv(), appEnv)).toThrow(
 				/DB_CA_PEM is required/,

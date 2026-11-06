@@ -4,7 +4,7 @@ import type { TDbEnv } from "./env";
 import { tlsAgainstInstanceCa } from "./tls";
 
 /** What drizzle-kit connects with. Structured, because a bare URL carries no TLS settings. */
-export type TDrizzleCredentials = {
+type TDrizzleCredentials = {
 	host: string;
 	port: number;
 	user: string;
@@ -52,11 +52,12 @@ function assertUsableCa(caPem: string): void {
  * The credentials drizzle-kit connects with. With `DB_CA_PEM` set the connection is TLS against
  * that CA and drizzle-kit is given the TLS options itself; with a `url` it would take none and
  * connect in clear text. It refuses, instead of falling back, when the CA is set but unusable,
- * and when `appEnv` names a deployed environment but no CA is set: the API and the migrate
- * script refuse the same way.
+ * and when `appEnv` is set to anything but `local` (`dev`, `stg`, `prd`, or a value nobody
+ * defined) and no CA is set: the API and the migrate script refuse the same way, since they test
+ * `!== "local"`.
  *
- * @param appEnv `APP_ENV` when the shell sets it. Unset means a developer's machine, which
- *   connects to the compose database without TLS.
+ * @param appEnv `APP_ENV` when the shell sets it. Unset, empty or `local` means a developer's
+ *   machine, which connects to the compose database without TLS.
  */
 export function drizzleCredentials(
 	env: TDbEnv,
