@@ -42,10 +42,11 @@ describe("a session, from sign-in to sign-out", () => {
 	it("a session another API process revokes stops authenticating here at once", async () => {
 		const clone = getClone();
 		const email = newEmail();
-		const signedUp = await signUpTestUser(clone.auth, { email });
+		const password = faker.string.alphanumeric(16);
+		const signedUp = await signUpTestUser(clone.auth, { email, password });
 		const { sessionToken } = await signInWithEmailPasswordUseCase({
 			email,
-			password: "password123",
+			password,
 		});
 		const headers = new Headers({ authorization: `Bearer ${sessionToken}` });
 		expect(
