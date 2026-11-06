@@ -48,13 +48,12 @@ export async function setup(): Promise<void> {
 
 	// Seed through the API's own Better Auth, as `yarn db:seed` does.
 	const captured = createCapturedMessages();
-	const { auth, sessionCache } = buildTestAuth(baseDb, config);
+	const auth = buildTestAuth(baseDb, config);
 	setCtxForTests({
 		config,
 		db: baseDb,
 		messages: captured.messages,
 		auth,
-		sessionCache,
 		integrations: {
 			brokers: { composio: createMockConnectionBroker().broker },
 			connectThrough: "composio",

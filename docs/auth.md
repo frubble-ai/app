@@ -25,8 +25,9 @@ worker sends the emails.
    needs the current password, revokes every session and returns the caller's new `token`.
 
 Better Auth's own HTTP routes are not mounted. Resolvers validate input, call use cases, and
-use cases call `ctx.auth.api.*`; the session lookup goes through an in-process cache keyed by
-the token's hash (30 s, evicted on sign-out).
+use cases call `ctx.auth.api.*`. Every request reads its session from the database: there is no
+per-process session cache, because one process cannot hear that another revoked a session, and a
+revoked token would keep authenticating there until the entry expired.
 
 ## Logging
 

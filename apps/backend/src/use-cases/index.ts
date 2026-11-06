@@ -1,7 +1,7 @@
 import type { TDb } from "@frubble/db";
 import type { TMessageBus } from "@frubble/events";
 import { DateTime } from "luxon";
-import type { TAuth, TAuthSessionCache } from "@/better-auth";
+import type { TAuth } from "@/better-auth";
 import type { TConfig } from "@/config";
 import type { TIntegrations } from "@/integrations";
 import type { TLogger } from "@/logger";
@@ -17,7 +17,6 @@ export type TUseCaseContext = {
 	/** The worker's queue: emails. */
 	messages: TMessageBus;
 	auth: TAuth;
-	sessionCache: TAuthSessionCache;
 	/** The brokers that hold the organizations' grants; use cases make the calls. */
 	integrations: TIntegrations;
 	logger: TLogger;

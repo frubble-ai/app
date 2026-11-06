@@ -28,8 +28,7 @@ export type TIntegrationContext = {
 /** A per-test clone with its own auth and use-case context. */
 export type TTestClone = {
 	db: TDb;
-	auth: ReturnType<typeof buildTestAuth>["auth"];
-	sessionCache: ReturnType<typeof buildTestAuth>["sessionCache"];
+	auth: ReturnType<typeof buildTestAuth>;
 	captured: TCapturedMessages;
 	/** The broker new connections in this test go through: the test sets its answers. */
 	broker: TMockConnectionBroker;
@@ -67,7 +66,7 @@ export async function cloneForTest(
 ): Promise<TTestClone> {
 	const clone = await context.cloner.clone();
 	const config: TConfig = { ...buildTestConfig(), ...options.config };
-	const { auth, sessionCache } = buildTestAuth(clone.db, config);
+	const auth = buildTestAuth(clone.db, config);
 	const captured = createCapturedMessages();
 	const broker = createMockConnectionBroker();
 	const integrations: TIntegrations = {
@@ -81,7 +80,6 @@ export async function cloneForTest(
 		db: clone.db,
 		messages: captured.messages,
 		auth,
-		sessionCache,
 		integrations,
 		logger: testLogger,
 	});
@@ -89,7 +87,6 @@ export async function cloneForTest(
 	return {
 		db: clone.db,
 		auth,
-		sessionCache,
 		captured,
 		broker,
 		integrations,
