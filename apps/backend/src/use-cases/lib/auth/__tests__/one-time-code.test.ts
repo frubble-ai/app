@@ -2,9 +2,10 @@ import { faker } from "@faker-js/faker";
 import { verification } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { DateTime } from "luxon";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { TCodeFlowConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
+import { mockRedeemAction } from "@/use-cases/lib/auth/__mocks__/mock-redeem-action";
 import {
 	codeIdentifier,
 	deleteOneTimeCode,
@@ -173,7 +174,7 @@ describe("redeemOneTimeCode", () => {
 		const db = getClone().db;
 		const email = newEmail();
 		const code = await issueOneTimeCode(db, FLOW, email);
-		const action = vi.fn(async () => undefined);
+		const action = mockRedeemAction();
 
 		expect(
 			await redeemOneTimeCode(db, FLOW, email, wrongCode(code), action),
@@ -213,14 +214,15 @@ describe("redeemOneTimeCode", () => {
 		const db = getClone().db;
 		const email = newEmail();
 		const first = await issueOneTimeCode(db, FLOW, email);
+		const failure = new Error(faker.lorem.sentence());
 		let second = "";
 
 		await expect(
 			redeemOneTimeCode(db, FLOW, email, first, async () => {
 				second = await issueOneTimeCode(db, FLOW, email);
-				throw new Error(faker.lorem.sentence());
+				throw failure;
 			}),
-		).rejects.toThrow();
+		).rejects.toThrow(failure);
 
 		expect(await storedRows(email)).toHaveLength(1);
 		expect(await verifyOneTimeCode(db, FLOW, email, second)).toBe("valid");
@@ -229,43 +231,44 @@ describe("redeemOneTimeCode", () => {
 	it("does not make a code that expired while the action ran usable again", async () => {
 		const db = getClone().db;
 		const email = newEmail();
-		const shortLived = { ...FLOW, codeTtlMs: 150 };
-		const code = await issueOneTimeCode(db, shortLived, email);
+		const code = await issueOneTimeCode(db, FLOW, email);
+		const failure = new Error(faker.lorem.sentence());
 
 		await expect(
-			redeemOneTimeCode(db, shortLived, email, code, async () => {
-				await new Promise((resolve) => setTimeout(resolve, 400));
-				throw new Error(faker.lorem.sentence());
+			redeemOneTimeCode(db, FLOW, email, code, async () => {
+				await db
+					.update(verification)
+					.set({ expiresAt: DateTime.utc().minus({ seconds: 1 }).toJSDate() })
+					.where(eq(verification.identifier, codeIdentifier(FLOW, email)));
+				throw failure;
 			}),
-		).rejects.toThrow();
+		).rejects.toThrow(failure);
 
-		expect(await verifyOneTimeCode(db, shortLived, email, code)).toBe(
-			"missing",
-		);
+		expect(await verifyOneTimeCode(db, FLOW, email, code)).toBe("missing");
 	});
 
 	it("cannot bring back a superseded code after the newer one was redeemed", async () => {
 		const db = getClone().db;
 		const email = newEmail();
 		const first = await issueOneTimeCode(db, FLOW, email);
-		let second = "";
+		const failure = new Error(faker.lorem.sentence());
+		let secondResult: string | undefined;
 
 		await expect(
 			redeemOneTimeCode(db, FLOW, email, first, async () => {
-				second = await issueOneTimeCode(db, FLOW, email);
-				expect(
-					await redeemOneTimeCode(
-						db,
-						FLOW,
-						email,
-						second,
-						async () => undefined,
-					),
-				).toBe("redeemed");
-				throw new Error(faker.lorem.sentence());
+				const second = await issueOneTimeCode(db, FLOW, email);
+				secondResult = await redeemOneTimeCode(
+					db,
+					FLOW,
+					email,
+					second,
+					async () => undefined,
+				);
+				throw failure;
 			}),
-		).rejects.toThrow();
+		).rejects.toThrow(failure);
 
+		expect(secondResult).toBe("redeemed");
 		expect(await storedRows(email)).toEqual([]);
 		expect(await verifyOneTimeCode(db, FLOW, email, first)).toBe("missing");
 	});
@@ -274,13 +277,14 @@ describe("redeemOneTimeCode", () => {
 		const db = getClone().db;
 		const email = newEmail();
 		const code = await issueOneTimeCode(db, FLOW, email);
+		const failure = new Error(faker.lorem.sentence());
 
 		await expect(
 			redeemOneTimeCode(db, FLOW, email, code, async ({ markSpent }) => {
 				markSpent();
-				throw new Error(faker.lorem.sentence());
+				throw failure;
 			}),
-		).rejects.toThrow();
+		).rejects.toThrow(failure);
 
 		expect(await storedRows(email)).toEqual([]);
 		expect(await verifyOneTimeCode(db, FLOW, email, code)).toBe("missing");
