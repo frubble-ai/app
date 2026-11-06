@@ -3,7 +3,7 @@ import type { TDb } from "@frubble/db";
 import { sql } from "drizzle-orm";
 
 type TFailingWrite = {
-	table: "account" | "session";
+	table: "account" | "session" | "verification";
 	event: "UPDATE" | "DELETE";
 };
 

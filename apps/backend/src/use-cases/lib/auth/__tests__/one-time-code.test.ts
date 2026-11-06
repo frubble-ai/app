@@ -5,7 +5,9 @@ import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 import type { TCodeFlowConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
+import { mockDatabaseWriteFailure } from "@/use-cases/__mocks__/mock-database-write-failure";
 import { mockRedeemAction } from "@/use-cases/lib/auth/__mocks__/mock-redeem-action";
+import { mockSettleErrorHandler } from "@/use-cases/lib/auth/__mocks__/mock-settle-error-handler";
 import {
 	codeIdentifier,
 	deleteOneTimeCode,
@@ -303,5 +305,69 @@ describe("redeemOneTimeCode", () => {
 		});
 
 		expect(duringAction).toBe("missing");
+	});
+
+	it("rethrows the action's own error when settling the claim fails, and reports the settle failure", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+		const failure = new Error(faker.lorem.sentence());
+		const onSettleError = mockSettleErrorHandler();
+		let blocked:
+			| Awaited<ReturnType<typeof mockDatabaseWriteFailure>>
+			| undefined;
+
+		await expect(
+			redeemOneTimeCode(
+				db,
+				FLOW,
+				email,
+				code,
+				async ({ markSpent }) => {
+					markSpent();
+					blocked = await mockDatabaseWriteFailure(db, {
+						table: "verification",
+						event: "DELETE",
+					});
+					throw failure;
+				},
+				{ onSettleError },
+			),
+		).rejects.toThrow(failure);
+		await blocked?.restore();
+
+		expect(onSettleError).toHaveBeenCalledOnce();
+		expect(onSettleError.mock.calls[0]?.[0]).toMatchObject({
+			cause: { message: expect.stringContaining(blocked?.marker ?? "") },
+		});
+	});
+
+	it("still reports success when only burning the claim fails after the change was written", async () => {
+		const db = getClone().db;
+		const email = newEmail();
+		const code = await issueOneTimeCode(db, FLOW, email);
+		const onSettleError = mockSettleErrorHandler();
+		let blocked:
+			| Awaited<ReturnType<typeof mockDatabaseWriteFailure>>
+			| undefined;
+
+		const result = await redeemOneTimeCode(
+			db,
+			FLOW,
+			email,
+			code,
+			async () => {
+				blocked = await mockDatabaseWriteFailure(db, {
+					table: "verification",
+					event: "DELETE",
+				});
+			},
+			{ onSettleError },
+		);
+		await blocked?.restore();
+
+		expect(result).toBe("redeemed");
+		expect(onSettleError).toHaveBeenCalledOnce();
+		expect(await verifyOneTimeCode(db, FLOW, email, code)).toBe("missing");
 	});
 });

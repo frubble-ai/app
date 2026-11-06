@@ -97,6 +97,10 @@ export const resetPasswordUseCase = defineUseCase(
 				markSpent();
 				await authContext.internalAdapter.deleteUserSessions(userId);
 			},
+			{
+				onSettleError: (error) =>
+					ctx.logger.error({ err: error }, "reset code could not be settled"),
+			},
 		);
 		if (result !== "redeemed") {
 			throw badInput(INVALID_RESET_CODE_MESSAGE);

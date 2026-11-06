@@ -155,6 +155,11 @@ export type TRedeemProgress = {
  * code is burned whatever happens next, so a change that was written is never repeated with the
  * same code. A process that dies mid-action leaves the code claimed until it expires, and the
  * user asks for a new one.
+ *
+ * Settling the claim can itself fail. That never replaces what the caller should see: the
+ * action's own error is rethrown, and a change that was written still reports success. The code
+ * is then left claimed until it expires, which is the same as burned, and `onSettleError` is told
+ * so the failure is not lost.
  */
 export async function redeemOneTimeCode(
 	db: TDb,
@@ -162,6 +167,7 @@ export async function redeemOneTimeCode(
 	email: string,
 	code: string,
 	action: (progress: TRedeemProgress) => Promise<void>,
+	{ onSettleError }: { onSettleError?: (error: unknown) => void } = {},
 ): Promise<TRedeemCodeResult> {
 	const identifier = codeIdentifier(flow, email);
 
@@ -190,10 +196,12 @@ export async function redeemOneTimeCode(
 			identifier,
 			claim.rowId,
 			spent ? "burn" : { release: claim.stored },
-		);
+		).catch((settleError: unknown) => onSettleError?.(settleError));
 		throw error;
 	}
-	await settleClaim(db, identifier, claim.rowId, "burn");
+	await settleClaim(db, identifier, claim.rowId, "burn").catch(
+		(settleError: unknown) => onSettleError?.(settleError),
+	);
 	return "redeemed";
 }
 

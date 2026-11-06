@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { getConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import { signUpTestUser } from "@/testing/signup-test-user";
-import { mockDatabaseWriteFailure } from "@/use-cases/cases/__mocks__/mock-database-write-failure";
+import { mockDatabaseWriteFailure } from "@/use-cases/__mocks__/mock-database-write-failure";
 import { requestPasswordResetUseCase } from "@/use-cases/cases/request-password-reset.use-case";
 import {
 	INVALID_RESET_CODE_MESSAGE,
