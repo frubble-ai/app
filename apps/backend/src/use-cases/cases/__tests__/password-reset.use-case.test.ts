@@ -7,7 +7,7 @@ import { getConfig } from "@/config";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import { signUpTestUser } from "@/testing/signup-test-user";
 import { mockDatabaseWriteFailure } from "@/use-cases/__mocks__/mock-database-write-failure";
-import { mockTestLoggerError } from "@/use-cases/__mocks__/mock-test-logger-error";
+import { mockTestLoggerError } from "@/use-cases/cases/__mocks__/mock-test-logger-error";
 import { requestPasswordResetUseCase } from "@/use-cases/cases/request-password-reset.use-case";
 import {
 	INVALID_RESET_CODE_MESSAGE,

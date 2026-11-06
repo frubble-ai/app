@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from "better-auth";
 import type { TLogger } from "@/logger";
-import { safeErrorMetadata } from "@/logger/safe-error-metadata";
+import { safeErrorMetadata } from "@/shared/safe-error-metadata";
 
 type TAuthLogOptions = NonNullable<BetterAuthOptions["logger"]>;
 type TAuthLogLevel = Parameters<NonNullable<TAuthLogOptions["log"]>>[0];

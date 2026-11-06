@@ -1,7 +1,7 @@
 import { account } from "@frubble/db/schema";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { safeErrorMetadata } from "@/logger/safe-error-metadata";
+import { safeErrorMetadata } from "@/shared/safe-error-metadata";
 import { defineUseCase } from "@/use-cases";
 import { redeemOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
 import {
