@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
-import { generateCaPem } from "../__mocks__/generate-ca-pem";
+import { CA_PEM_PARSER_FIXTURE } from "../__mocks__/ca-pem-parser-fixture";
 import { generateDbEnv } from "../__mocks__/generate-db-env";
 import { drizzleCredentials } from "../drizzle-credentials";
 import { dbEnvSchema } from "../env";
@@ -26,7 +26,7 @@ describe("drizzleCredentials", () => {
 	});
 
 	it("connects over TLS and verifies the server against the CA when one is set", () => {
-		const ca = generateCaPem();
+		const ca = CA_PEM_PARSER_FIXTURE;
 
 		const credentials = drizzleCredentials(parsedDbEnv(ca), "stg");
 
@@ -34,7 +34,7 @@ describe("drizzleCredentials", () => {
 	});
 
 	it("takes a CA bundle of several certificates", () => {
-		const ca = `${generateCaPem()}\n${generateCaPem()}`;
+		const ca = `${CA_PEM_PARSER_FIXTURE}\n${CA_PEM_PARSER_FIXTURE}`;
 
 		const credentials = drizzleCredentials(parsedDbEnv(ca));
 
@@ -66,7 +66,7 @@ describe("drizzleCredentials", () => {
 		"refuses a bundle with %s, rather than trusting only the part that parses",
 		(_name, build) => {
 			expect(() =>
-				drizzleCredentials(parsedDbEnv(build(generateCaPem()))),
+				drizzleCredentials(parsedDbEnv(build(CA_PEM_PARSER_FIXTURE))),
 			).toThrow(/DB_CA_PEM/);
 		},
 	);
