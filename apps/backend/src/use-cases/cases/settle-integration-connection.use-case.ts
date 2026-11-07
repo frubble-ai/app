@@ -49,9 +49,12 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 				.from(integrationConnection)
 				.where(eq(integrationConnection.id, row.id))
 				.for("update");
-			// Another settle got here first: active is its success, retiring or gone is a failure.
-			if (current?.status === "active") return "active" as const;
-			if (current?.status !== "pending") return "failed" as const;
+			// Another settle got here first: active is its success, retiring or gone is a failure. That
+			// settle sweeps what it retired, so this one leaves the row alone.
+			if (current?.status === "active")
+				return { state: "active", changed: false } as const;
+			if (current?.status !== "pending")
+				return { state: "failed", changed: false } as const;
 
 			let state: TAccountState;
 			try {
@@ -65,15 +68,16 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 					{ err, connectionId, broker: row.broker },
 					"Broker state unknown; the connection stays pending",
 				);
-				return "pending" as const;
+				return { state: "pending", changed: false } as const;
 			}
-			if (state === "pending") return "pending" as const;
+			if (state === "pending")
+				return { state: "pending", changed: false } as const;
 			if (state === "failed") {
 				await tx
 					.update(integrationConnection)
 					.set({ status: "retiring" })
 					.where(eq(integrationConnection.id, row.id));
-				return "failed" as const;
+				return { state: "failed", changed: true } as const;
 			}
 			await tx
 				.update(integrationConnection)
@@ -89,12 +93,15 @@ export const settleIntegrationConnectionUseCase = defineUseCase(
 				.update(integrationConnection)
 				.set({ status: "active" })
 				.where(eq(integrationConnection.id, row.id));
-			return "active" as const;
+			return { state: "active", changed: true } as const;
 		});
-		if (settled === "pending") return "pending";
-		await sweepRetiringIntegrationsUseCase({
-			organizationId: row.organizationId,
-		});
-		return settled;
+		// Only the settle that retired rows removes them at their broker. Two sweeps running at once
+		// could each read a row the other was about to delete and remove its account twice.
+		if (settled.changed) {
+			await sweepRetiringIntegrationsUseCase({
+				organizationId: row.organizationId,
+			});
+		}
+		return settled.state;
 	},
 );
