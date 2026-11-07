@@ -5,7 +5,7 @@ export function generateGithubApiInstallation(
 	overrides: {
 		id?: number;
 		login?: string;
-		type?: "User" | "Organization";
+		type?: "User" | "Organization" | "Enterprise";
 		repository_selection?: "all" | "selected";
 	} = {},
 ) {

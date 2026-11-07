@@ -256,34 +256,39 @@ describe("running an action through Composio", () => {
 });
 
 describe("reading GitHub through Composio's proxy", () => {
-	it("lists our GitHub App's installations with the organization's own account", async () => {
-		const through = generateComposioConnection();
-		const installation = generateGithubApiInstallation({
-			type: "Organization",
-		});
-		answerProxy("/user/installations", {
-			page: () => ({ total_count: 1, installations: [installation] }),
-		});
+	it.each([
+		{ type: "User", accountType: "user" },
+		{ type: "Organization", accountType: "organization" },
+		{ type: "Enterprise", accountType: "organization" },
+	] as const)(
+		"lists our GitHub App's installation on a GitHub $type account as $accountType",
+		async ({ type, accountType }) => {
+			const through = generateComposioConnection();
+			const installation = generateGithubApiInstallation({ type });
+			answerProxy("/user/installations", {
+				page: () => ({ total_count: 1, installations: [installation] }),
+			});
 
-		await expect(
-			composioBroker().run("github.listInstallations", through, {}),
-		).resolves.toEqual([
-			{
-				id: String(installation.id),
-				account: installation.account.login,
-				account_type: "organization",
-				repository_selection: installation.repository_selection,
-			},
-		]);
-		expect(proxyRequests()).toEqual([
-			{
-				endpoint: "/user/installations",
-				userId: through.organizationId,
-				connectedAccountId: through.accountRef,
-				query: { per_page: "100", page: "1" },
-			},
-		]);
-	});
+			await expect(
+				composioBroker().run("github.listInstallations", through, {}),
+			).resolves.toEqual([
+				{
+					id: String(installation.id),
+					account: installation.account.login,
+					account_type: accountType,
+					repository_selection: installation.repository_selection,
+				},
+			]);
+			expect(proxyRequests()).toEqual([
+				{
+					endpoint: "/user/installations",
+					userId: through.organizationId,
+					connectedAccountId: through.accountRef,
+					query: { per_page: "100", page: "1" },
+				},
+			]);
+		},
+	);
 
 	it("lists every repository of every installation, across pages, each once", async () => {
 		const first = generateGithubApiInstallation();

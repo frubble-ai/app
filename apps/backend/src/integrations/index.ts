@@ -6,9 +6,10 @@ import type {
 	SlackChannel,
 } from "@/osiris";
 
-// What the use cases need from whoever holds the organizations' grants (a broker), in our terms.
-// Each broker implements TConnectionBroker in its own folder (`src/composio/`); nothing here or in
-// the use cases knows which one it is.
+// What the use cases need from whoever holds the organizations' grants (a broker). Each broker
+// implements TConnectionBroker in its own folder (`src/composio/`, `src/osiris/`), and the use
+// cases never know which one runs. The actions' outputs are named for what the use cases need and
+// defined by us, in Osiris's OpenAPI spec (docs/style-guide/use-cases.md, "Third-party clients").
 
 /** Where a broker's account stands: consent still open, live, or failed. */
 export type TAccountState = "pending" | "active" | "failed";

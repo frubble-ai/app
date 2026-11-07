@@ -3,11 +3,13 @@ import {
 	integrationBroker,
 	integrationConnection,
 	type TIntegrationBroker,
+	type TIntegrationProvider,
 } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { generateGithubInstallation } from "@/shared/__mocks__/generate-github-installation";
 import { generateGithubRepository } from "@/shared/__mocks__/generate-github-repository";
+import { generateSlackChannel } from "@/shared/__mocks__/generate-slack-channel";
 import type { TTestClone } from "@/testing/integration-bootstrap";
 import { createMockConnectionBroker } from "@/testing/mock-connection-broker";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
@@ -24,6 +26,7 @@ import { listGithubInstallationsUseCase } from "@/use-cases/cases/list-github-in
 import { listGithubRepositoriesUseCase } from "@/use-cases/cases/list-github-repositories.use-case";
 import { listIntegrationsUseCase } from "@/use-cases/cases/list-integrations.use-case";
 import { listLinearTeamsUseCase } from "@/use-cases/cases/list-linear-teams.use-case";
+import { listSlackChannelsUseCase } from "@/use-cases/cases/list-slack-channels.use-case";
 import { startIntegrationConnectUseCase } from "@/use-cases/cases/start-integration-connect.use-case";
 
 // The use cases on a broker held in memory: each test sets what the broker answers
@@ -63,12 +66,16 @@ async function plainMember(
 	return joined;
 }
 
-/** Start connecting GitHub; the connection id our callback will carry, and the broker's account. */
+/** Start connecting a provider, GitHub unless named; the callback's connection id and the account. */
 async function startConnecting(
 	clone: TTestClone,
-	args: { userId: string; organizationId: string },
+	args: {
+		userId: string;
+		organizationId: string;
+		provider?: TIntegrationProvider;
+	},
 ) {
-	await startIntegrationConnectUseCase({ ...args, provider: "github" });
+	await startIntegrationConnectUseCase({ provider: "github", ...args });
 	const connect = clone.broker.lastConnect();
 	return {
 		connectionId:
@@ -79,7 +86,11 @@ async function startConnecting(
 
 async function connected(
 	clone: TTestClone,
-	args: { userId: string; organizationId: string },
+	args: {
+		userId: string;
+		organizationId: string;
+		provider?: TIntegrationProvider;
+	},
 ) {
 	const attempt = await startConnecting(clone, args);
 	clone.broker.answerState(attempt.accountRef, "active", { once: true });
@@ -503,6 +514,29 @@ describe("reading through a connection", () => {
 		expect(clone.broker.runs()).toEqual([
 			{
 				action: "github.listRepositories",
+				connection: { organizationId, accountRef },
+			},
+		]);
+	});
+
+	it("lists the Slack channels for any member, through the organization's own account", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const { accountRef } = await connected(clone, {
+			userId: owner.id,
+			organizationId,
+			provider: "slack",
+		});
+		const joined = await plainMember(clone, owner, organizationId);
+		const channels = [generateSlackChannel()];
+		clone.broker.answerAction("slack.listChannels", channels);
+
+		await expect(
+			listSlackChannelsUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual(channels);
+		expect(clone.broker.runs()).toEqual([
+			{
+				action: "slack.listChannels",
 				connection: { organizationId, accountRef },
 			},
 		]);
