@@ -5,7 +5,7 @@ import {
 	useLinearTeamsLazyQuery,
 	useSlackChannelsLazyQuery,
 } from "@frubble/react-sdk";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeScreen } from "@/screens/home";
@@ -139,11 +139,19 @@ describe("HomeScreen", () => {
 			repositories: GithubRepositorySelection.Selected,
 		});
 		mockGithubInstallations([installation]);
-		const repository = generateGithubRepository();
+		const description = faker.lorem.sentence();
+		const repository = generateGithubRepository({
+			isPrivate: true,
+			description,
+		});
+		const plain = generateGithubRepository({
+			isPrivate: false,
+			description: null,
+		});
 		const load = mockRead(
 			useGithubRepositoriesLazyQuery,
 			"githubRepositories",
-			[repository],
+			[repository, plain],
 		);
 		renderWithProviders(<HomeScreen />);
 
@@ -158,9 +166,20 @@ describe("HomeScreen", () => {
 		expect(load).toHaveBeenCalledWith({
 			variables: { organizationId: organization.id },
 		});
-		expect(
+		const items = within(
 			await screen.findByTestId("github-repositories-items"),
-		).toHaveTextContent(repository.fullName);
+		).getAllByRole("listitem");
+		expect(items).toHaveLength(2);
+		const [first, second] = items as [HTMLElement, HTMLElement];
+		expect(within(first).getByRole("link")).toHaveAttribute(
+			"href",
+			repository.url,
+		);
+		expect(first).toHaveTextContent(repository.fullName);
+		expect(first).toHaveTextContent("home.integrations.github.private");
+		expect(first).toHaveTextContent(description);
+		expect(within(second).getByRole("link")).toHaveAttribute("href", plain.url);
+		expect(second).not.toHaveTextContent("home.integrations.github.private");
 	});
 
 	it("names every installation with whether it gives all or selected repositories", () => {

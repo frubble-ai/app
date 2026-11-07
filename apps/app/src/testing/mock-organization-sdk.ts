@@ -184,7 +184,9 @@ export function generateGithubInstallation(
 }
 
 /** A repository our GitHub App reads, as the API gives it. */
-export function generateGithubRepository() {
+export function generateGithubRepository(
+	overrides: Partial<{ isPrivate: boolean; description: string | null }> = {},
+) {
 	const fullName = `${faker.internet.username().toLowerCase()}/${faker.lorem.slug(2)}`;
 	return {
 		id: String(faker.number.int({ min: 1, max: 1_000_000_000 })),
@@ -192,6 +194,7 @@ export function generateGithubRepository() {
 		isPrivate: faker.datatype.boolean(),
 		url: `https://github.com/${fullName}`,
 		description: faker.helpers.arrayElement([null, faker.lorem.sentence()]),
+		...overrides,
 	};
 }
 
