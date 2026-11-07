@@ -9,7 +9,7 @@ import { setConfigForTests } from "@/config";
 import { resetCtx, setCtxForTests } from "@/use-cases";
 import { seedLocalUsersUseCase } from "@/use-cases/cases/seed-local-users.use-case";
 import { createCapturedMessages } from "./capture-messages";
-import { createMockConnectionBroker } from "./mock-connection-broker";
+import { mockIntegrations } from "./mock-integrations";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -54,10 +54,7 @@ export async function setup(): Promise<void> {
 		db: baseDb,
 		messages: captured.messages,
 		auth,
-		integrations: {
-			brokers: { composio: createMockConnectionBroker().broker },
-			connectThrough: "composio",
-		},
+		integrations: mockIntegrations(config.integrations.connectThrough),
 		logger: testLogger,
 	});
 

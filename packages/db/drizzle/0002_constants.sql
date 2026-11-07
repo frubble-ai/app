@@ -22,5 +22,6 @@ ON CONFLICT ("key") DO NOTHING;
 -- Who holds a connection's grant and runs its actions. A new one also needs its implementation
 -- (docs/integrations.md).
 INSERT INTO "integration_broker" ("key") VALUES
-	('composio')
+	('composio'),
+	('osiris')
 ON CONFLICT ("key") DO NOTHING;

@@ -16,6 +16,11 @@ function generateEnv(overrides: Record<string, string | undefined> = {}) {
 		COMPOSIO_API_KEY: faker.string.alphanumeric(32),
 		COMPOSIO_AUTH_CONFIG_IDS:
 			"github=ac_github1, linear=ac_linear1,slack=ac_slack1",
+		OSIRIS_URL: "http://localhost:8090/",
+		GITHUB_APP_SLUG: "frubble-ai-dev",
+		OSIRIS_API_KEY: faker.string.alphanumeric(40),
+		OSIRIS_AUTH_CONFIG_IDS:
+			"github=ac_github2,linear=ac_linear2,slack=ac_slack2",
 		...overrides,
 	};
 }
@@ -49,6 +54,16 @@ describe("buildConfig", () => {
 			publicUrl: "http://localhost:8080",
 			appUrl: "http://localhost:3000",
 			integrations: {
+				connectThrough: "osiris",
+				osiris: {
+					url: "http://localhost:8090",
+					apiKey: env.OSIRIS_API_KEY,
+					authConfigIds: {
+						github: "ac_github2",
+						linear: "ac_linear2",
+						slack: "ac_slack2",
+					},
+				},
 				composio: {
 					apiKey: env.COMPOSIO_API_KEY,
 					authConfigIds: {
@@ -56,9 +71,11 @@ describe("buildConfig", () => {
 						linear: "ac_linear1",
 						slack: "ac_slack1",
 					},
+					proxyMaxPages: 10,
 				},
 				github: {
-					appInstallUrl: "https://github.com/apps/frubble-ai/installations/new",
+					appInstallUrl:
+						"https://github.com/apps/frubble-ai-dev/installations/new",
 				},
 			},
 			cors: { origin: [] },
@@ -97,6 +114,16 @@ describe("buildConfig", () => {
 			message: /BETTER_AUTH_SECRET/,
 		},
 		{ label: "an unknown APP_ENV", env: { APP_ENV: "qa" }, message: /APP_ENV/ },
+		{
+			label: "a short osiris API key",
+			env: { OSIRIS_API_KEY: "short" },
+			message: /OSIRIS_API_KEY/,
+		},
+		{
+			label: "a GitHub App slug that is not a slug",
+			env: { GITHUB_APP_SLUG: "Frubble AI" },
+			message: /GITHUB_APP_SLUG/,
+		},
 		{
 			label: "no database CA outside local",
 			env: { APP_ENV: "stg" },

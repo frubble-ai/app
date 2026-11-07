@@ -1,8 +1,15 @@
 import type { TIntegrationBroker, TIntegrationProvider } from "@frubble/db";
+import type {
+	GithubInstallation,
+	GithubRepository,
+	LinearTeam,
+	SlackChannel,
+} from "@/osiris";
 
-// What the use cases need from whoever holds the organizations' grants (a broker), in our terms.
-// Each broker implements TConnectionBroker in its own folder (`src/composio/`); nothing here or in
-// the use cases knows which one it is.
+// What the use cases need from whoever holds the organizations' grants (a broker). Each broker
+// implements TConnectionBroker in its own folder (`src/composio/`, `src/osiris/`), and the use
+// cases never know which one runs. The actions' outputs are named for what the use cases need and
+// defined by us, in Osiris's OpenAPI spec (docs/style-guide/use-cases.md, "Third-party clients").
 
 /** Where a broker's account stands: consent still open, live, or failed. */
 export type TAccountState = "pending" | "active" | "failed";
@@ -14,31 +21,33 @@ export type TConnectionRef = {
 	accountRef: string;
 };
 
-/** A GitHub organization the connected user belongs to. */
-export type TGithubOrganization = {
-	id: string;
-	login: string;
-	description: string | null;
-	avatarUrl: string;
-};
+// The actions' outputs are osiris's own types, generated from its OpenAPI spec
+// (frubble-ai/osiris, `api-reference/openapi.json`): osiris answers in them, and every other
+// broker reads its provider into them. Only the types come from osiris, through its folder's index.
+
+/** Where our GitHub App is installed, as the connected user can see it: an account or organization. */
+export type TGithubInstallation = GithubInstallation;
+
+/** A repository our GitHub App can read, through one of its installations. */
+export type TGithubRepository = GithubRepository;
 
 /** A Linear team the connected user can see. */
-export type TLinearTeam = { id: string; name: string };
+export type TLinearTeam = LinearTeam;
 
 /** A Slack channel the connected user can see. */
-export type TSlackChannel = {
-	id: string;
-	name: string;
-	isPrivate: boolean;
-	memberCount: number | null;
-};
+export type TSlackChannel = SlackChannel;
 
 /** Every action a broker runs with a connection: our ids, our input and output. */
 export type TIntegrationActions = {
-	/** The organizations the connected GitHub user belongs to. */
-	"github.listOrganizations": {
+	/** Where our GitHub App is installed, of what the connected user can see. */
+	"github.listInstallations": {
 		input: Record<string, never>;
-		output: TGithubOrganization[];
+		output: TGithubInstallation[];
+	};
+	/** Every repository our GitHub App's installations give the connected user. */
+	"github.listRepositories": {
+		input: Record<string, never>;
+		output: TGithubRepository[];
 	};
 	/** The Linear teams the connected user can see. */
 	"linear.listTeams": { input: Record<string, never>; output: TLinearTeam[] };
@@ -55,7 +64,8 @@ export type TIntegrationAction = keyof TIntegrationActions;
 export const INTEGRATION_ACTION_PROVIDERS: {
 	[TAction in TIntegrationAction]: TIntegrationProvider;
 } = {
-	"github.listOrganizations": "github",
+	"github.listInstallations": "github",
+	"github.listRepositories": "github",
 	"linear.listTeams": "linear",
 	"slack.listChannels": "slack",
 };

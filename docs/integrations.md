@@ -18,9 +18,11 @@ address it went to can accept it, once verified.
 ## Integrations
 
 A broker connects each organization's GitHub, Linear and Slack, keeps their tokens fresh and runs
-actions with them. Composio is the one we use. Use cases reach it only through
-`ctx.integrations` ([brokers](#brokers)), so the flow below is the same for any broker; where it
-says what Composio does, that lives in `src/composio/`.
+actions with them. New connections go through Osiris (frubble-ai/osiris), `CONNECT_THROUGH` in
+`src/config/integrations/index.ts`. Connections made earlier through Composio stay on it until
+they are replaced. Use cases reach a broker only through `ctx.integrations` ([brokers](#brokers)),
+so the flow below is the same for any broker; where it says what Composio or Osiris does, that
+lives in `src/composio/` or `src/osiris/`.
 
 `integration_connection` records which account at which broker an organization uses per provider
 (`broker`, `external_account_ref`): `pending` while the provider's consent is open, `active` after
@@ -61,8 +63,8 @@ until then the sweep looks for it by its attempt, as above.
 
 ## Brokers
 
-`src/integrations/` is what the use cases need from a broker, in our terms
-(`TConnectionBroker`):
+`src/integrations/` is what the use cases need from a broker, named for what they need and defined
+by us (`TConnectionBroker`):
 
 | Method                  | Does                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------ |
@@ -72,11 +74,14 @@ until then the sweep looks for it by its attempt, as above.
 | `findAccountsByAttempt` | the accounts made for an attempt whose `startConnect` answer was lost                |
 | `run`                   | runs one action with a connection and answers its checked output                     |
 
-Actions are ours too (`TIntegrationActions`): an id such as `github.listOrganizations`, its input
-and its output type. Each broker maps them onto its own tools.
+Actions are ours too (`TIntegrationActions`): an id such as `github.listRepositories`, its input
+and its output type. Each broker maps them onto its own tools. The output types are Osiris's own,
+generated from its OpenAPI spec (`@frubble-ai/osiris-client`), so Osiris answers in them as they
+are, Composio reads its tools into them, and the GraphQL resolvers turn them into the schema's
+types.
 
 `ctx.integrations` holds every broker by its key (`integration_broker`) and the one new
-connections go through. Each row keeps the broker it was made on, and every use case reaches the
+connections go through, Osiris (`CONNECT_THROUGH` in `src/config/integrations/index.ts`). Each row keeps the broker it was made on, and every use case reaches the
 row's own broker (`ctx.integrations.brokers[row.broker]`), so two brokers serve side by side while
 one replaces the other: an organization's existing connection stays where its tokens are until it
 reconnects.
@@ -92,7 +97,7 @@ To add a broker:
 2. Its row in the constants migration's `integration_broker`
    ([migrations](style-guide/migrations.md#constants)), and its key in `INTEGRATION_BROKERS`.
 3. Its entry in `brokers` in `build-use-case-context`; moving new connections to it is
-   `connectThrough`.
+   `CONNECT_THROUGH` in `src/config/integrations/index.ts`, a change in code, not a setting.
 4. Its entry in `BROKERS` in `eslint.config.mjs`: its folder and its libraries, so the rest of
    `src/` may not import them.
 5. Its contract test: `describeConnectionBrokerContract` (`src/testing/`) with a harness that
@@ -103,32 +108,46 @@ same contract holds it to what the real ones do.
 
 ## Reading
 
-Each provider has its own read: `githubOrganizations`, `linearTeams`, `slackChannels`, each a
-use case that runs one action through the organization's connection. Each provider is its own
+Each provider has its reads: `githubInstallations` and `githubRepositories`, `linearTeams`,
+`slackChannels`, each a use case that runs one action through the organization's connection. Each provider is its own
 domain in every layer: `src/composio/<provider>/`, the resolvers in
 `services/api/graphql/<provider>/` and its schema in `packages/gql/schema/<provider>.graphql`,
 beside `integrations` for what they share (connecting, disconnecting, listing).
 
-GitHub's connection goes through our GitHub App, which sees only the organizations it is
-installed on: connecting alone lists none. `githubAppInstallUrl` answers where to install it,
-`github.com/apps/frubble-ai/installations/new` (`config/integrations/github/`), and the GitHub
-card offers that link once connected, and says why when the list comes back empty.
+GitHub's connection goes through our GitHub App, which reads only what it is installed on: an
+account or an organization, with all its repositories or the ones chosen at install. Connecting
+is the first step, installing the second. Once connected, the GitHub card asks where the app is
+installed (`githubInstallations`). Installed nowhere, it offers only the install: the link
+`githubAppInstallUrl` answers, `github.com/apps/<GITHUB_APP_SLUG>/installations/new`
+(`config/integrations/github/`), each environment's own app ([environment](environment.md)). Installed, it says where, links to change that, and lists the
+repositories on demand (`githubRepositories`, every installation's, each once).
 
 At Composio, an action is one tool run in a session opened for the organization with its
-connected account. Sessions choose the toolkit version.
+connected account. Sessions choose the toolkit version. Where no current tool covers an endpoint,
+the action calls the provider's own endpoint through Composio's proxy with the connection's
+token (`src/composio/lib/proxy-get.ts`), and checks the answer against our own schema of the
+provider's documented response. GitHub's installations and their repositories (`/user/installations`)
+are read that way: Composio's tools for them exist only in GitHub toolkit `20250911_00`, which
+sessions no longer run, Composio's tools API marks each of them `is_deprecated`, and their output
+schemas are untyped.
 
 Every result is checked against the tool's own output schema, fetched from Composio and built
 into Zod with `@composio/json-schema-to-zod` (`src/composio/lib/output-schema.ts`); a response the
 schema refuses fails the read. Where Composio's schema is wrong, the provider's folder in
 `src/composio/` patches only that schema, with the date and the reason. The provider's folder then
-reads the result into our output type.
+reads the result into our output type. A proxied answer is checked against our Zod schema
+instead. Its type comes from GitHub's own OpenAPI description (`@octokit/openapi-types`), narrowed
+to the fields we read, and the schema must produce that type, so one that drifts from GitHub's
+description fails to compile.
 
 The same schemas, with the same patches, generate each tool's `data` type
 (`codegen/composio-tools.ts`, part of the backend's `codegen`, into `src/__generated__/composio/`,
 not committed), so the reads use no hand-written shapes. Codegen needs `COMPOSIO_API_KEY`: locally
 from `apps/backend/.env.local`, in CI the repository secret, in the image build a BuildKit secret. A
-new tool is one line in its `TOOLS`, and a new action is its entry in `TIntegrationActions` plus its
-tool in `src/composio/`.
+new tool is one line in `COMPOSIO_TOOLS` (`src/__codegen__/composio-tools.ts`), the list both the
+runtime check and the codegen read; `src/__codegen__/` holds what a generator imports under Node,
+by relative path, and ESLint leaves it out. A new action is its entry in `TIntegrationActions`, its
+generated client call in Osiris's `ACTIONS`, and its tool in `src/composio/`.
 
 ## Composio setup
 
@@ -149,14 +168,14 @@ pair in that variable, its toolkit in `src/composio/`, a row in the constants mi
 
 Every auth config is read-only: it grants read access across the provider, and never write. That
 is more than today's reads use, so a new read needs no new access and no reconnect. A GitHub App
-takes no scopes: its permissions decide, and it answers only for the organizations it is
-installed on.
+takes no scopes: its permissions decide, and it answers only for the accounts and organizations
+it is installed on.
 
-| Provider | Granted (read-only)                                                             | Our reads need                                                              |
-| -------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| GitHub   | the GitHub App's permissions, every one `read`; installed per organization      | _Members: read_, for `GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER` |
-| Linear   | `read`                                                                          | `read`, for `LINEAR_LIST_LINEAR_TEAMS`                                      |
-| Slack    | bot and user `*:read` and `*:history` scopes, and user `search:read*`; no write | user `channels:read`, `groups:read`, for `SLACK_LIST_ALL_CHANNELS`          |
+| Provider | Granted (read-only)                                                             | Our reads need                                                     |
+| -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| GitHub   | the GitHub App's permissions, every one `read`; installed on an account or org | _Metadata: read_, for `GET /user/installations/{id}/repositories`  |
+| Linear   | `read`                                                                          | `read`, for `LINEAR_LIST_LINEAR_TEAMS`                             |
+| Slack    | bot and user `*:read` and `*:history` scopes, and user `search:read*`; no write | user `channels:read`, `groups:read`, for `SLACK_LIST_ALL_CHANNELS` |
 
 The auth config at Composio holds the exact list. Change it with the auth config's `PATCH`
 (`{"type":"custom","credentials":{"scopes":[…]}}`, plus `user_scopes` for Slack): it keeps the

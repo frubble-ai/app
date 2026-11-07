@@ -50,6 +50,28 @@ wrapper. The same rule applies to every one of them, in every app and package.
    | `testing/` | shared test setup                                 |
    | `shared/`  | units with more than one consumer                 |
 
+## Outside these rules: `__generated__/` and `__codegen__/`
+
+Two folders under `apps/backend/src/` are not modules of the app, and none of the rules on this
+page, nor the import rules, apply to them. ESLint ignores both entirely, on purpose.
+
+| Folder           | Holds                                                | Committed |
+| ---------------- | ---------------------------------------------------- | --------- |
+| `__generated__/` | what the code generators write; never edited by hand | no        |
+| `__codegen__/`   | what the code generators read, written by hand       | yes       |
+
+`__codegen__/` exists because a generator (`codegen/*.ts`) runs under plain Node, before the
+build, where the `@/` alias does not resolve. So its runtime imports use relative paths, and it is
+a flat set of files with no `index.ts`. Holding it to the module rules would mean either breaking
+the generator or adding a build step just to lint it. The app imports from it by `@/__codegen__/…`
+like any other file.
+
+What may go there: only what a generator must import at runtime, such as the list of Composio
+tools with their schema patches (`composio-tools.ts`). A type-only import still uses `@/`, since
+Node erases it. Anything the generators do not read belongs in a normal module. A review should not
+ask for `__codegen__/` to follow the module or import rules, or for its ESLint exemption to be
+narrowed: the whole folder is exempt by design.
+
 ## How to decide
 
 - One consumer → colocate.

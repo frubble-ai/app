@@ -7,6 +7,10 @@
 # command; the one-off scripts are commands of their own:
 #   migration:          bun run scripts/migrate.ts   (SHOULD_RUN_MIGRATION=true; --reset drops first, never in prd)
 #
+# The install reads @frubble-ai packages from GitHub Packages, with the token from a
+# ~/.yarnrc.yml passed as a build secret:
+#   docker build -f apps/backend/Dockerfile --secret id=yarnrc,src=$HOME/.yarnrc.yml .
+#
 # Both base images are pinned by digest, not only by tag: a tag can be moved to
 # another image, a digest names exactly one. The tag stays beside it so a
 # reader can tell what the digest is.
@@ -29,7 +33,10 @@ COPY packages/events/package.json packages/events/
 COPY packages/gql/package.json packages/gql/
 COPY packages/react-sdk/package.json packages/react-sdk/
 COPY packages/seed/package.json packages/seed/
-RUN yarn workspaces focus @frubble/backend --production
+# The @frubble-ai packages need a GitHub Packages token, mounted as ~/.yarnrc.yml for this step
+# only, so it never lands in a layer.
+RUN --mount=type=secret,id=yarnrc,target=/root/.yarnrc.yml,required=true \
+    yarn workspaces focus @frubble/backend --production
 
 # ---- builder: the full install, for the code generators ----
 # The GraphQL types, the resolver signatures and the Composio tool types are
@@ -50,12 +57,14 @@ COPY packages/react-sdk/package.json packages/react-sdk/
 COPY packages/seed/package.json packages/seed/
 # skip-build: no lifecycle scripts, so the root's husky postinstall (a git
 # hook installer) never runs in an image that has no git.
-RUN yarn install --immutable --mode=skip-build
+RUN --mount=type=secret,id=yarnrc,target=/root/.yarnrc.yml,required=true \
+    yarn install --immutable --mode=skip-build
 COPY packages/gql packages/gql/
 COPY apps/backend/codegen.yml apps/backend/
 # The Composio tool types come from Composio's schemas: the key arrives as a build secret, never
-# in a layer, with the schema patches they share with the runtime check.
+# in a layer, with the tool list and schema patches they share with the runtime check.
 COPY apps/backend/codegen apps/backend/codegen/
+COPY apps/backend/src/__codegen__ apps/backend/src/__codegen__/
 COPY apps/backend/src/composio apps/backend/src/composio/
 RUN --mount=type=secret,id=composio_api_key,env=COMPOSIO_API_KEY \
     yarn workspace @frubble/gql codegen && yarn workspace @frubble/backend codegen

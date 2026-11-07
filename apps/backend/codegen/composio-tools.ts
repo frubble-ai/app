@@ -2,22 +2,13 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Composio } from "@composio/core";
 import { compile } from "json-schema-to-typescript";
-import { allowNullDescription } from "../src/composio/github/lib/output-patch.ts";
-import type {
-	TJsonSchema,
-	TSchemaPatch,
-} from "../src/composio/lib/output-schema.ts";
-import { typeTeams } from "../src/composio/linear/lib/output-patch.ts";
+import { COMPOSIO_TOOLS } from "../src/__codegen__/composio-tools.ts";
+import type { TJsonSchema } from "../src/composio/lib/output-schema.ts";
 
 // The `data` type of each Composio tool the backend calls, generated from Composio's own output
-// schema with the same patch the runtime check applies; one file per tool. Needs COMPOSIO_API_KEY.
+// schema with the same patch the runtime check applies; one file per tool in COMPOSIO_TOOLS, the
+// list the runtime runs. Needs COMPOSIO_API_KEY.
 // Runs under Node (the image's build stage has no Bun), so its imports are relative.
-
-const TOOLS: Record<string, TSchemaPatch | undefined> = {
-	GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER: allowNullDescription,
-	LINEAR_LIST_LINEAR_TEAMS: typeTeams,
-	SLACK_LIST_ALL_CHANNELS: undefined,
-};
 
 const OUT = path.join(import.meta.dirname, "../src/__generated__/composio");
 
@@ -44,7 +35,7 @@ function withoutTitles(value: unknown): unknown {
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 const index: string[] = [];
-for (const [slug, patch] of Object.entries(TOOLS)) {
+for (const [slug, patch] of Object.entries(COMPOSIO_TOOLS)) {
 	const tool = await composio.tools.getRawComposioToolBySlug(slug);
 	const output = tool.outputParameters as TJsonSchema & {
 		properties?: { data?: TJsonSchema };

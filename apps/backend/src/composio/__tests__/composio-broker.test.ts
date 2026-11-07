@@ -5,10 +5,10 @@ import {
 	generateComposioConnectedAccountId,
 	generateComposioConnection,
 } from "@/composio/__mocks__/generate-composio-connection";
-import { generateComposioGithubOrganization } from "@/composio/__mocks__/generate-composio-github-organization";
 import { generateComposioLinearTeam } from "@/composio/__mocks__/generate-composio-linear-team";
 import { generateComposioSlackChannel } from "@/composio/__mocks__/generate-composio-slack-channel";
-import { generateGithubOrganizationsTool } from "@/composio/__mocks__/generate-github-organizations-tool";
+import { generateGithubApiInstallation } from "@/composio/__mocks__/generate-github-api-installation";
+import { generateGithubApiRepository } from "@/composio/__mocks__/generate-github-api-repository";
 import { generateLinearTeamsTool } from "@/composio/__mocks__/generate-linear-teams-tool";
 import { generateSlackChannelsTool } from "@/composio/__mocks__/generate-slack-channels-tool";
 import {
@@ -18,12 +18,14 @@ import {
 	answerConnectedAccount,
 	answerExecute,
 	answerInitiate,
+	answerProxy,
 	answerTool,
 	composioRequests,
 	failDelete,
 	failInitiate,
 	hangConnectedAccount,
 	lastInitiateRequest,
+	proxyRequests,
 	setupComposioNetwork,
 } from "@/composio/__mocks__/mock-composio-network";
 import { generateConnectAttempt } from "@/shared/__mocks__/generate-connect-attempt";
@@ -39,8 +41,7 @@ const STATUSES = {
 	failed: "FAILED",
 } as const;
 
-const LIST_ORGANIZATIONS =
-	"GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER";
+const LIST_CHANNELS = "SLACK_LIST_ALL_CHANNELS";
 
 function composioBroker() {
 	return createComposioBroker(buildTestConfig().integrations.composio);
@@ -63,18 +64,36 @@ describeConnectionBrokerContract("Composio", () => ({
 		return { accountRef: () => connectedAccountId };
 	},
 	removedElsewhere: (accountRef) => answerAccountGone(accountRef),
-	answerGithubOrganizations(organizations) {
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute(LIST_ORGANIZATIONS, {
-			data: {
-				organizations: organizations.map((organization) => ({
-					id: Number(organization.id),
-					login: organization.login,
-					description: organization.description,
-					avatar_url: organization.avatarUrl,
+	answerGithub({ installations, repositories }) {
+		answerProxy("/user/installations", {
+			page: () => ({
+				total_count: installations.length,
+				installations: installations.map((installation) => ({
+					...generateGithubApiInstallation({
+						id: Number(installation.id),
+						login: installation.account,
+						type:
+							installation.account_type === "user" ? "User" : "Organization",
+						repository_selection: installation.repository_selection,
+					}),
 				})),
-			},
+			}),
 		});
+		for (const installation of installations) {
+			answerProxy(`/user/installations/${installation.id}/repositories`, {
+				page: () => ({
+					total_count: repositories.length,
+					repositories: repositories.map((repository) => ({
+						...generateGithubApiRepository(),
+						id: Number(repository.id),
+						full_name: repository.full_name,
+						private: repository.private,
+						html_url: repository.url,
+						description: repository.description,
+					})),
+				}),
+			});
+		}
 	},
 }));
 
@@ -144,27 +163,6 @@ describe("running an action through Composio", () => {
 	// Each action: what Composio answers for it, and what the broker must read that into.
 	const ACTION_CASES = [
 		{
-			action: "github.listOrganizations",
-			toolkit: "github",
-			answer() {
-				const organization = generateComposioGithubOrganization({
-					description: faker.company.catchPhrase(),
-				});
-				answerTool(generateGithubOrganizationsTool());
-				answerExecute(LIST_ORGANIZATIONS, {
-					data: { organizations: [organization] },
-				});
-				return [
-					{
-						id: String(organization.id),
-						login: organization.login,
-						description: organization.description,
-						avatarUrl: organization.avatar_url,
-					},
-				];
-			},
-		},
-		{
 			action: "linear.listTeams",
 			toolkit: "linear",
 			answer() {
@@ -189,8 +187,8 @@ describe("running an action through Composio", () => {
 					{
 						id: channel.id,
 						name: channel.name,
-						isPrivate: channel.is_private,
-						memberCount: channel.num_members,
+						is_private: channel.is_private,
+						num_members: channel.num_members,
 					},
 				];
 			},
@@ -222,12 +220,12 @@ describe("running an action through Composio", () => {
 	);
 
 	it("refuses a response that the tool's output schema refuses", async () => {
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute(LIST_ORGANIZATIONS, { data: { message: "hello world" } });
+		answerTool(generateSlackChannelsTool());
+		answerExecute(LIST_CHANNELS, { data: { channels: "none" } });
 
 		await expect(
 			composioBroker().run(
-				"github.listOrganizations",
+				"slack.listChannels",
 				generateComposioConnection(),
 				{},
 			),
@@ -236,31 +234,174 @@ describe("running an action through Composio", () => {
 
 	it("checks again against Composio's current schema before refusing a response", async () => {
 		const broker = composioBroker();
-		// An older schema, kept from an earlier read, that wanted a field GitHub no longer sends.
-		answerTool(
-			generateGithubOrganizationsTool({
-				required: ["id", "login", "avatar_url", "url"],
-			}),
-		);
-		answerExecute(LIST_ORGANIZATIONS, {
+		// An older schema, kept from an earlier read, that wanted a field Slack no longer sends.
+		answerTool(generateSlackChannelsTool({ required: ["id", "topic"] }));
+		answerExecute(LIST_CHANNELS, {
 			data: {
-				organizations: [
-					generateComposioGithubOrganization({ url: faker.internet.url() }),
+				channels: [
+					generateComposioSlackChannel({ topic: faker.lorem.words(3) }),
 				],
 			},
 		});
-		await broker.run(
-			"github.listOrganizations",
-			generateComposioConnection(),
-			{},
-		);
-		answerTool(generateGithubOrganizationsTool());
-		answerExecute(LIST_ORGANIZATIONS, {
-			data: { organizations: [generateComposioGithubOrganization()] },
+		await broker.run("slack.listChannels", generateComposioConnection(), {});
+		answerTool(generateSlackChannelsTool());
+		answerExecute(LIST_CHANNELS, {
+			data: { channels: [generateComposioSlackChannel()] },
 		});
 
 		await expect(
-			broker.run("github.listOrganizations", generateComposioConnection(), {}),
+			broker.run("slack.listChannels", generateComposioConnection(), {}),
 		).resolves.toHaveLength(1);
+	});
+});
+
+describe("reading GitHub through Composio's proxy", () => {
+	it.each([
+		{ type: "User", accountType: "user" },
+		{ type: "Organization", accountType: "organization" },
+		{ type: "Enterprise", accountType: "organization" },
+	] as const)(
+		"lists our GitHub App's installation on a GitHub $type account as $accountType",
+		async ({ type, accountType }) => {
+			const through = generateComposioConnection();
+			const installation = generateGithubApiInstallation({ type });
+			answerProxy("/user/installations", {
+				page: () => ({ total_count: 1, installations: [installation] }),
+			});
+
+			await expect(
+				composioBroker().run("github.listInstallations", through, {}),
+			).resolves.toEqual([
+				{
+					id: String(installation.id),
+					account: installation.account.login,
+					account_type: accountType,
+					repository_selection: installation.repository_selection,
+				},
+			]);
+			expect(proxyRequests()).toEqual([
+				{
+					endpoint: "/user/installations",
+					userId: through.organizationId,
+					connectedAccountId: through.accountRef,
+					query: { per_page: "100", page: "1" },
+				},
+			]);
+		},
+	);
+
+	it("lists every repository of every installation, across pages, each once", async () => {
+		const first = generateGithubApiInstallation();
+		const second = generateGithubApiInstallation();
+		const shared = generateGithubApiRepository();
+		const pages = [
+			Array.from({ length: 100 }, () => generateGithubApiRepository()),
+			[generateGithubApiRepository(), shared],
+		];
+		answerProxy("/user/installations", {
+			page: () => ({ total_count: 2, installations: [first, second] }),
+		});
+		answerProxy(`/user/installations/${first.id}/repositories`, {
+			page: (number) => ({
+				total_count: 102,
+				repositories: pages[number - 1] ?? [],
+			}),
+		});
+		answerProxy(`/user/installations/${second.id}/repositories`, {
+			page: () => ({ total_count: 1, repositories: [shared] }),
+		});
+
+		const repositories = await composioBroker().run(
+			"github.listRepositories",
+			generateComposioConnection(),
+			{},
+		);
+
+		expect(repositories).toHaveLength(102);
+		expect(
+			repositories.filter((entry) => entry.id === String(shared.id)),
+		).toEqual([
+			{
+				id: String(shared.id),
+				full_name: shared.full_name,
+				private: shared.private,
+				url: shared.html_url,
+				description: shared.description,
+			},
+		]);
+	});
+
+	it("stops reading a list at the page cap, with its first pages", async () => {
+		const config = buildTestConfig().integrations.composio;
+		const installation = generateGithubApiInstallation();
+		const fullPage = () =>
+			Array.from({ length: 100 }, () => generateGithubApiRepository());
+		answerProxy("/user/installations", {
+			page: () => ({ total_count: 1, installations: [installation] }),
+		});
+		answerProxy(`/user/installations/${installation.id}/repositories`, {
+			page: () => ({ total_count: 100_000, repositories: fullPage() }),
+		});
+
+		const repositories = await createComposioBroker({
+			...config,
+			proxyMaxPages: 3,
+		}).run("github.listRepositories", generateComposioConnection(), {});
+
+		// One read for the installations, then two pages of repositories.
+		expect(repositories).toHaveLength(200);
+		expect(proxyRequests()).toHaveLength(3);
+	});
+
+	it("shares one page cap across installations read together", async () => {
+		const config = buildTestConfig().integrations.composio;
+		const installations = Array.from({ length: 5 }, () =>
+			generateGithubApiInstallation(),
+		);
+		answerProxy("/user/installations", {
+			page: () => ({ total_count: 5, installations }),
+		});
+		for (const installation of installations) {
+			answerProxy(`/user/installations/${installation.id}/repositories`, {
+				page: () => ({
+					total_count: 1,
+					repositories: [generateGithubApiRepository()],
+				}),
+			});
+		}
+
+		const repositories = await createComposioBroker({
+			...config,
+			proxyMaxPages: 3,
+		}).run("github.listRepositories", generateComposioConnection(), {});
+
+		expect(proxyRequests()).toHaveLength(3);
+		expect(repositories).toHaveLength(2);
+	});
+
+	it("refuses an answer GitHub's documented response does not match", async () => {
+		answerProxy("/user/installations", {
+			page: () => ({ message: "hello world" }),
+		});
+
+		await expect(
+			composioBroker().run(
+				"github.listInstallations",
+				generateComposioConnection(),
+				{},
+			),
+		).rejects.toThrow("schema refuses");
+	});
+
+	it("fails when GitHub refuses the request", async () => {
+		answerProxy("/user/installations", { status: 401 });
+
+		await expect(
+			composioBroker().run(
+				"github.listInstallations",
+				generateComposioConnection(),
+				{},
+			),
+		).rejects.toThrow("answered 401");
 	});
 });

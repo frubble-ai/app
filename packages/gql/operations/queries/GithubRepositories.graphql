@@ -1,0 +1,9 @@
+query GithubRepositories($organizationId: String!) {
+	githubRepositories(organizationId: $organizationId) {
+		id
+		fullName
+		isPrivate
+		url
+		description
+	}
+}

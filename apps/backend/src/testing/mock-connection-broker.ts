@@ -59,6 +59,8 @@ export function createMockConnectionBroker() {
 	const reads = new Map<string, StateRead>();
 	let next: NextConnect | undefined;
 	let removing: "works" | "fails" = "works";
+	/** While set, a removal waits for it before it completes. */
+	let removalGate: Promise<void> | undefined;
 
 	function newAccountRef(): string {
 		return `acct_${faker.string.alphanumeric(12)}`;
@@ -124,6 +126,7 @@ export function createMockConnectionBroker() {
 
 		async removeAccount(accountRef) {
 			calls.push("removeAccount");
+			if (removalGate) await removalGate;
 			if (removing === "fails") throw new Error("the broker is down");
 			accounts.delete(accountRef);
 			removed.push(accountRef);
@@ -223,6 +226,20 @@ export function createMockConnectionBroker() {
 		},
 		restoreRemove() {
 			removing = "works";
+		},
+		/**
+		 * Removals wait, as on a slow broker, until `release` lets every waiting and later one
+		 * finish. Each is still counted in `calls` when it starts.
+		 */
+		holdRemove() {
+			let release = () => {};
+			removalGate = new Promise((resolve) => {
+				release = () => {
+					removalGate = undefined;
+					resolve();
+				};
+			});
+			return { release };
 		},
 		/** The accounts the broker confirmed removed, in order. */
 		removedAccounts(): string[] {

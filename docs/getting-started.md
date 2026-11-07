@@ -5,6 +5,16 @@ Yarn 4 + Turborepo. The infrastructure lives in the `platform` repository.
 Node 22.18+ for tooling, Bun 1.4.4 for the API, and Docker, curl and openssl for the local
 services.
 
+`@frubble-ai/osiris-client` comes from GitHub Packages, which asks for a token even for a public
+package. Put a personal access token (classic) with `read:packages` in `~/.yarnrc.yml`, outside
+the repository, before the first install:
+
+```yaml
+npmScopes:
+  frubble-ai:
+    npmAuthToken: "<your token>"
+```
+
 ```bash
 corepack enable
 yarn install
@@ -33,8 +43,11 @@ the message ([Conventional Commits](https://www.conventionalcommits.org)).
 ## Container
 
 ```bash
-docker build -f apps/backend/Dockerfile -t frubble-backend .
+docker build -f apps/backend/Dockerfile --secret id=yarnrc,src=$HOME/.yarnrc.yml -t frubble-backend .
 ```
+
+The install reads `~/.yarnrc.yml` as a build secret for the GitHub Packages token, so the token
+never lands in a layer. `apps/app/Dockerfile` takes the same `--secret`.
 
 The image carries no configuration: running it needs the variables in
 [environment](environment.md), pointing at a Postgres and Pub/Sub the container can reach.

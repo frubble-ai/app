@@ -21,7 +21,7 @@ export type TIntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
  * stays with the broker it was made through, so two can serve side by side while one replaces the
  * other.
  */
-export const INTEGRATION_BROKERS = ["composio"] as const;
+export const INTEGRATION_BROKERS = ["composio", "osiris"] as const;
 
 export type TIntegrationBroker = (typeof INTEGRATION_BROKERS)[number];
 

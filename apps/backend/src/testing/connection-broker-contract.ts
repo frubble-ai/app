@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import type {
 	TAccountState,
 	TConnectionBroker,
-	TGithubOrganization,
+	TGithubInstallation,
+	TGithubRepository,
 } from "@/integrations";
 import { generateConnectAttempt } from "@/shared/__mocks__/generate-connect-attempt";
-import { generateGithubOrganization } from "@/shared/__mocks__/generate-github-organization";
+import { generateGithubInstallation } from "@/shared/__mocks__/generate-github-installation";
+import { generateGithubRepository } from "@/shared/__mocks__/generate-github-repository";
 
 /**
  * What a contract run needs from one broker: the broker, and a way to make it answer as the
@@ -24,9 +26,21 @@ export type TBrokerHarness = {
 	loseConnect(): { accountRef: () => string };
 	/** The account was removed already, elsewhere. */
 	removedElsewhere(accountRef: string): void;
-	/** The GitHub user of every connection belongs to `organizations`. */
-	answerGithubOrganizations(organizations: TGithubOrganization[]): void;
+	/** Our GitHub App is installed at `installations`, which give `repositories` (none: no install). */
+	answerGithub(github: {
+		installations: TGithubInstallation[];
+		repositories: TGithubRepository[];
+	}): void;
 };
+
+/** A live connection at the harness's broker, for an action to run through. */
+async function activeConnection(harness: TBrokerHarness) {
+	const attempt = generateConnectAttempt();
+	harness.answerConnect(faker.internet.url());
+	const { accountRef } = await harness.broker.startConnect(attempt);
+	harness.answerState(accountRef, "active");
+	return { organizationId: attempt.organizationId, accountRef };
+}
 
 /** The behaviour every broker owes the use cases, run against one of them. */
 export function describeConnectionBrokerContract(
@@ -99,23 +113,43 @@ export function describeConnectionBrokerContract(
 			).resolves.toEqual([]);
 		});
 
-		it("lists the GitHub organizations through the connection", async () => {
-			const { broker, answerConnect, answerState, answerGithubOrganizations } =
-				harness();
-			const attempt = generateConnectAttempt();
-			answerConnect(faker.internet.url());
-			const { accountRef } = await broker.startConnect(attempt);
-			answerState(accountRef, "active");
-			const organizations = [generateGithubOrganization()];
-			answerGithubOrganizations(organizations);
+		it.each([
+			{ label: "where it is installed", action: "github.listInstallations" },
+			{ label: "the repositories it reads", action: "github.listRepositories" },
+		] as const)(
+			"lists our GitHub App's $label through the connection",
+			async ({ action }) => {
+				const broker = harness();
+				const connection = await activeConnection(broker);
+				const installation = generateGithubInstallation();
+				const github = {
+					installations: [installation],
+					repositories: [
+						generateGithubRepository({
+							full_name: `${installation.account}/${faker.lorem.slug(1)}`,
+						}),
+					],
+				};
+				broker.answerGithub(github);
+
+				await expect(
+					broker.broker.run(action, connection, {}),
+				).resolves.toEqual(
+					action === "github.listInstallations"
+						? github.installations
+						: github.repositories,
+				);
+			},
+		);
+
+		it("lists no repository while our GitHub App is installed nowhere", async () => {
+			const broker = harness();
+			const connection = await activeConnection(broker);
+			broker.answerGithub({ installations: [], repositories: [] });
 
 			await expect(
-				broker.run(
-					"github.listOrganizations",
-					{ organizationId: attempt.organizationId, accountRef },
-					{},
-				),
-			).resolves.toEqual(organizations);
+				broker.broker.run("github.listRepositories", connection, {}),
+			).resolves.toEqual([]);
 		});
 	});
 }

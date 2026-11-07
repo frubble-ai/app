@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  # setup-monorepo installs @frubble-ai packages from GitHub Packages.
+  packages: read
 
 jobs:
   check:
