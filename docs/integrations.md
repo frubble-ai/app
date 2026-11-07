@@ -18,9 +18,11 @@ address it went to can accept it, once verified.
 ## Integrations
 
 A broker connects each organization's GitHub, Linear and Slack, keeps their tokens fresh and runs
-actions with them. Composio is the one we use. Use cases reach it only through
-`ctx.integrations` ([brokers](#brokers)), so the flow below is the same for any broker; where it
-says what Composio does, that lives in `src/composio/`.
+actions with them. New connections go through Osiris (frubble-ai/osiris), `CONNECT_THROUGH` in
+`src/config/integrations/index.ts`. Connections made earlier through Composio stay on it until
+they are replaced. Use cases reach a broker only through `ctx.integrations` ([brokers](#brokers)),
+so the flow below is the same for any broker; where it says what Composio or Osiris does, that
+lives in `src/composio/` or `src/osiris/`.
 
 `integration_connection` records which account at which broker an organization uses per provider
 (`broker`, `external_account_ref`): `pending` while the provider's consent is open, `active` after
