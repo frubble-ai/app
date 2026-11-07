@@ -37,6 +37,7 @@ type TContext = {
 	budget: { remaining: number };
 };
 
+/** Counts one step against the call's budget and throws once the budget is spent. */
 function spendStep({ budget }: TContext): void {
 	budget.remaining -= 1;
 	if (budget.remaining < 0) {
@@ -97,6 +98,11 @@ function fillSelections(
 	}
 }
 
+/**
+ * A copy of `value` (an object, or a list of them) with `__typename` added at every level the
+ * selections reach. Each object gets its own set of expanded fragments, so a fragment spread on
+ * two sibling objects is applied to both.
+ */
 function fill(
 	value: unknown,
 	context: TContext,

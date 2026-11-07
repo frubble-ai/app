@@ -36,14 +36,32 @@ describe("withTypenames", () => {
 		const fragments = Array.from(
 			{ length: depth },
 			(_, level) =>
-				`fragment F${level} on Me { ...F${level + 1} ...F${level + 1} }`,
+				`fragment F${level} on AuthPayload { ...F${level + 1} ...F${level + 1} }`,
 		).join("\n");
-		const query = `query Q { me { ...F0 } } ${fragments} fragment F${depth} on Me { id }`;
-		const id = faker.string.uuid();
+		// Two objects get the same fragments: the "already expanded" set must belong to one
+		// object, or the second would come back without its fields.
+		const query = `mutation Q {
+			first: signIn(input: { email: "", password: "" }) { ...F0 }
+			second: signIn(input: { email: "", password: "" }) { ...F0 }
+		} ${fragments} fragment F${depth} on AuthPayload { user { id } }`;
+		const firstId = faker.string.uuid();
+		const secondId = faker.string.uuid();
 
-		const result = withTypenames(query, { me: { id } });
+		const result = withTypenames(query, {
+			first: { user: { id: firstId } },
+			second: { user: { id: secondId } },
+		});
 
-		expect(result).toEqual({ me: { __typename: "Me", id } });
+		expect(result).toEqual({
+			first: {
+				__typename: "AuthPayload",
+				user: { __typename: "Me", id: firstId },
+			},
+			second: {
+				__typename: "AuthPayload",
+				user: { __typename: "Me", id: secondId },
+			},
+		});
 	});
 
 	it.each([
@@ -71,6 +89,20 @@ describe("withTypenames", () => {
 			withTypenames(`query Q { me { ${aliases} } }`, {
 				me: { id: faker.string.uuid() },
 			}),
+		).toThrow(/more than 100000 steps/);
+	});
+
+	it("shares the traversal budget across the objects of a list", () => {
+		const prefix = faker.string.uuid();
+		const myOrganizations = Array.from(
+			{ length: 60_000 },
+			(_unused, index) => ({
+				id: `${prefix}-${index}`,
+			}),
+		);
+
+		expect(() =>
+			withTypenames("query Q { myOrganizations { id } }", { myOrganizations }),
 		).toThrow(/more than 100000 steps/);
 	});
 
