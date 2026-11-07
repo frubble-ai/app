@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { withTypenames } from "../typenames";
 
@@ -25,5 +26,67 @@ describe("withTypenames", () => {
 			me: null,
 		});
 		expect(withTypenames("query Me { me { id } }", undefined)).toBeUndefined();
+	});
+
+	it("expands each fragment once per object, so repeated spreads stay fast", () => {
+		// Every fragment spreads the next one twice: expanding each occurrence is 2^depth steps.
+		const depth = 28;
+		const fragments = Array.from(
+			{ length: depth },
+			(_, level) =>
+				`fragment F${level} on Me { ...F${level + 1} ...F${level + 1} }`,
+		).join("\n");
+		const query = `query Q { me { ...F0 } } ${fragments} fragment F${depth} on Me { id }`;
+		const id = faker.string.uuid();
+		const started = performance.now();
+
+		const result = withTypenames(query, { me: { id } });
+
+		expect(result).toEqual({ me: { __typename: "Me", id } });
+		expect(performance.now() - started).toBeLessThan(1000);
+	});
+
+	it.each([
+		[
+			"a fragment that spreads itself",
+			"query Q { me { ...A } } fragment A on Me { id ...A }",
+		],
+		[
+			"two fragments that spread each other",
+			"query Q { me { ...A } } fragment A on Me { ...B } fragment B on Me { id ...A }",
+		],
+	])("rejects %s", (_name, query) => {
+		expect(() =>
+			withTypenames(query, { me: { id: faker.string.uuid() } }),
+		).toThrow(/fragment cycle/);
+	});
+
+	it("throws a clear error when a query needs more steps than the budget", () => {
+		const aliases = Array.from(
+			{ length: 150_000 },
+			(_unused, index) => `a${index}: id`,
+		).join(" ");
+
+		expect(() =>
+			withTypenames(`query Q { me { ${aliases} } }`, {
+				me: { id: faker.string.uuid() },
+			}),
+		).toThrow(/more than 100000 steps/);
+	});
+
+	it("stays within the budget for a large but ordinary query", () => {
+		const aliases = Array.from(
+			{ length: 20_000 },
+			(_unused, index) => `a${index}: id`,
+		).join(" ");
+		const id = faker.string.uuid();
+
+		const result = withTypenames<{ me: Record<string, unknown> }>(
+			`query Q { me { ${aliases} } }`,
+			{ me: { id } },
+		);
+
+		expect(result.me.__typename).toBe("Me");
+		expect(result.me.id).toBe(id);
 	});
 });
