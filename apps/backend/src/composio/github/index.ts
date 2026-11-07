@@ -6,8 +6,8 @@ import type { TGithubInstallation, TGithubRepository } from "@/integrations";
 
 // Our GitHub App's user token answers for the app's installations, so these call GitHub's own
 // endpoints for them (`/user/installations`), through Composio's proxy. Composio's tools for them
-// live only in GitHub toolkit 20250911_00, which sessions no longer run and which stops working
-// on 2027-01-29, and their output schemas are untyped. The answers' types come from GitHub's own
+// live only in GitHub toolkit 20250911_00, which sessions no longer run; Composio's tools API
+// marks each of them `is_deprecated`, and their output schemas are untyped. The answers' types come from GitHub's own
 // OpenAPI description (@octokit/openapi-types), narrowed to the fields we read; each Zod schema
 // checks an answer at runtime and must produce that type, so a schema that drifts from GitHub's
 // description no longer compiles.

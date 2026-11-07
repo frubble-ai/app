@@ -63,8 +63,8 @@ until then the sweep looks for it by its attempt, as above.
 
 ## Brokers
 
-`src/integrations/` is what the use cases need from a broker, in our terms
-(`TConnectionBroker`):
+`src/integrations/` is what the use cases need from a broker, named for what they need and defined
+by us (`TConnectionBroker`):
 
 | Method                  | Does                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------ |
@@ -81,7 +81,7 @@ are, Composio reads its tools into them, and the GraphQL resolvers turn them int
 types.
 
 `ctx.integrations` holds every broker by its key (`integration_broker`) and the one new
-connections go through. Each row keeps the broker it was made on, and every use case reaches the
+connections go through, Osiris (`CONNECT_THROUGH` in `src/config/integrations/index.ts`). Each row keeps the broker it was made on, and every use case reaches the
 row's own broker (`ctx.integrations.brokers[row.broker]`), so two brokers serve side by side while
 one replaces the other: an organization's existing connection stays where its tokens are until it
 reconnects.
@@ -128,8 +128,8 @@ the action calls the provider's own endpoint through Composio's proxy with the c
 token (`src/composio/lib/proxy-get.ts`), and checks the answer against our own schema of the
 provider's documented response. GitHub's installations and their repositories (`/user/installations`)
 are read that way: Composio's tools for them exist only in GitHub toolkit `20250911_00`, which
-sessions no longer run and which stops working on 2027-01-29, and their output schemas are
-untyped.
+sessions no longer run, Composio's tools API marks each of them `is_deprecated`, and their output
+schemas are untyped.
 
 Every result is checked against the tool's own output schema, fetched from Composio and built
 into Zod with `@composio/json-schema-to-zod` (`src/composio/lib/output-schema.ts`); a response the
@@ -173,7 +173,7 @@ it is installed on.
 
 | Provider | Granted (read-only)                                                             | Our reads need                                                     |
 | -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| GitHub   | the GitHub App's permissions, every one `read`; installed per organization      | _Metadata: read_, for `GET /user/installations/{id}/repositories`  |
+| GitHub   | the GitHub App's permissions, every one `read`; installed on an account or org | _Metadata: read_, for `GET /user/installations/{id}/repositories`  |
 | Linear   | `read`                                                                          | `read`, for `LINEAR_LIST_LINEAR_TEAMS`                             |
 | Slack    | bot and user `*:read` and `*:history` scopes, and user `search:read*`; no write | user `channels:read`, `groups:read`, for `SLACK_LIST_ALL_CHANNELS` |
 
