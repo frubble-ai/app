@@ -176,6 +176,14 @@ takes any branch, never a tag or a pull request); renaming any of them stops the
 Google sign-in. Authentication is OIDC; the one secret is `COMPOSIO_API_KEY`, for codegen, which reaches
 the image build as a BuildKit secret and never a layer.
 
+Every job that installs dependencies reads `@frubble-ai/osiris-client` from GitHub Packages, which
+asks for a token even for a public package. These jobs have `packages: read`, and
+`.github/actions/packages-token` writes the job's own token into `~/.yarnrc.yml` before the
+install. The image builds mount that file as the `yarnrc` BuildKit secret, for the install steps
+only. A pull request from a fork gets no token: its checks stop at that step, and a maintainer
+runs them from a branch of this repository. The package is public, so it needs no repository
+access in its settings.
+
 ## App
 
 `.github/workflows/app-cd.yml` deploys `apps/app` the same way, on a push to `stg` or `dev` that touches
