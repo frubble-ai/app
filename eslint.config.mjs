@@ -3,7 +3,10 @@ import tsParser from "@typescript-eslint/parser";
 
 // Each integration broker in the backend: its folder, and the libraries only that folder imports
 // (docs/integrations.md, "Brokers"). A new broker is a new entry.
-const BROKERS = [{ folder: "composio", libraries: ["@composio"] }];
+const BROKERS = [
+	{ folder: "composio", libraries: ["@composio"] },
+	{ folder: "osiris", libraries: ["@frubble-ai/osiris-client"] },
+];
 
 /** `text` as it reads inside an esquery regex literal. */
 function regexSource(text) {
@@ -16,13 +19,17 @@ function regexSource(text) {
  */
 function brokerBoundary(brokers) {
 	const refused = brokers.flatMap((broker) => [
+		// A library is refused by its own name too: a package such as the Osiris client is
+		// imported bare, a scope such as `@composio` only by its packages.
 		...broker.libraries.map((library) => ({
-			prefix: `${library}/`,
-			message: `Only src/${broker.folder}/ imports ${library}/*; use a broker from ctx.integrations.`,
+			group: [library, `${library}/*`],
+			source: `^${regexSource(library)}(\\/|$)`,
+			message: `Only src/${broker.folder}/ imports ${library}; use a broker from ctx.integrations.`,
 		})),
 		// By the alias, or from `src/` itself by a relative path into the folder.
 		...[`@/${broker.folder}/`, `./${broker.folder}/`].map((prefix) => ({
-			prefix,
+			group: [`${prefix}*`],
+			source: `^${regexSource(prefix)}`,
 			message: `src/${broker.folder}/ is reached through its index.`,
 		})),
 	]);
@@ -30,16 +37,13 @@ function brokerBoundary(brokers) {
 		"no-restricted-imports": [
 			"error",
 			{
-				patterns: refused.map(({ prefix, message }) => ({
-					group: [`${prefix}*`],
-					message,
-				})),
+				patterns: refused.map(({ group, message }) => ({ group, message })),
 			},
 		],
 		"no-restricted-syntax": [
 			"error",
-			...refused.flatMap(({ prefix, message }) => {
-				const pattern = `/^${regexSource(prefix)}/`;
+			...refused.flatMap(({ source, message }) => {
+				const pattern = `/${source}/`;
 				return [
 					{
 						selector: `ImportExpression[source.type='Literal'][source.value=${pattern}]`,
