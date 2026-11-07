@@ -5,7 +5,7 @@ import {
 import type { TGithubInstallation } from "@/integrations";
 
 const ACCOUNT_TYPES: Record<
-	TGithubInstallation["accountType"],
+	TGithubInstallation["account_type"],
 	GithubAccountType
 > = {
 	user: GithubAccountType.User,
@@ -13,7 +13,7 @@ const ACCOUNT_TYPES: Record<
 };
 
 const SELECTIONS: Record<
-	TGithubInstallation["repositories"],
+	TGithubInstallation["repository_selection"],
 	GithubRepositorySelection
 > = {
 	all: GithubRepositorySelection.All,
@@ -23,8 +23,9 @@ const SELECTIONS: Record<
 /** An installation in the schema's terms. */
 export function toGqlInstallation(installation: TGithubInstallation) {
 	return {
-		...installation,
-		accountType: ACCOUNT_TYPES[installation.accountType],
-		repositories: SELECTIONS[installation.repositories],
+		id: installation.id,
+		account: installation.account,
+		accountType: ACCOUNT_TYPES[installation.account_type],
+		repositories: SELECTIONS[installation.repository_selection],
 	};
 }

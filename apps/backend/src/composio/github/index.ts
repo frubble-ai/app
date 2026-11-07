@@ -1,3 +1,4 @@
+import type { components, operations } from "@octokit/openapi-types";
 import { z } from "zod";
 import { proxyGet } from "@/composio/lib/proxy-get";
 import type { TRunContext } from "@/composio/lib/run-context";
@@ -6,13 +7,43 @@ import type { TGithubInstallation, TGithubRepository } from "@/integrations";
 // Our GitHub App's user token answers for the app's installations, so these call GitHub's own
 // endpoints for them (`/user/installations`), through Composio's proxy. Composio's tools for them
 // live only in GitHub toolkit 20250911_00, which sessions no longer run and which stops working
-// on 2027-01-29, and their output schemas are untyped; these schemas are ours, from GitHub's
-// documented responses, with only the fields we read.
+// on 2027-01-29, and their output schemas are untyped. The answers' types come from GitHub's own
+// OpenAPI description (@octokit/openapi-types), narrowed to the fields we read; each Zod schema
+// checks an answer at runtime and must produce that type, so a schema that drifts from GitHub's
+// description no longer compiles.
 
 /** GitHub's page size limit. */
 const PER_PAGE = 100;
 
-const installationsSchema = z.object({
+/** GitHub's answer to `GET /user/installations`, with only the fields we read. */
+type TInstallationsAnswer = Pick<
+	operations["apps/list-installations-for-authenticated-user"]["responses"][200]["content"]["application/json"],
+	"total_count"
+> & {
+	installations: Array<
+		Pick<
+			components["schemas"]["installation"],
+			"id" | "repository_selection"
+		> & {
+			account: Pick<components["schemas"]["simple-user"], "login" | "type">;
+		}
+	>;
+};
+
+/** GitHub's answer to `GET /user/installations/{id}/repositories`, with only the fields we read. */
+type TRepositoriesAnswer = Pick<
+	operations["apps/list-installation-repos-for-authenticated-user"]["responses"][200]["content"]["application/json"],
+	"total_count"
+> & {
+	repositories: Array<
+		Pick<
+			components["schemas"]["repository"],
+			"id" | "full_name" | "private" | "html_url" | "description"
+		>
+	>;
+};
+
+const installationsSchema: z.ZodType<TInstallationsAnswer> = z.object({
 	total_count: z.number(),
 	installations: z.array(
 		z.object({
@@ -26,7 +57,7 @@ const installationsSchema = z.object({
 	),
 });
 
-const repositoriesSchema = z.object({
+const repositoriesSchema: z.ZodType<TRepositoriesAnswer> = z.object({
 	total_count: z.number(),
 	repositories: z.array(
 		z.object({
@@ -87,8 +118,9 @@ export async function listGithubInstallations(
 	return (await installations(run, pageBudget(run))).map((installation) => ({
 		id: String(installation.id),
 		account: installation.account.login,
-		accountType: installation.account.type === "User" ? "user" : "organization",
-		repositories: installation.repository_selection,
+		account_type:
+			installation.account.type === "User" ? "user" : "organization",
+		repository_selection: installation.repository_selection,
 	}));
 }
 
@@ -111,12 +143,12 @@ export async function listGithubRepositories(
 			}),
 		),
 	);
-	const byId = new Map<number, TGithubRepository>();
+	const byId = new Map<string, TGithubRepository>();
 	for (const repository of perInstallation.flat()) {
-		byId.set(repository.id, {
+		byId.set(String(repository.id), {
 			id: String(repository.id),
-			fullName: repository.full_name,
-			isPrivate: repository.private,
+			full_name: repository.full_name,
+			private: repository.private,
 			url: repository.html_url,
 			description: repository.description,
 		});

@@ -126,7 +126,7 @@ export function describeConnectionBrokerContract(
 					installations: [installation],
 					repositories: [
 						generateGithubRepository({
-							fullName: `${installation.account}/${faker.lorem.slug(1)}`,
+							full_name: `${installation.account}/${faker.lorem.slug(1)}`,
 						}),
 					],
 				};

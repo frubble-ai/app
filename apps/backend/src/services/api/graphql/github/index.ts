@@ -4,6 +4,7 @@ import { githubAppInstallUrlUseCase } from "@/use-cases/cases/github-app-install
 import { listGithubInstallationsUseCase } from "@/use-cases/cases/list-github-installations.use-case";
 import { listGithubRepositoriesUseCase } from "@/use-cases/cases/list-github-repositories.use-case";
 import { toGqlInstallation } from "./lib/installations";
+import { toGqlRepository } from "./lib/repositories";
 
 /** GitHub's reads: where our GitHub App is installed, the repositories it reads, and where to install it. */
 export function createGithubResolvers(): Resolvers {
@@ -17,12 +18,13 @@ export function createGithubResolvers(): Resolvers {
 				return installations.map(toGqlInstallation);
 			}),
 
-			githubRepositories: requireAuth(async (_parent, args, context) =>
-				listGithubRepositoriesUseCase({
+			githubRepositories: requireAuth(async (_parent, args, context) => {
+				const repositories = await listGithubRepositoriesUseCase({
 					userId: context.user.id,
 					organizationId: args.organizationId,
-				}),
-			),
+				});
+				return repositories.map(toGqlRepository);
+			}),
 
 			githubAppInstallUrl: requireAuth(async () =>
 				githubAppInstallUrlUseCase({}),

@@ -1,4 +1,10 @@
 import type { TIntegrationBroker, TIntegrationProvider } from "@frubble/db";
+import type {
+	GithubInstallation,
+	GithubRepository,
+	LinearTeam,
+	SlackChannel,
+} from "@/osiris";
 
 // What the use cases need from whoever holds the organizations' grants (a broker), in our terms.
 // Each broker implements TConnectionBroker in its own folder (`src/composio/`); nothing here or in
@@ -14,36 +20,21 @@ export type TConnectionRef = {
 	accountRef: string;
 };
 
+// The actions' outputs are osiris's own types, generated from its OpenAPI spec
+// (frubble-ai/osiris, `api-reference/openapi.json`): osiris answers in them, and every other
+// broker reads its provider into them. Only the types come from osiris, through its folder's index.
+
 /** Where our GitHub App is installed, as the connected user can see it: an account or organization. */
-export type TGithubInstallation = {
-	id: string;
-	/** The account or organization's login. */
-	account: string;
-	accountType: "user" | "organization";
-	/** Every repository of the account, or only the ones chosen at install. */
-	repositories: "all" | "selected";
-};
+export type TGithubInstallation = GithubInstallation;
 
 /** A repository our GitHub App can read, through one of its installations. */
-export type TGithubRepository = {
-	id: string;
-	/** `owner/name`. */
-	fullName: string;
-	isPrivate: boolean;
-	url: string;
-	description: string | null;
-};
+export type TGithubRepository = GithubRepository;
 
 /** A Linear team the connected user can see. */
-export type TLinearTeam = { id: string; name: string };
+export type TLinearTeam = LinearTeam;
 
 /** A Slack channel the connected user can see. */
-export type TSlackChannel = {
-	id: string;
-	name: string;
-	isPrivate: boolean;
-	memberCount: number | null;
-};
+export type TSlackChannel = SlackChannel;
 
 /** Every action a broker runs with a connection: our ids, our input and output. */
 export type TIntegrationActions = {

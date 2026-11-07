@@ -1,8 +1,12 @@
 import {
 	createConnectedAccount,
 	deleteConnectedAccount,
+	githubListInstallations,
+	githubListRepositories,
+	linearListTeams,
 	listConnectedAccounts,
 	retrieveConnectedAccount,
+	slackListChannels,
 } from "@frubble-ai/osiris-client";
 import type { TOsirisConfig } from "@/config/integrations/osiris";
 import type {
@@ -10,24 +14,36 @@ import type {
 	TIntegrationAction,
 	TIntegrationActions,
 } from "@/integrations";
-import { listGithubInstallations, listGithubRepositories } from "./github";
 import { accountState } from "./lib/account-state";
 import { answer, OsirisError } from "./lib/answer";
 import { createOsiris, type TOsiris } from "./lib/client";
-import { listLinearTeams } from "./linear";
-import { listSlackChannels } from "./slack";
 
-/** Each action as osiris runs it, read into our output. */
+// The outputs of our actions, osiris's generated types (src/integrations/).
+export type {
+	GithubInstallation,
+	GithubRepository,
+	LinearTeam,
+	SlackChannel,
+} from "@frubble-ai/osiris-client";
+
+/**
+ * Each action as osiris's generated client calls it. Our outputs are osiris's own types, so its
+ * answer comes back as it is, already checked against its schema by the client.
+ */
 const ACTIONS: {
-	[TAction in TIntegrationAction]: (
-		osiris: TOsiris,
-		accountRef: string,
-	) => Promise<TIntegrationActions[TAction]["output"]>;
+	[TAction in TIntegrationAction]: (options: {
+		client: TOsiris;
+		path: { id: string };
+	}) => Promise<{
+		data?: { data: TIntegrationActions[TAction]["output"] };
+		error?: unknown;
+		response?: Response;
+	}>;
 } = {
-	"github.listInstallations": listGithubInstallations,
-	"github.listRepositories": listGithubRepositories,
-	"linear.listTeams": listLinearTeams,
-	"slack.listChannels": listSlackChannels,
+	"github.listInstallations": githubListInstallations,
+	"github.listRepositories": githubListRepositories,
+	"linear.listTeams": linearListTeams,
+	"slack.listChannels": slackListChannels,
 };
 
 /**
@@ -99,7 +115,10 @@ export function createOsirisBroker(config: TOsirisConfig): TConnectionBroker {
 		},
 
 		async run(action, connection) {
-			return ACTIONS[action](osiris, connection.accountRef);
+			const call = ACTIONS[action];
+			return answer(
+				await call({ client: osiris, path: { id: connection.accountRef } }),
+			).data;
 		},
 	};
 }

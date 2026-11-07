@@ -8,8 +8,8 @@ export function generateGithubInstallation(
 	return {
 		id: String(faker.number.int({ min: 1, max: 1_000_000_000 })),
 		account: faker.internet.username().toLowerCase(),
-		accountType: faker.helpers.arrayElement(["user", "organization"]),
-		repositories: faker.helpers.arrayElement(["all", "selected"]),
+		account_type: faker.helpers.arrayElement(["user", "organization"]),
+		repository_selection: faker.helpers.arrayElement(["all", "selected"]),
 		...overrides,
 	};
 }

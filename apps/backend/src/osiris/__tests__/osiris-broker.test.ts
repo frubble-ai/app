@@ -31,25 +31,9 @@ describeConnectionBrokerContract("osiris", () => ({
 	},
 	removedElsewhere: (accountRef) => osiris.removedElsewhere(accountRef),
 	answerGithub({ installations, repositories }) {
-		osiris.answerAction(
-			"github.list_installations",
-			installations.map((installation) => ({
-				id: installation.id,
-				account: installation.account,
-				account_type: installation.accountType,
-				repository_selection: installation.repositories,
-			})),
-		);
-		osiris.answerAction(
-			"github.list_repositories",
-			repositories.map((repository) => ({
-				id: repository.id,
-				full_name: repository.fullName,
-				private: repository.isPrivate,
-				url: repository.url,
-				description: repository.description,
-			})),
-		);
+		// Our outputs are osiris's own types, so osiris answers them as they are.
+		osiris.answerAction("github.list_installations", installations);
+		osiris.answerAction("github.list_repositories", repositories);
 	},
 }));
 
@@ -74,7 +58,7 @@ describe("osiris as a broker", () => {
 		});
 	});
 
-	it("reads Slack channels and Linear teams into our types", async () => {
+	it("answers Slack channels and Linear teams as osiris gives them", async () => {
 		const broker = osirisBroker();
 		const attempt = generateConnectAttempt({ provider: "slack" });
 		const { accountRef } = await broker.startConnect(attempt);
@@ -94,14 +78,7 @@ describe("osiris as a broker", () => {
 				{ organizationId: attempt.organizationId, accountRef },
 				{},
 			),
-		).resolves.toEqual([
-			{
-				id: channel.id,
-				name: channel.name,
-				isPrivate: channel.is_private,
-				memberCount: null,
-			},
-		]);
+		).resolves.toEqual([channel]);
 		await expect(
 			broker.run(
 				"linear.listTeams",

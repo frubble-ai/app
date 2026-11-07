@@ -15,7 +15,7 @@ export async function listSlackChannels(
 	return (data.channels ?? []).map((channel) => ({
 		id: channel.id,
 		name: channel.name ?? channel.id,
-		isPrivate: channel.is_private ?? false,
-		memberCount: channel.num_members ?? null,
+		is_private: channel.is_private ?? false,
+		num_members: channel.num_members ?? null,
 	}));
 }

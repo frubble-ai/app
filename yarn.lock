@@ -1882,6 +1882,7 @@ __metadata:
     "@graphql-codegen/cli": "npm:^7.4.6"
     "@graphql-codegen/typescript-resolvers": "npm:^6.1.1"
     "@graphql-hive/logger": "npm:^1.1.1"
+    "@octokit/openapi-types": "npm:29.0.1"
     "@testcontainers/postgresql": "npm:^12.2.1"
     "@types/bun": "npm:^1.4.4"
     "@types/luxon": "npm:^3.7.6"
@@ -3713,6 +3714,13 @@ __metadata:
     "@nodelib/fs.scandir": "npm:2.1.5"
     fastq: "npm:^1.6.0"
   checksum: 10c0/db9de047c3bb9b51f9335a7bb46f4fcfb6829fb628318c12115fbaf7d369bfce71c15b103d1fc3b464812d936220ee9bc1c8f762d032c9f6be9acc99249095b1
+  languageName: node
+  linkType: hard
+
+"@octokit/openapi-types@npm:29.0.1":
+  version: 29.0.1
+  resolution: "@octokit/openapi-types@npm:29.0.1"
+  checksum: 10c0/1f1550a7877bb23584396a976d3f3b71c8496a86c135072050ff7ddfc0cd816804373ccc233bafab3a31a0178114e2599846cf54416f32f310712fc05699c5f7
   languageName: node
   linkType: hard
 

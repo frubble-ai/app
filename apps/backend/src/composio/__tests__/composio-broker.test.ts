@@ -72,8 +72,9 @@ describeConnectionBrokerContract("Composio", () => ({
 					...generateGithubApiInstallation({
 						id: Number(installation.id),
 						login: installation.account,
-						type: installation.accountType === "user" ? "User" : "Organization",
-						repository_selection: installation.repositories,
+						type:
+							installation.account_type === "user" ? "User" : "Organization",
+						repository_selection: installation.repository_selection,
 					}),
 				})),
 			}),
@@ -85,8 +86,8 @@ describeConnectionBrokerContract("Composio", () => ({
 					repositories: repositories.map((repository) => ({
 						...generateGithubApiRepository(),
 						id: Number(repository.id),
-						full_name: repository.fullName,
-						private: repository.isPrivate,
+						full_name: repository.full_name,
+						private: repository.private,
 						html_url: repository.url,
 						description: repository.description,
 					})),
@@ -186,8 +187,8 @@ describe("running an action through Composio", () => {
 					{
 						id: channel.id,
 						name: channel.name,
-						isPrivate: channel.is_private,
-						memberCount: channel.num_members,
+						is_private: channel.is_private,
+						num_members: channel.num_members,
 					},
 				];
 			},
@@ -270,8 +271,8 @@ describe("reading GitHub through Composio's proxy", () => {
 			{
 				id: String(installation.id),
 				account: installation.account.login,
-				accountType: "organization",
-				repositories: installation.repository_selection,
+				account_type: "organization",
+				repository_selection: installation.repository_selection,
 			},
 		]);
 		expect(proxyRequests()).toEqual([
@@ -317,8 +318,8 @@ describe("reading GitHub through Composio's proxy", () => {
 		).toEqual([
 			{
 				id: String(shared.id),
-				fullName: shared.full_name,
-				isPrivate: shared.private,
+				full_name: shared.full_name,
+				private: shared.private,
 				url: shared.html_url,
 				description: shared.description,
 			},
