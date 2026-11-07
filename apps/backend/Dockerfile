@@ -62,8 +62,9 @@ RUN --mount=type=secret,id=yarnrc,target=/root/.yarnrc.yml,required=true \
 COPY packages/gql packages/gql/
 COPY apps/backend/codegen.yml apps/backend/
 # The Composio tool types come from Composio's schemas: the key arrives as a build secret, never
-# in a layer, with the schema patches they share with the runtime check.
+# in a layer, with the tool list and schema patches they share with the runtime check.
 COPY apps/backend/codegen apps/backend/codegen/
+COPY apps/backend/src/__codegen__ apps/backend/src/__codegen__/
 COPY apps/backend/src/composio apps/backend/src/composio/
 RUN --mount=type=secret,id=composio_api_key,env=COMPOSIO_API_KEY \
     yarn workspace @frubble/gql codegen && yarn workspace @frubble/backend codegen

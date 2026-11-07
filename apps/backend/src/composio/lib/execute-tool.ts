@@ -1,12 +1,14 @@
+import { COMPOSIO_TOOLS } from "@/__codegen__/composio-tools";
 import type { TComposioToolData } from "@/__generated__/composio";
 import type { TComposio } from "./client";
-import { type TSchemaPatch, toolOutputSchema } from "./output-schema";
+import { toolOutputSchema } from "./output-schema";
 import type { TSession } from "./session";
 
 /**
  * Run one tool through the session and check its `data` against the tool's own output schema. A
  * failed run or a response that doesn't match throws: nothing unchecked leaves this function. Its
- * type is the tool's `data`, generated from the same schema (codegen/composio-tools.ts).
+ * type is the tool's `data`, generated from the same schema (codegen/composio-tools.ts), with the
+ * tool's patch from COMPOSIO_TOOLS.
  */
 export async function executeTool<TSlug extends keyof TComposioToolData>(
 	composio: TComposio,
@@ -14,23 +16,23 @@ export async function executeTool<TSlug extends keyof TComposioToolData>(
 	tool: {
 		slug: TSlug;
 		arguments: Record<string, unknown>;
-		patch?: TSchemaPatch;
 	},
 ): Promise<TComposioToolData[TSlug]> {
+	const patch = COMPOSIO_TOOLS[tool.slug];
 	const result = await session.execute(tool.slug, tool.arguments);
 	if (result.resultType !== "completed") {
 		throw new Error(
 			`${tool.slug} ${result.resultType}: ${result.error ?? "no error"} (log ${result.logId})`,
 		);
 	}
-	let parsed = (
-		await toolOutputSchema(composio, tool.slug, tool.patch)
-	).safeParse(result.data);
+	let parsed = (await toolOutputSchema(composio, tool.slug, patch)).safeParse(
+		result.data,
+	);
 	if (!parsed.success) {
 		// The session may run a newer toolkit version than the schema we kept: check once more
 		// against Composio's current one before refusing.
 		parsed = (
-			await toolOutputSchema(composio, tool.slug, tool.patch, { refresh: true })
+			await toolOutputSchema(composio, tool.slug, patch, { refresh: true })
 		).safeParse(result.data);
 	}
 	if (!parsed.success) {

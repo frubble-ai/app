@@ -67,6 +67,8 @@ export default [
 			"**/coverage/**",
 			"**/.turbo/**",
 			"**/__generated__/**",
+			// What a code generator imports under Node, by relative path (apps/backend/src/__codegen__)
+			"**/__codegen__/**",
 			"**/.next/**",
 			"**/next-env.d.ts",
 			// The SDK's codegen output (packages/react-sdk/codegen.yml)

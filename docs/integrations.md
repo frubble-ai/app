@@ -75,7 +75,10 @@ until then the sweep looks for it by its attempt, as above.
 | `run`                   | runs one action with a connection and answers its checked output                     |
 
 Actions are ours too (`TIntegrationActions`): an id such as `github.listRepositories`, its input
-and its output type. Each broker maps them onto its own tools.
+and its output type. Each broker maps them onto its own tools. The output types are Osiris's own,
+generated from its OpenAPI spec (`@frubble-ai/osiris-client`), so Osiris answers in them as they
+are, Composio reads its tools into them, and the GraphQL resolvers turn them into the schema's
+types.
 
 `ctx.integrations` holds every broker by its key (`integration_broker`) and the one new
 connections go through. Each row keeps the broker it was made on, and every use case reaches the
@@ -132,14 +135,19 @@ Every result is checked against the tool's own output schema, fetched from Compo
 into Zod with `@composio/json-schema-to-zod` (`src/composio/lib/output-schema.ts`); a response the
 schema refuses fails the read. Where Composio's schema is wrong, the provider's folder in
 `src/composio/` patches only that schema, with the date and the reason. The provider's folder then
-reads the result into our output type. A proxied answer is checked against our schema instead.
+reads the result into our output type. A proxied answer is checked against our Zod schema
+instead. Its type comes from GitHub's own OpenAPI description (`@octokit/openapi-types`), narrowed
+to the fields we read, and the schema must produce that type, so one that drifts from GitHub's
+description fails to compile.
 
 The same schemas, with the same patches, generate each tool's `data` type
 (`codegen/composio-tools.ts`, part of the backend's `codegen`, into `src/__generated__/composio/`,
 not committed), so the reads use no hand-written shapes. Codegen needs `COMPOSIO_API_KEY`: locally
 from `apps/backend/.env.local`, in CI the repository secret, in the image build a BuildKit secret. A
-new tool is one line in its `TOOLS`, and a new action is its entry in `TIntegrationActions` plus its
-tool in `src/composio/`.
+new tool is one line in `COMPOSIO_TOOLS` (`src/__codegen__/composio-tools.ts`), the list both the
+runtime check and the codegen read; `src/__codegen__/` holds what a generator imports under Node,
+by relative path, and ESLint leaves it out. A new action is its entry in `TIntegrationActions`, its
+generated client call in Osiris's `ACTIONS`, and its tool in `src/composio/`.
 
 ## Composio setup
 
