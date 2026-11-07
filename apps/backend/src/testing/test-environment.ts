@@ -5,6 +5,9 @@ import { CONNECT_THROUGH } from "@/config/integrations";
 import { githubConfig } from "@/config/integrations/github";
 import { testLogger } from "./test-logger";
 
+/** The GitHub App the tests' environment installs, its slug as `GITHUB_APP_SLUG` gives it. */
+export const TEST_GITHUB_APP_SLUG = "frubble-ai-test";
+
 /** createAuth for tests. */
 export function buildTestAuth(db: TDb, config: TConfig): TAuth {
 	return createAuth(db, config, testLogger);
@@ -50,7 +53,7 @@ export function buildTestConfig(): TConfig {
 				},
 				proxyMaxPages: 10,
 			},
-			github: githubConfig({ GITHUB_APP_SLUG: "frubble-ai" }),
+			github: githubConfig({ GITHUB_APP_SLUG: TEST_GITHUB_APP_SLUG }),
 		},
 		pubsub: { emailsTopic: "emails" },
 		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },

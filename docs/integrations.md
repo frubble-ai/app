@@ -115,8 +115,8 @@ GitHub's connection goes through our GitHub App, which reads only what it is ins
 account or an organization, with all its repositories or the ones chosen at install. Connecting
 is the first step, installing the second. Once connected, the GitHub card asks where the app is
 installed (`githubInstallations`). Installed nowhere, it offers only the install: the link
-`githubAppInstallUrl` answers, `github.com/apps/frubble-ai/installations/new`
-(`config/integrations/github/`). Installed, it says where, links to change that, and lists the
+`githubAppInstallUrl` answers, `github.com/apps/<GITHUB_APP_SLUG>/installations/new`
+(`config/integrations/github/`), each environment's own app ([environment](environment.md)). Installed, it says where, links to change that, and lists the
 repositories on demand (`githubRepositories`, every installation's, each once).
 
 At Composio, an action is one tool run in a session opened for the organization with its
