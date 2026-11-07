@@ -1,0 +1,28 @@
+name: Read the frubble-ai packages
+description: >-
+  Writes the job's token into ~/.yarnrc.yml, so Yarn can install @frubble-ai
+  packages such as the Osiris client from GitHub Packages. The job needs
+  `packages: read`, and each package must give this repository read access
+  (the package's settings, "Manage Actions access"). The file's path is the
+  output, for a Docker build to mount as a secret.
+
+outputs:
+  yarnrc:
+    description: Path of the written ~/.yarnrc.yml
+    value: ${{ steps.write.outputs.yarnrc }}
+
+runs:
+  using: composite
+  steps:
+    # The registry is set in the repository's .yarnrc.yml. Only the token is
+    # written here, in the runner's home, which Yarn merges with it.
+    - id: write
+      shell: bash
+      env:
+        TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        yarnrc="$HOME/.yarnrc.yml"
+        umask 077
+        printf 'npmScopes:\n  frubble-ai:\n    npmAuthToken: "%s"\n' "$TOKEN" > "$yarnrc"
+        echo "yarnrc=$yarnrc" >> "$GITHUB_OUTPUT"

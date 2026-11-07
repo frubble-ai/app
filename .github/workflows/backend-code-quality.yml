@@ -10,6 +10,8 @@ concurrency:
 
 permissions:
   contents: read
+  # setup-monorepo and the image build install @frubble-ai packages from GitHub Packages.
+  packages: read
 
 env:
   GITLEAKS_VERSION: 8.30.1
@@ -168,11 +170,16 @@ jobs:
 
       # Never pushed: a pull request only proves the image builds. The context
       # is the repository root, where the lockfile and workspace manifest live.
+      - id: packages
+        uses: ./.github/actions/packages-token
+
       - name: Build image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: apps/backend/Dockerfile
+          secret-files: |
+            yarnrc=${{ steps.packages.outputs.yarnrc }}
           secrets: |
             composio_api_key=${{ secrets.COMPOSIO_API_KEY }}
           push: false

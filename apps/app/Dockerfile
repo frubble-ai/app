@@ -4,7 +4,9 @@
 # of it. The platform's health check is `GET /` → 200.
 #
 # Built from the repository root (`docker build -f apps/app/Dockerfile .`): the build compiles the
-# workspace packages it imports (@frubble/react-sdk, @frubble/gql) from source.
+# workspace packages it imports (@frubble/react-sdk, @frubble/gql) from source. The install reads
+# @frubble-ai packages from GitHub Packages, with the token from a ~/.yarnrc.yml passed as a build
+# secret: `docker build -f apps/app/Dockerfile --secret id=yarnrc,src=$HOME/.yarnrc.yml .`
 #
 # One image serves every environment: the server reads APP_ENV and GRAPHQL_URL from the container
 # at request time (docs/environment.md).
@@ -31,8 +33,11 @@ COPY packages/events/package.json packages/events/
 COPY packages/gql/package.json packages/gql/
 COPY packages/react-sdk/package.json packages/react-sdk/
 COPY packages/seed/package.json packages/seed/
-# No install scripts: the root's would install git hooks, which an image has no use for
-RUN yarn install --immutable --mode=skip-build
+# No install scripts: the root's would install git hooks, which an image has no use for. The
+# @frubble-ai packages need a GitHub Packages token, mounted as ~/.yarnrc.yml for this step only,
+# so it never lands in a layer.
+RUN --mount=type=secret,id=yarnrc,target=/root/.yarnrc.yml,required=true \
+    yarn install --immutable --mode=skip-build
 
 # Only the source the build reads. vitest.shared.ts: next build type-checks what tsconfig.json
 # includes, vitest.config.ts among it
