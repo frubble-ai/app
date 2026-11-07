@@ -23,7 +23,7 @@ describe("createAuth", () => {
 			{ write: (line) => lines.push(line) },
 		);
 		const stderr = vi.spyOn(console, "error").mockImplementation(() => {});
-		const { auth } = createAuth(db, config, logger);
+		const auth = createAuth(db, config, logger);
 		// The bearer plugin only looks a token up once its signature checks out.
 		const token = faker.string.alphanumeric(40);
 		const signature = createHmac("sha256", config.betterAuth.secret)

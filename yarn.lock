@@ -1884,7 +1884,6 @@ __metadata:
     graphql-yoga: "npm:^6.0.1"
     hono: "npm:^4.13.14"
     json-schema-to-typescript: "npm:16.0.0"
-    lru-cache: "npm:^11.5.3"
     luxon: "npm:^3.7.2"
     msw: "npm:3.0.3"
     pg: "npm:^8.23.1"
