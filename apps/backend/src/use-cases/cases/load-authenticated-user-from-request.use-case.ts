@@ -11,8 +11,9 @@ const loadAuthenticatedUserFromRequestArgsSchema = z.object({
 });
 
 /**
- * The signed-in user for a request, through the session cache. An unknown role throws instead of
- * passing through: it means a bug or a tampered session.
+ * The signed-in user for a request, read from the session in the database on every call, so a
+ * session revoked anywhere stops authenticating at once. An unknown role throws instead of passing
+ * through: it means a bug or a tampered session.
  */
 export const loadAuthenticatedUserFromRequestUseCase = defineUseCase(
 	async function loadAuthenticatedUserFromRequestUseCase(
@@ -21,9 +22,7 @@ export const loadAuthenticatedUserFromRequestUseCase = defineUseCase(
 	): Promise<TAuthenticatedUser | null> {
 		const { headers } = loadAuthenticatedUserFromRequestArgsSchema.parse(args);
 
-		const session = (await ctx.sessionCache.get(headers)) as Awaited<
-			ReturnType<typeof ctx.auth.api.getSession>
-		>;
+		const session = await ctx.auth.api.getSession({ headers });
 		if (!session?.user) return null;
 
 		const rawRole = session.user.role;

@@ -5,21 +5,18 @@ import { bearer, organization } from "better-auth/plugins";
 import type { TConfig } from "@/config";
 import type { TLogger } from "@/logger";
 import { createAuthLogger } from "./lib/auth-logger";
-import { createDatabaseHooks } from "./lib/database-hooks";
-import { createSessionCache, type TSessionCache } from "./lib/session-cache";
 
 /**
- * The configured Better Auth instance (`ctx.auth`) plus its bearer session cache. Its HTTP
- * handler is never mounted: the GraphQL resolvers call use cases, which call `auth.api.*`.
+ * The configured Better Auth instance (`ctx.auth`). Its HTTP handler is never mounted: the
+ * GraphQL resolvers call use cases, which call `auth.api.*`.
+ *
+ * There is no session cache in front of `getSession`. A cache per API process cannot hear that
+ * another process revoked a session (sign-out, password change or reset), so a revoked token kept
+ * authenticating there until its entry expired. Every request reads the session from the shared
+ * database instead.
  */
 export function createAuth(db: TDb, config: TConfig, logger: TLogger) {
-	// The hooks need the cache and the cache needs `auth`; filled in after construction.
-	const cacheRef: { current?: TSessionCache<unknown> } = {};
-	const databaseHooks = createDatabaseHooks({
-		onSessionDeleted: (token) => cacheRef.current?.invalidateByToken(token),
-	});
-
-	const auth = betterAuth({
+	return betterAuth({
 		database: drizzleAdapter(db, { provider: "pg" }),
 		baseURL: config.betterAuth.url,
 		secret: config.betterAuth.secret,
@@ -32,7 +29,6 @@ export function createAuth(db: TDb, config: TConfig, logger: TLogger) {
 			// Better Auth skips origin checks under test; keep tests like production.
 			disableOriginCheck: false,
 		},
-		databaseHooks,
 		plugins: [
 			bearer(),
 			organization({
@@ -54,12 +50,6 @@ export function createAuth(db: TDb, config: TConfig, logger: TLogger) {
 			},
 		},
 	});
-
-	cacheRef.current = createSessionCache((args) => auth.api.getSession(args));
-
-	return { auth, sessionCache: cacheRef.current };
 }
 
-export type TCreateAuthResult = ReturnType<typeof createAuth>;
-export type TAuth = TCreateAuthResult["auth"];
-export type TAuthSessionCache = TCreateAuthResult["sessionCache"];
+export type TAuth = ReturnType<typeof createAuth>;
