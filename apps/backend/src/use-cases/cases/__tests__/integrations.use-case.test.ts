@@ -6,7 +6,7 @@ import {
 	type TIntegrationProvider,
 } from "@frubble/db";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { INTEGRATION_ACTION_PROVIDERS } from "@/integrations";
 import { generateGithubInstallation } from "@/shared/__mocks__/generate-github-installation";
 import { generateGithubRepository } from "@/shared/__mocks__/generate-github-repository";
@@ -279,6 +279,38 @@ describe("connecting a provider", () => {
 		expect(reads.mostAtOnce).toBe(1);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 		expect(clone.broker.removedAccounts()).toEqual([attempt.accountRef]);
+	});
+
+	it("removes a failed account once when two settles race, while the broker is slow to remove", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		// The broker takes a moment to answer, so the second settle is already waiting on the lock
+		// when the first one retires the row.
+		clone.broker.answerStatesInTurn(attempt.accountRef, ["failed", "failed"]);
+		const removal = clone.broker.holdRemove();
+		const removals = () =>
+			clone.broker.calls().filter((call) => call === "removeAccount").length;
+
+		const settles = [0, 1].map(() =>
+			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+		);
+		// The first settle retires the row and starts removing its account, which waits. The second
+		// finds the row retiring; it must leave the removal to the first, not start its own.
+		await vi.waitFor(() => expect(removals()).toBe(1));
+		await Promise.race([
+			Promise.allSettled(settles),
+			new Promise((resolve) => setTimeout(resolve, 500)),
+		]);
+		removal.release();
+		await Promise.all(settles);
+
+		expect(removals()).toBe(1);
+		expect(clone.broker.removedAccounts()).toEqual([attempt.accountRef]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
 	it("gives up on a broker that hangs and leaves the connection pending", async () => {
