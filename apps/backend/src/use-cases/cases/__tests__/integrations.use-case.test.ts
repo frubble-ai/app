@@ -7,6 +7,7 @@ import {
 } from "@frubble/db";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { INTEGRATION_ACTION_PROVIDERS } from "@/integrations";
 import { generateGithubInstallation } from "@/shared/__mocks__/generate-github-installation";
 import { generateGithubRepository } from "@/shared/__mocks__/generate-github-repository";
 import { generateSlackChannel } from "@/shared/__mocks__/generate-slack-channel";
@@ -541,6 +542,36 @@ describe("reading through a connection", () => {
 			},
 		]);
 	});
+
+	it.each([
+		{
+			action: "github.listInstallations",
+			read: listGithubInstallationsUseCase,
+		},
+		{
+			action: "github.listRepositories",
+			read: listGithubRepositoriesUseCase,
+		},
+		{ action: "linear.listTeams", read: listLinearTeamsUseCase },
+		{ action: "slack.listChannels", read: listSlackChannelsUseCase },
+	] as const)(
+		"hides $action from someone outside the organization, and asks the broker nothing",
+		async ({ action, read }) => {
+			const clone = getClone();
+			const { owner, organizationId } = await ownerWithOrganization(clone);
+			await connected(clone, {
+				userId: owner.id,
+				organizationId,
+				provider: INTEGRATION_ACTION_PROVIDERS[action],
+			});
+			const outsider = await signedInTestUser(clone);
+
+			await expect(
+				read({ userId: outsider.id, organizationId }),
+			).rejects.toMatchObject({ name: "NotFoundError" });
+			expect(clone.broker.runs()).toEqual([]);
+		},
+	);
 
 	it("says a provider that is not connected is not found", async () => {
 		const clone = getClone();

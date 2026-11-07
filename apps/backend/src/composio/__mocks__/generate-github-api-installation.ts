@@ -11,7 +11,7 @@ export function generateGithubApiInstallation(
 ) {
 	return {
 		id: overrides.id ?? faker.number.int({ min: 1, max: 1_000_000_000 }),
-		app_slug: "frubble-ai",
+		app_slug: faker.helpers.slugify(faker.company.name()).toLowerCase(),
 		account: {
 			login: overrides.login ?? faker.internet.username().toLowerCase(),
 			type:
@@ -21,6 +21,9 @@ export function generateGithubApiInstallation(
 		repository_selection:
 			overrides.repository_selection ??
 			faker.helpers.arrayElement(["all", "selected"]),
-		permissions: { metadata: "read", members: "read" },
+		permissions: {
+			metadata: faker.helpers.arrayElement(["read", "write"]),
+			members: faker.helpers.arrayElement(["read", "write"]),
+		},
 	};
 }

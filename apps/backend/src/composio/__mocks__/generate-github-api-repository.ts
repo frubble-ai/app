@@ -13,6 +13,6 @@ export function generateGithubApiRepository(
 		private: faker.datatype.boolean(),
 		html_url: `https://github.com/${owner}/${name}`,
 		description: faker.helpers.arrayElement([null, faker.lorem.sentence()]),
-		default_branch: "main",
+		default_branch: faker.git.branch(),
 	};
 }
