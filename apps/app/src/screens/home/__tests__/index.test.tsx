@@ -118,6 +118,18 @@ describe("HomeScreen", () => {
 		expect(screen.queryByTestId("github-repositories-load")).toBeNull();
 	});
 
+	it("offers no install link while its address is unknown", () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Github]);
+		mockGithubAppInstallUrl(undefined);
+		mockGithubInstallations([]);
+
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("github-installations-none")).toBeInTheDocument();
+		expect(screen.queryByTestId("github-app-install")).toBeNull();
+	});
+
 	it("says where Frubble AI is installed and lists its repositories on demand", async () => {
 		const organization = generateOrganization(OrganizationRole.Member);
 		mockMyOrganizations([organization]);
