@@ -33,7 +33,7 @@ use-cases/
 ## Third-party clients
 
 A vendor the use cases call per request and that we may replace goes on the context behind a
-type named for what the use cases need, defined by us, never by the vendor's own API. The integration
+type named for what the use cases need, defined by us. The integration
 brokers are the one so far: `ctx.integrations` holds a `TConnectionBroker` per broker
 (`src/integrations/`), each implemented in the vendor's folder (`src/composio/`). The use case
 still shows what talks to the outside, `ctx.integrations.brokers[row.broker].run(…)`, and no
