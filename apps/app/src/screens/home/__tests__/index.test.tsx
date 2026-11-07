@@ -162,6 +162,25 @@ describe("HomeScreen", () => {
 		).toHaveTextContent(repository.fullName);
 	});
 
+	it("names every installation with whether it gives all or selected repositories", () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Github]);
+		const all = generateGithubInstallation({
+			repositories: GithubRepositorySelection.All,
+		});
+		const selected = generateGithubInstallation({
+			repositories: GithubRepositorySelection.Selected,
+		});
+		mockGithubInstallations([all, selected]);
+		mockRead(useGithubRepositoriesLazyQuery, "githubRepositories", []);
+
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("github-installations")).toHaveTextContent(
+			`home.integrations.github.installedOn(accounts=home.integrations.github.allRepositories(account=${all.account}), home.integrations.github.selectedRepositories(account=${selected.account}))`,
+		);
+	});
+
 	it("says when an installed Frubble AI reads no repository", async () => {
 		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
 		mockIntegrations([IntegrationProvider.Github]);
