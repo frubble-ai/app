@@ -164,6 +164,29 @@ describe("HomeScreen", () => {
 		).toBeInTheDocument();
 	});
 
+	it("says when listing the repositories fails, and shows no list", () => {
+		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
+		mockIntegrations([IntegrationProvider.Github]);
+		mockGithubInstallations([generateGithubInstallation()]);
+		vi.mocked(useGithubRepositoriesLazyQuery).mockReturnValue([
+			vi.fn(),
+			{
+				data: undefined,
+				loading: false,
+				called: true,
+				error: new Error(faker.lorem.sentence()),
+			},
+		] as never);
+		renderWithProviders(<HomeScreen />);
+
+		expect(screen.getByTestId("github-repositories-error")).toHaveAttribute(
+			"role",
+			"alert",
+		);
+		expect(screen.queryByTestId("github-repositories-items")).toBeNull();
+		expect(screen.queryByTestId("github-repositories-empty")).toBeNull();
+	});
+
 	it.each([
 		{ state: "loading", testId: "github-installations-checking" },
 		{ state: "failed", testId: "github-installations-error" },
