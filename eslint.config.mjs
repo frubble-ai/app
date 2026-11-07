@@ -67,7 +67,8 @@ export default [
 			"**/coverage/**",
 			"**/.turbo/**",
 			"**/__generated__/**",
-			// What a code generator imports under Node, by relative path (apps/backend/src/__codegen__)
+			// What a code generator imports under Node, by relative path: exempt as a whole, by design
+			// (docs/style-guide/placement-rule.md, "Outside these rules")
 			"**/__codegen__/**",
 			"**/.next/**",
 			"**/next-env.d.ts",
