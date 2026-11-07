@@ -8,6 +8,11 @@ export type TComposioConfig = {
 	apiKey: string;
 	/** The auth config (our app at Composio) per provider. */
 	authConfigIds: Record<TIntegrationProvider, string>;
+	/**
+	 * The most pages one provider list reads through Composio's proxy. A list longer than this
+	 * many pages answers with its first pages only.
+	 */
+	proxyMaxPages: number;
 };
 
 /** The variables Composio's config reads. */
@@ -23,5 +28,6 @@ export function composioConfig(env: {
 	return {
 		apiKey: env.COMPOSIO_API_KEY,
 		authConfigIds: env.COMPOSIO_AUTH_CONFIG_IDS,
+		proxyMaxPages: 10,
 	};
 }

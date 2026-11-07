@@ -325,6 +325,31 @@ describe("reading GitHub through Composio's proxy", () => {
 		]);
 	});
 
+	it("stops reading a list at the page cap, with its first pages", async () => {
+		const config = buildTestConfig().integrations.composio;
+		const installation = generateGithubApiInstallation();
+		const fullPage = () =>
+			Array.from({ length: 100 }, () => generateGithubApiRepository());
+		answerProxy("/user/installations", {
+			page: () => ({ total_count: 1, installations: [installation] }),
+		});
+		answerProxy(`/user/installations/${installation.id}/repositories`, {
+			page: () => ({ total_count: 100_000, repositories: fullPage() }),
+		});
+
+		const repositories = await createComposioBroker({
+			...config,
+			proxyMaxPages: 2,
+		}).run("github.listRepositories", generateComposioConnection(), {});
+
+		expect(repositories).toHaveLength(200);
+		expect(
+			proxyRequests().filter((entry) =>
+				entry.endpoint.endsWith("/repositories"),
+			).length,
+		).toBe(2);
+	});
+
 	it("refuses an answer GitHub's documented response does not match", async () => {
 		answerProxy("/user/installations", {
 			page: () => ({ message: "hello world" }),

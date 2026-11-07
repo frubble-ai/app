@@ -39,22 +39,27 @@ const repositoriesSchema = z.object({
 	),
 });
 
-/** Every page of a GitHub list, until it holds `total_count` items or a page comes back short. */
+/**
+ * The pages of a GitHub list, until it holds `total_count` items, a page comes back short, or it
+ * has read `run.proxyMaxPages` pages. At that cap the list holds only its first pages.
+ */
 async function allPages<TItem>(
+	run: TRunContext,
 	page: (number: number) => Promise<{ total: number; items: TItem[] }>,
 ): Promise<TItem[]> {
 	const items: TItem[] = [];
-	for (let number = 1; ; number += 1) {
+	for (let number = 1; number <= run.proxyMaxPages; number += 1) {
 		const next = await page(number);
 		items.push(...next.items);
 		if (next.items.length < PER_PAGE || items.length >= next.total) {
-			return items;
+			break;
 		}
 	}
+	return items;
 }
 
 async function installations(run: TRunContext) {
-	return allPages(async (page) => {
+	return allPages(run, async (page) => {
 		const data = await proxyGet(run, {
 			endpoint: "/user/installations",
 			query: { per_page: PER_PAGE, page },
@@ -80,25 +85,28 @@ export async function listGithubInstallations(
 export async function listGithubRepositories(
 	run: TRunContext,
 ): Promise<TGithubRepository[]> {
+	// The installations are read together; each one's pages stay in order.
+	const perInstallation = await Promise.all(
+		(await installations(run)).map((installation) =>
+			allPages(run, async (page) => {
+				const data = await proxyGet(run, {
+					endpoint: `/user/installations/${installation.id}/repositories`,
+					query: { per_page: PER_PAGE, page },
+					schema: repositoriesSchema,
+				});
+				return { total: data.total_count, items: data.repositories };
+			}),
+		),
+	);
 	const byId = new Map<number, TGithubRepository>();
-	for (const installation of await installations(run)) {
-		const repositories = await allPages(async (page) => {
-			const data = await proxyGet(run, {
-				endpoint: `/user/installations/${installation.id}/repositories`,
-				query: { per_page: PER_PAGE, page },
-				schema: repositoriesSchema,
-			});
-			return { total: data.total_count, items: data.repositories };
+	for (const repository of perInstallation.flat()) {
+		byId.set(repository.id, {
+			id: String(repository.id),
+			fullName: repository.full_name,
+			isPrivate: repository.private,
+			url: repository.html_url,
+			description: repository.description,
 		});
-		for (const repository of repositories) {
-			byId.set(repository.id, {
-				id: String(repository.id),
-				fullName: repository.full_name,
-				isPrivate: repository.private,
-				url: repository.html_url,
-				description: repository.description,
-			});
-		}
 	}
 	return [...byId.values()];
 }

@@ -46,6 +46,8 @@ export function createComposioBroker(config: {
 	apiKey: string;
 	/** The auth config (our OAuth app at Composio) per provider. */
 	authConfigIds: Record<TIntegrationProvider, string>;
+	/** The most pages one list reads through the proxy. */
+	proxyMaxPages: number;
 }): TConnectionBroker {
 	const composio = createComposio(config.apiKey);
 	return {
@@ -103,6 +105,7 @@ export function createComposioBroker(config: {
 					composio,
 					organizationId: connection.organizationId,
 					connectedAccountId: connection.accountRef,
+					proxyMaxPages: config.proxyMaxPages,
 					session: () =>
 						openSession(composio, {
 							organizationId: connection.organizationId,
