@@ -1,4 +1,4 @@
-import type { TSchemaPatch } from "../composio/lib/output-schema.ts";
+import type { TSchemaPatch } from "@/composio/lib/output-schema";
 import { typeTeams } from "../composio/linear/lib/output-patch.ts";
 
 // What codegen/composio-tools.ts reads. It runs under Node, which knows no `@/` alias, so this

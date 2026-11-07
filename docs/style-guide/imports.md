@@ -54,6 +54,11 @@ match.
    import { createApp } from "../../app";
    ```
 
+   The one exception is `apps/backend/src/__codegen__/`: what a code generator imports, which
+   runs under Node and so has no `@/` alias at runtime. Its runtime imports use relative paths,
+   and ESLint leaves the folder out. A type-only import there still uses `@/`, since Node erases
+   it.
+
 4. **Packages are imported by bare name, with a subpath only when the package exposes one.**
    A package's `exports` in its `package.json` lists what exists.
 
