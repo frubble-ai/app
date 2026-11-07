@@ -139,6 +139,24 @@ export function mockRead(
 	return load;
 }
 
+/** The read `hook` was asked and failed. */
+export function mockReadFailed(
+	hook:
+		| typeof useGithubRepositoriesLazyQuery
+		| typeof useLinearTeamsLazyQuery
+		| typeof useSlackChannelsLazyQuery,
+) {
+	vi.mocked(hook).mockReturnValue([
+		vi.fn(),
+		{
+			data: undefined,
+			loading: false,
+			called: true,
+			error: new Error(faker.lorem.sentence()),
+		},
+	] as never);
+}
+
 /** Our GitHub App installs at `url`; none: the query has not answered, or failed. */
 export function mockGithubAppInstallUrl(url: string | undefined) {
 	vi.mocked(useGithubAppInstallUrlQuery).mockReturnValue({

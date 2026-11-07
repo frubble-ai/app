@@ -23,6 +23,7 @@ import {
 	mockMyOrganizations,
 	mockOrganizationActions,
 	mockRead,
+	mockReadFailed,
 	OrganizationRole,
 } from "@/testing/mock-organization-sdk";
 import { renderWithProviders } from "@/testing/testing";
@@ -199,15 +200,7 @@ describe("HomeScreen", () => {
 		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
 		mockIntegrations([IntegrationProvider.Github]);
 		mockGithubInstallations([generateGithubInstallation()]);
-		vi.mocked(useGithubRepositoriesLazyQuery).mockReturnValue([
-			vi.fn(),
-			{
-				data: undefined,
-				loading: false,
-				called: true,
-				error: new Error(faker.lorem.sentence()),
-			},
-		] as never);
+		mockReadFailed(useGithubRepositoriesLazyQuery);
 		renderWithProviders(<HomeScreen />);
 
 		expect(screen.getByTestId("github-repositories-error")).toHaveAttribute(
@@ -268,15 +261,7 @@ describe("HomeScreen", () => {
 	it("says when reading Linear fails", () => {
 		mockMyOrganizations([generateOrganization(OrganizationRole.Member)]);
 		mockIntegrations([IntegrationProvider.Linear]);
-		vi.mocked(useLinearTeamsLazyQuery).mockReturnValue([
-			vi.fn(),
-			{
-				data: undefined,
-				loading: false,
-				called: true,
-				error: new Error("down"),
-			},
-		] as never);
+		mockReadFailed(useLinearTeamsLazyQuery);
 		renderWithProviders(<HomeScreen />);
 
 		expect(screen.getByTestId("linear-teams-error")).toBeInTheDocument();
