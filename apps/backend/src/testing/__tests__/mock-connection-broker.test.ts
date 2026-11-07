@@ -19,7 +19,9 @@ describeConnectionBrokerContract("the in-memory broker", () => {
 		removedElsewhere: (accountRef) => {
 			void mock.broker.removeAccount(accountRef);
 		},
-		answerGithubOrganizations: (organizations) =>
-			mock.answerAction("github.listOrganizations", organizations),
+		answerGithub(github) {
+			mock.answerAction("github.listInstallations", github.installations);
+			mock.answerAction("github.listRepositories", github.repositories);
+		},
 	};
 });

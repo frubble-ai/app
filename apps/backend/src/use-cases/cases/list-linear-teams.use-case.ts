@@ -1,11 +1,8 @@
 import { z } from "zod";
 import type { TLinearTeam } from "@/integrations";
 import { defineUseCase } from "@/use-cases";
-import { requireActiveConnection } from "@/use-cases/lib/integrations/connections";
-import {
-	betterAuthIdSchema,
-	requireMembership,
-} from "@/use-cases/lib/organizations/membership";
+import { runThroughConnection } from "@/use-cases/lib/integrations/connections";
+import { betterAuthIdSchema } from "@/use-cases/lib/organizations/membership";
 
 const listLinearTeamsArgsSchema = z.object({
 	userId: z.string().min(1),
@@ -19,15 +16,11 @@ export const listLinearTeamsUseCase = defineUseCase(
 		args: { userId: string; organizationId: string },
 	): Promise<TLinearTeam[]> {
 		const { userId, organizationId } = listLinearTeamsArgsSchema.parse(args);
-		await requireMembership(ctx.db, { userId, organizationId });
-		const connection = await requireActiveConnection(ctx.db, {
+		return runThroughConnection(ctx.db, ctx.integrations, {
+			userId,
 			organizationId,
-			provider: "linear",
+			action: "linear.listTeams",
+			input: {},
 		});
-		return ctx.integrations.brokers[connection.broker].run(
-			"linear.listTeams",
-			{ organizationId, accountRef: connection.accountRef },
-			{},
-		);
 	},
 );

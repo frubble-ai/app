@@ -3,10 +3,14 @@ import {
 	integrationBroker,
 	integrationConnection,
 	type TIntegrationBroker,
+	type TIntegrationProvider,
 } from "@frubble/db";
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
-import { generateGithubOrganization } from "@/shared/__mocks__/generate-github-organization";
+import { describe, expect, it, vi } from "vitest";
+import { INTEGRATION_ACTION_PROVIDERS } from "@/integrations";
+import { generateGithubInstallation } from "@/shared/__mocks__/generate-github-installation";
+import { generateGithubRepository } from "@/shared/__mocks__/generate-github-repository";
+import { generateSlackChannel } from "@/shared/__mocks__/generate-slack-channel";
 import type { TTestClone } from "@/testing/integration-bootstrap";
 import { createMockConnectionBroker } from "@/testing/mock-connection-broker";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
@@ -19,9 +23,11 @@ import { completeIntegrationConnectUseCase } from "@/use-cases/cases/complete-in
 import { createOrganizationUseCase } from "@/use-cases/cases/create-organization.use-case";
 import { disconnectIntegrationUseCase } from "@/use-cases/cases/disconnect-integration.use-case";
 import { inviteOrganizationMemberUseCase } from "@/use-cases/cases/invite-organization-member.use-case";
-import { listGithubOrganizationsUseCase } from "@/use-cases/cases/list-github-organizations.use-case";
+import { listGithubInstallationsUseCase } from "@/use-cases/cases/list-github-installations.use-case";
+import { listGithubRepositoriesUseCase } from "@/use-cases/cases/list-github-repositories.use-case";
 import { listIntegrationsUseCase } from "@/use-cases/cases/list-integrations.use-case";
 import { listLinearTeamsUseCase } from "@/use-cases/cases/list-linear-teams.use-case";
+import { listSlackChannelsUseCase } from "@/use-cases/cases/list-slack-channels.use-case";
 import { startIntegrationConnectUseCase } from "@/use-cases/cases/start-integration-connect.use-case";
 
 // The use cases on a broker held in memory: each test sets what the broker answers
@@ -61,12 +67,16 @@ async function plainMember(
 	return joined;
 }
 
-/** Start connecting GitHub; the connection id our callback will carry, and the broker's account. */
+/** Start connecting a provider, GitHub unless named; the callback's connection id and the account. */
 async function startConnecting(
 	clone: TTestClone,
-	args: { userId: string; organizationId: string },
+	args: {
+		userId: string;
+		organizationId: string;
+		provider?: TIntegrationProvider;
+	},
 ) {
-	await startIntegrationConnectUseCase({ ...args, provider: "github" });
+	await startIntegrationConnectUseCase({ provider: "github", ...args });
 	const connect = clone.broker.lastConnect();
 	return {
 		connectionId:
@@ -77,7 +87,11 @@ async function startConnecting(
 
 async function connected(
 	clone: TTestClone,
-	args: { userId: string; organizationId: string },
+	args: {
+		userId: string;
+		organizationId: string;
+		provider?: TIntegrationProvider;
+	},
 ) {
 	const attempt = await startConnecting(clone, args);
 	clone.broker.answerState(attempt.accountRef, "active", { once: true });
@@ -89,7 +103,7 @@ async function connected(
 
 /** A second broker beside the first; new connections go through it from now on. */
 async function replaceBroker(clone: TTestClone) {
-	// Only `composio` exists; a real replacement adds its key to INTEGRATION_BROKERS and its row.
+	// Not one of INTEGRATION_BROKERS; a real replacement adds its key there and its row.
 	const key = "replacement" as TIntegrationBroker;
 	await clone.db.insert(integrationBroker).values({ key });
 	const replacement = createMockConnectionBroker();
@@ -132,7 +146,7 @@ describe("connecting a provider", () => {
 				.select({ broker: integrationConnection.broker })
 				.from(integrationConnection)
 				.where(eq(integrationConnection.id, connect.attemptId)),
-		).resolves.toEqual([{ broker: "composio" }]);
+		).resolves.toEqual([{ broker: "osiris" }]);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
 		).resolves.toEqual([]);
@@ -265,6 +279,41 @@ describe("connecting a provider", () => {
 		expect(reads.mostAtOnce).toBe(1);
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 		expect(clone.broker.removedAccounts()).toEqual([attempt.accountRef]);
+	});
+
+	it("removes a failed account once when two settles race, while the broker is slow to remove", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const attempt = await startConnecting(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		// The broker takes a moment to answer, so the second settle is already waiting on the lock
+		// when the first one retires the row.
+		clone.broker.answerStatesInTurn(attempt.accountRef, ["failed", "failed"]);
+		const removal = clone.broker.holdRemove();
+		const removals = () =>
+			clone.broker.calls().filter((call) => call === "removeAccount").length;
+
+		let finished = 0;
+		const settles = [0, 1].map(() =>
+			completeIntegrationConnectUseCase({
+				connectionId: attempt.connectionId,
+			}).finally(() => {
+				finished += 1;
+			}),
+		);
+		// The first settle retires the row and starts removing its account, which waits. The second
+		// finds the row retiring and must leave the removal to the first, so it finishes while the
+		// removal still waits. A second that swept would wait on the removal too, and never finish.
+		await vi.waitFor(() => expect(finished).toBe(1));
+		expect(removals()).toBe(1);
+		removal.release();
+		await Promise.all(settles);
+
+		expect(removals()).toBe(1);
+		expect(clone.broker.removedAccounts()).toEqual([attempt.accountRef]);
+		await expect(rowsOf(clone, organizationId)).resolves.toEqual([]);
 	});
 
 	it("gives up on a broker that hangs and leaves the connection pending", async () => {
@@ -462,7 +511,7 @@ describe("connecting a provider", () => {
 });
 
 describe("reading through a connection", () => {
-	it("lists the GitHub organizations for any member, through the organization's own account", async () => {
+	it("lists where our GitHub App is installed for any member, through the organization's own account", async () => {
 		const clone = getClone();
 		const { owner, organizationId } = await ownerWithOrganization(clone);
 		const { accountRef } = await connected(clone, {
@@ -470,19 +519,94 @@ describe("reading through a connection", () => {
 			organizationId,
 		});
 		const joined = await plainMember(clone, owner, organizationId);
-		const organizations = [generateGithubOrganization()];
-		clone.broker.answerAction("github.listOrganizations", organizations);
+		const installations = [generateGithubInstallation()];
+		clone.broker.answerAction("github.listInstallations", installations);
 
 		await expect(
-			listGithubOrganizationsUseCase({ userId: joined.id, organizationId }),
-		).resolves.toEqual(organizations);
+			listGithubInstallationsUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual(installations);
 		expect(clone.broker.runs()).toEqual([
 			{
-				action: "github.listOrganizations",
+				action: "github.listInstallations",
 				connection: { organizationId, accountRef },
 			},
 		]);
 	});
+
+	it("lists the GitHub repositories for any member, through the organization's own account", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const { accountRef } = await connected(clone, {
+			userId: owner.id,
+			organizationId,
+		});
+		const joined = await plainMember(clone, owner, organizationId);
+		const repositories = [generateGithubRepository()];
+		clone.broker.answerAction("github.listRepositories", repositories);
+
+		await expect(
+			listGithubRepositoriesUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual(repositories);
+		expect(clone.broker.runs()).toEqual([
+			{
+				action: "github.listRepositories",
+				connection: { organizationId, accountRef },
+			},
+		]);
+	});
+
+	it("lists the Slack channels for any member, through the organization's own account", async () => {
+		const clone = getClone();
+		const { owner, organizationId } = await ownerWithOrganization(clone);
+		const { accountRef } = await connected(clone, {
+			userId: owner.id,
+			organizationId,
+			provider: "slack",
+		});
+		const joined = await plainMember(clone, owner, organizationId);
+		const channels = [generateSlackChannel()];
+		clone.broker.answerAction("slack.listChannels", channels);
+
+		await expect(
+			listSlackChannelsUseCase({ userId: joined.id, organizationId }),
+		).resolves.toEqual(channels);
+		expect(clone.broker.runs()).toEqual([
+			{
+				action: "slack.listChannels",
+				connection: { organizationId, accountRef },
+			},
+		]);
+	});
+
+	it.each([
+		{
+			action: "github.listInstallations",
+			read: listGithubInstallationsUseCase,
+		},
+		{
+			action: "github.listRepositories",
+			read: listGithubRepositoriesUseCase,
+		},
+		{ action: "linear.listTeams", read: listLinearTeamsUseCase },
+		{ action: "slack.listChannels", read: listSlackChannelsUseCase },
+	] as const)(
+		"hides $action from someone outside the organization, and asks the broker nothing",
+		async ({ action, read }) => {
+			const clone = getClone();
+			const { owner, organizationId } = await ownerWithOrganization(clone);
+			await connected(clone, {
+				userId: owner.id,
+				organizationId,
+				provider: INTEGRATION_ACTION_PROVIDERS[action],
+			});
+			const outsider = await signedInTestUser(clone);
+
+			await expect(
+				read({ userId: outsider.id, organizationId }),
+			).rejects.toMatchObject({ name: "NotFoundError" });
+			expect(clone.broker.runs()).toEqual([]);
+		},
+	);
 
 	it("says a provider that is not connected is not found", async () => {
 		const clone = getClone();
@@ -598,11 +722,11 @@ describe("replacing a broker", () => {
 		const args = { userId: owner.id, organizationId };
 		const first = await connected(clone, args);
 		const replacement = await replaceBroker(clone);
-		const organizations = [generateGithubOrganization()];
-		clone.broker.answerAction("github.listOrganizations", organizations);
+		const repositories = [generateGithubRepository()];
+		clone.broker.answerAction("github.listRepositories", repositories);
 
-		await expect(listGithubOrganizationsUseCase(args)).resolves.toEqual(
-			organizations,
+		await expect(listGithubRepositoriesUseCase(args)).resolves.toEqual(
+			repositories,
 		);
 		expect(replacement.calls()).toEqual([]);
 
@@ -618,11 +742,11 @@ describe("replacing a broker", () => {
 		await expect(rowsOf(clone, organizationId)).resolves.toEqual([
 			{ status: "active", account: attempt.accountRef },
 		]);
-		replacement.answerAction("github.listOrganizations", organizations);
-		await listGithubOrganizationsUseCase(args);
+		replacement.answerAction("github.listRepositories", repositories);
+		await listGithubRepositoriesUseCase(args);
 		expect(replacement.runs()).toEqual([
 			{
-				action: "github.listOrganizations",
+				action: "github.listRepositories",
 				connection: { organizationId, accountRef: attempt.accountRef },
 			},
 		]);

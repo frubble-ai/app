@@ -1,8 +1,12 @@
 import type { TDb } from "@frubble/db";
 import { createAuth, type TAuth } from "@/better-auth";
 import { staticConfigSections, type TConfig } from "@/config";
+import { CONNECT_THROUGH } from "@/config/integrations";
 import { githubConfig } from "@/config/integrations/github";
 import { testLogger } from "./test-logger";
+
+/** The GitHub App the tests' environment installs, its slug as `GITHUB_APP_SLUG` gives it. */
+export const TEST_GITHUB_APP_SLUG = "frubble-ai-test";
 
 /** createAuth for tests. */
 export function buildTestAuth(db: TDb, config: TConfig): TAuth {
@@ -29,6 +33,17 @@ export function buildTestConfig(): TConfig {
 		publicUrl: "http://localhost:8080",
 		appUrl: "http://localhost:3000",
 		integrations: {
+			// What every environment uses, so the tests connect the way production does.
+			connectThrough: CONNECT_THROUGH,
+			osiris: {
+				url: "http://osiris.test",
+				apiKey: "test-osiris-key",
+				authConfigIds: {
+					github: "ac_test_github",
+					linear: "ac_test_linear",
+					slack: "ac_test_slack",
+				},
+			},
 			composio: {
 				apiKey: "test-composio-key",
 				authConfigIds: {
@@ -36,8 +51,9 @@ export function buildTestConfig(): TConfig {
 					linear: "ac_test_linear",
 					slack: "ac_test_slack",
 				},
+				proxyMaxPages: 10,
 			},
-			github: githubConfig(),
+			github: githubConfig({ GITHUB_APP_SLUG: TEST_GITHUB_APP_SLUG }),
 		},
 		pubsub: { emailsTopic: "emails" },
 		api: { host: "127.0.0.1", port: 8080, trustedProxies: 1 },

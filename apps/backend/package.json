@@ -21,6 +21,7 @@
 	"dependencies": {
 		"@composio/core": "0.27.0",
 		"@composio/json-schema-to-zod": "0.4.0",
+		"@frubble-ai/osiris-client": "0.1.0-dev.g5f35b10dbe17",
 		"@frubble/db": "workspace:*",
 		"@frubble/emails": "workspace:*",
 		"@frubble/events": "workspace:*",
@@ -44,6 +45,7 @@
 		"@graphql-codegen/add": "^7.1.1",
 		"@graphql-codegen/cli": "^7.4.6",
 		"@graphql-codegen/typescript-resolvers": "^6.1.1",
+		"@octokit/openapi-types": "29.0.1",
 		"@testcontainers/postgresql": "^12.2.1",
 		"@types/bun": "^1.4.4",
 		"@types/luxon": "^3.7.6",

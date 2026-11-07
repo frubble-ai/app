@@ -33,12 +33,16 @@ use-cases/
 ## Third-party clients
 
 A vendor the use cases call per request and that we may replace goes on the context behind a
-type of ours, named for what the use cases need, never for the vendor's own API. The integration
+type named for what the use cases need, defined by us. The integration
 brokers are the one so far: `ctx.integrations` holds a `TConnectionBroker` per broker
-(`src/integrations/`), each implemented in the vendor's folder (`src/composio/`). The use case
-still shows what talks to the outside, `ctx.integrations.brokers[row.broker].run(…)`, and no
-vendor name, id or status reaches it. Only the vendor's folder imports its library; a lint rule
+(`src/integrations/`), each implemented in the vendor's folder (`src/composio/`, `src/osiris/`).
+What talks to the outside stays in sight: a read use case calls `runThroughConnection`
+(`use-cases/lib/integrations/connections.ts`), whose one line is
+`integrations.brokers[connection.broker].run(…)`, and no vendor name, id or status reaches it. Only the vendor's folder imports its library; a lint rule
 enforces it ([integrations](../integrations.md#brokers)).
+
+The actions' outputs are defined by us in Osiris's OpenAPI spec, Osiris being our own service, and
+generated from it (`src/integrations/`).
 
 Libraries that are not called per request keep the
 [third-party integrations](./third-party-integrations.md) wrapper.

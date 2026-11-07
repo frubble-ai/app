@@ -6,14 +6,14 @@ import {
 } from "@frubble/react-sdk";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GithubOrganizations } from "@/screens/home/components/github";
+import { GithubRepositories } from "@/screens/home/components/github";
 import { LinearTeams } from "@/screens/home/components/linear";
 import { SlackChannels } from "@/screens/home/components/slack";
 import { PROVIDERS, providerSlug } from "@/screens/home/lib/providers";
 
 /** What a connected provider shows: its own read. */
 const READS = {
-	[IntegrationProvider.Github]: GithubOrganizations,
+	[IntegrationProvider.Github]: GithubRepositories,
 	[IntegrationProvider.Linear]: LinearTeams,
 	[IntegrationProvider.Slack]: SlackChannels,
 };

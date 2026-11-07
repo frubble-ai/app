@@ -1,23 +1,157 @@
-import type { TComposio } from "@/composio/lib/client";
-import { executeTool } from "@/composio/lib/execute-tool";
-import type { TSession } from "@/composio/lib/session";
-import type { TGithubOrganization } from "@/integrations";
-import { allowNullDescription } from "./lib/output-patch";
+import type { components, operations } from "@octokit/openapi-types";
+import { z } from "zod";
+import { proxyGet } from "@/composio/lib/proxy-get";
+import type { TRunContext } from "@/composio/lib/run-context";
+import type { TGithubInstallation, TGithubRepository } from "@/integrations";
 
-/** The organizations the connected GitHub user belongs to. */
-export async function listGithubOrganizations(
-	composio: TComposio,
-	session: TSession,
-): Promise<TGithubOrganization[]> {
-	const data = await executeTool(composio, session, {
-		slug: "GITHUB_LIST_ORGANIZATIONS_FOR_THE_AUTHENTICATED_USER",
-		arguments: { per_page: 100 },
-		patch: allowNullDescription,
+// Our GitHub App's user token answers for the app's installations, so these call GitHub's own
+// endpoints for them (`/user/installations`), through Composio's proxy. Composio's tools for them
+// live only in GitHub toolkit 20250911_00, which sessions no longer run; Composio's tools API
+// marks each of them `is_deprecated`, and their output schemas are untyped. The answers' types come from GitHub's own
+// OpenAPI description (@octokit/openapi-types), narrowed to the fields we read; each Zod schema
+// checks an answer at runtime and must produce that type, so a schema that drifts from GitHub's
+// description no longer compiles.
+
+/** GitHub's page size limit. */
+const PER_PAGE = 100;
+
+/** GitHub's answer to `GET /user/installations`, with only the fields we read. */
+type TInstallationsAnswer = Pick<
+	operations["apps/list-installations-for-authenticated-user"]["responses"][200]["content"]["application/json"],
+	"total_count"
+> & {
+	installations: Array<
+		Pick<
+			components["schemas"]["installation"],
+			"id" | "repository_selection"
+		> & {
+			account: Pick<components["schemas"]["simple-user"], "login" | "type">;
+		}
+	>;
+};
+
+/** GitHub's answer to `GET /user/installations/{id}/repositories`, with only the fields we read. */
+type TRepositoriesAnswer = Pick<
+	operations["apps/list-installation-repos-for-authenticated-user"]["responses"][200]["content"]["application/json"],
+	"total_count"
+> & {
+	repositories: Array<
+		Pick<
+			components["schemas"]["repository"],
+			"id" | "full_name" | "private" | "html_url" | "description"
+		>
+	>;
+};
+
+const installationsSchema: z.ZodType<TInstallationsAnswer> = z.object({
+	total_count: z.number(),
+	installations: z.array(
+		z.object({
+			id: z.number(),
+			account: z.object({
+				login: z.string(),
+				type: z.enum(["User", "Organization", "Enterprise"]),
+			}),
+			repository_selection: z.enum(["all", "selected"]),
+		}),
+	),
+});
+
+const repositoriesSchema: z.ZodType<TRepositoriesAnswer> = z.object({
+	total_count: z.number(),
+	repositories: z.array(
+		z.object({
+			id: z.number(),
+			full_name: z.string(),
+			private: z.boolean(),
+			html_url: z.string(),
+			description: z.string().nullable(),
+		}),
+	),
+});
+
+/**
+ * How many more proxy reads one list may make: `run.proxyMaxPages` in all, shared by every page
+ * the list reads, so reads running together never pass it.
+ */
+type TPageBudget = { left: number };
+
+function pageBudget(run: TRunContext): TPageBudget {
+	return { left: run.proxyMaxPages };
+}
+
+/**
+ * The pages of a GitHub list, until it holds `total_count` items, a page comes back short, or the
+ * budget runs out. Then the list holds only the pages read so far, none if the budget was spent.
+ */
+async function allPages<TItem>(
+	budget: TPageBudget,
+	page: (number: number) => Promise<{ total: number; items: TItem[] }>,
+): Promise<TItem[]> {
+	const items: TItem[] = [];
+	for (let number = 1; budget.left > 0; number += 1) {
+		budget.left -= 1;
+		const next = await page(number);
+		items.push(...next.items);
+		if (next.items.length < PER_PAGE || items.length >= next.total) {
+			break;
+		}
+	}
+	return items;
+}
+
+async function installations(run: TRunContext, budget: TPageBudget) {
+	return allPages(budget, async (page) => {
+		const data = await proxyGet(run, {
+			endpoint: "/user/installations",
+			query: { per_page: PER_PAGE, page },
+			schema: installationsSchema,
+		});
+		return { total: data.total_count, items: data.installations };
 	});
-	return data.organizations.map((entry) => ({
-		id: String(entry.id),
-		login: entry.login,
-		description: entry.description ?? null,
-		avatarUrl: entry.avatar_url,
+}
+
+/** Where our GitHub App is installed, of what the connected user can see. */
+export async function listGithubInstallations(
+	run: TRunContext,
+): Promise<TGithubInstallation[]> {
+	return (await installations(run, pageBudget(run))).map((installation) => ({
+		id: String(installation.id),
+		account: installation.account.login,
+		account_type:
+			installation.account.type === "User" ? "user" : "organization",
+		repository_selection: installation.repository_selection,
 	}));
+}
+
+/** Every repository our GitHub App's installations give the connected user, each once. */
+export async function listGithubRepositories(
+	run: TRunContext,
+): Promise<TGithubRepository[]> {
+	// The installations are read together; each one's pages stay in order. They share one page
+	// budget with the installations' own list, so at most `run.proxyMaxPages` reads run at once.
+	const budget = pageBudget(run);
+	const perInstallation = await Promise.all(
+		(await installations(run, budget)).map((installation) =>
+			allPages(budget, async (page) => {
+				const data = await proxyGet(run, {
+					endpoint: `/user/installations/${installation.id}/repositories`,
+					query: { per_page: PER_PAGE, page },
+					schema: repositoriesSchema,
+				});
+				return { total: data.total_count, items: data.repositories };
+			}),
+		),
+	);
+	const byId = new Map<string, TGithubRepository>();
+	for (const repository of perInstallation.flat()) {
+		byId.set(String(repository.id), {
+			id: String(repository.id),
+			full_name: repository.full_name,
+			private: repository.private,
+			url: repository.html_url,
+			description: repository.description,
+		});
+	}
+	return [...byId.values()];
 }

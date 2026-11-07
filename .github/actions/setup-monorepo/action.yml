@@ -16,6 +16,10 @@ runs:
         node-version-file: .nvmrc
         cache: yarn
 
+    # @frubble-ai packages come from GitHub Packages. The calling job needs
+    # `packages: read`.
+    - uses: ./.github/actions/packages-token
+
     - name: Install dependencies
       shell: bash
       run: yarn install --immutable

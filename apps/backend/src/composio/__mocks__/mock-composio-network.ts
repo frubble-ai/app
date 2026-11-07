@@ -219,6 +219,66 @@ export function answerAccountGone(connectedAccountId: string) {
 	);
 }
 
+/**
+ * Composio's proxy answers a `GET` of the provider's `endpoint` with `page(n)` for its `page`
+ * query parameter (1 when none), or with `status` and no data.
+ */
+export function answerProxy(
+	endpoint: string,
+	answer: { page: (number: number) => unknown } | { status: number },
+) {
+	composioNetwork.use(
+		http.post(`${API}/tools/execute/proxy`, async ({ request }) => {
+			const body = (await request.clone().json()) as {
+				endpoint?: string;
+				parameters?: Array<{ name: string; value: string }>;
+			};
+			if (body.endpoint !== endpoint) return;
+			if ("status" in answer) {
+				return HttpResponse.json({
+					data: null,
+					status: answer.status,
+					headers: {},
+				});
+			}
+			const page = Number(
+				body.parameters?.find((parameter) => parameter.name === "page")
+					?.value ?? 1,
+			);
+			return HttpResponse.json({
+				data: answer.page(page),
+				status: 200,
+				headers: {},
+			});
+		}),
+	);
+}
+
+/** Every proxied request the SDK sent, in order: its endpoint and query. */
+export function proxyRequests() {
+	return composioRequests
+		.filter((entry) => entry.path.endsWith("/tools/execute/proxy"))
+		.map((entry) => {
+			const body = entry.body as {
+				endpoint: string;
+				user_id?: string;
+				connected_account_id?: string;
+				parameters?: Array<{ name: string; value: string }>;
+			};
+			return {
+				endpoint: body.endpoint,
+				userId: body.user_id,
+				connectedAccountId: body.connected_account_id,
+				query: Object.fromEntries(
+					(body.parameters ?? []).map((parameter) => [
+						parameter.name,
+						parameter.value,
+					]),
+				),
+			};
+		});
+}
+
 /** `getRawComposioToolBySlug` answers this tool (see `generateComposioTool`). */
 export function answerTool(tool: ReturnType<typeof generateComposioTool>) {
 	composioNetwork.use(

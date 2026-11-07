@@ -1,0 +1,37 @@
+name: Read the frubble-ai packages
+description: >-
+  Writes the job's token into ~/.yarnrc.yml, so Yarn can install @frubble-ai
+  packages such as the Osiris client from GitHub Packages. GitHub Packages asks
+  for a token even for a public package, so the job needs `packages: read`. The
+  file's path is the output, for a Docker build to mount as a secret.
+
+outputs:
+  yarnrc:
+    description: Path of the written ~/.yarnrc.yml
+    value: ${{ steps.write.outputs.yarnrc }}
+
+runs:
+  using: composite
+  steps:
+    # A pull request from a fork runs its own code after this step, so it never
+    # gets the token. Its install of @frubble-ai packages then fails; a
+    # maintainer runs the checks from a branch of this repository instead.
+    - name: Refuse a pull request from a fork
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+      shell: bash
+      run: |
+        echo "::error::a pull request from a fork gets no package token; push the branch to ${{ github.repository }} to run the checks"
+        exit 1
+
+    # The registry is set in the repository's .yarnrc.yml. Only the token is
+    # written here, in the runner's home, which Yarn merges with it.
+    - id: write
+      shell: bash
+      env:
+        TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        yarnrc="$HOME/.yarnrc.yml"
+        umask 077
+        printf 'npmScopes:\n  frubble-ai:\n    npmAuthToken: "%s"\n' "$TOKEN" > "$yarnrc"
+        echo "yarnrc=$yarnrc" >> "$GITHUB_OUTPUT"

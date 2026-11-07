@@ -1,14 +1,12 @@
-import type { TComposio } from "@/composio/lib/client";
 import { executeTool } from "@/composio/lib/execute-tool";
-import type { TSession } from "@/composio/lib/session";
+import type { TRunContext } from "@/composio/lib/run-context";
 import type { TSlackChannel } from "@/integrations";
 
 /** The workspace's channels the connected user can see, archived ones left out. */
 export async function listSlackChannels(
-	composio: TComposio,
-	session: TSession,
+	run: TRunContext,
 ): Promise<TSlackChannel[]> {
-	const data = await executeTool(composio, session, {
+	const data = await executeTool(run.composio, await run.session(), {
 		slug: "SLACK_LIST_ALL_CHANNELS",
 		arguments: { limit: 200, exclude_archived: true },
 	});
@@ -17,7 +15,7 @@ export async function listSlackChannels(
 	return (data.channels ?? []).map((channel) => ({
 		id: channel.id,
 		name: channel.name ?? channel.id,
-		isPrivate: channel.is_private ?? false,
-		memberCount: channel.num_members ?? null,
+		is_private: channel.is_private ?? false,
+		num_members: channel.num_members ?? null,
 	}));
 }
