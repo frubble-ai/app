@@ -40,15 +40,26 @@ const repositoriesSchema = z.object({
 });
 
 /**
- * The pages of a GitHub list, until it holds `total_count` items, a page comes back short, or it
- * has read `run.proxyMaxPages` pages. At that cap the list holds only its first pages.
+ * How many more proxy reads one list may make: `run.proxyMaxPages` in all, shared by every page
+ * the list reads, so reads running together never pass it.
+ */
+type TPageBudget = { left: number };
+
+function pageBudget(run: TRunContext): TPageBudget {
+	return { left: run.proxyMaxPages };
+}
+
+/**
+ * The pages of a GitHub list, until it holds `total_count` items, a page comes back short, or the
+ * budget runs out. Then the list holds only the pages read so far, none if the budget was spent.
  */
 async function allPages<TItem>(
-	run: TRunContext,
+	budget: TPageBudget,
 	page: (number: number) => Promise<{ total: number; items: TItem[] }>,
 ): Promise<TItem[]> {
 	const items: TItem[] = [];
-	for (let number = 1; number <= run.proxyMaxPages; number += 1) {
+	for (let number = 1; budget.left > 0; number += 1) {
+		budget.left -= 1;
 		const next = await page(number);
 		items.push(...next.items);
 		if (next.items.length < PER_PAGE || items.length >= next.total) {
@@ -58,8 +69,8 @@ async function allPages<TItem>(
 	return items;
 }
 
-async function installations(run: TRunContext) {
-	return allPages(run, async (page) => {
+async function installations(run: TRunContext, budget: TPageBudget) {
+	return allPages(budget, async (page) => {
 		const data = await proxyGet(run, {
 			endpoint: "/user/installations",
 			query: { per_page: PER_PAGE, page },
@@ -73,7 +84,7 @@ async function installations(run: TRunContext) {
 export async function listGithubInstallations(
 	run: TRunContext,
 ): Promise<TGithubInstallation[]> {
-	return (await installations(run)).map((installation) => ({
+	return (await installations(run, pageBudget(run))).map((installation) => ({
 		id: String(installation.id),
 		account: installation.account.login,
 		accountType: installation.account.type === "User" ? "user" : "organization",
@@ -85,10 +96,12 @@ export async function listGithubInstallations(
 export async function listGithubRepositories(
 	run: TRunContext,
 ): Promise<TGithubRepository[]> {
-	// The installations are read together; each one's pages stay in order.
+	// The installations are read together; each one's pages stay in order. They share one page
+	// budget with the installations' own list, so at most `run.proxyMaxPages` reads run at once.
+	const budget = pageBudget(run);
 	const perInstallation = await Promise.all(
-		(await installations(run)).map((installation) =>
-			allPages(run, async (page) => {
+		(await installations(run, budget)).map((installation) =>
+			allPages(budget, async (page) => {
 				const data = await proxyGet(run, {
 					endpoint: `/user/installations/${installation.id}/repositories`,
 					query: { per_page: PER_PAGE, page },

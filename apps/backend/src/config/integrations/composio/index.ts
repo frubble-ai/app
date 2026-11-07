@@ -9,8 +9,8 @@ export type TComposioConfig = {
 	/** The auth config (our app at Composio) per provider. */
 	authConfigIds: Record<TIntegrationProvider, string>;
 	/**
-	 * The most pages one provider list reads through Composio's proxy. A list longer than this
-	 * many pages answers with its first pages only.
+	 * The most reads one provider list makes through Composio's proxy, its pages and the lists it
+	 * is built from together. A longer list answers with what those reads gave.
 	 */
 	proxyMaxPages: number;
 };

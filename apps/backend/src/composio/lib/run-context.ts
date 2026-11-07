@@ -9,7 +9,7 @@ export type TRunContext = {
 	composio: TComposio;
 	organizationId: string;
 	connectedAccountId: string;
-	/** The most pages one list reads through the proxy. */
+	/** The most proxy reads one list makes, its pages and any lists it is built from together. */
 	proxyMaxPages: number;
 	session(): Promise<TSession>;
 };

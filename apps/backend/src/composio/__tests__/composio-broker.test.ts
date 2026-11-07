@@ -339,15 +339,38 @@ describe("reading GitHub through Composio's proxy", () => {
 
 		const repositories = await createComposioBroker({
 			...config,
-			proxyMaxPages: 2,
+			proxyMaxPages: 3,
 		}).run("github.listRepositories", generateComposioConnection(), {});
 
+		// One read for the installations, then two pages of repositories.
 		expect(repositories).toHaveLength(200);
-		expect(
-			proxyRequests().filter((entry) =>
-				entry.endpoint.endsWith("/repositories"),
-			).length,
-		).toBe(2);
+		expect(proxyRequests()).toHaveLength(3);
+	});
+
+	it("shares one page cap across installations read together", async () => {
+		const config = buildTestConfig().integrations.composio;
+		const installations = Array.from({ length: 5 }, () =>
+			generateGithubApiInstallation(),
+		);
+		answerProxy("/user/installations", {
+			page: () => ({ total_count: 5, installations }),
+		});
+		for (const installation of installations) {
+			answerProxy(`/user/installations/${installation.id}/repositories`, {
+				page: () => ({
+					total_count: 1,
+					repositories: [generateGithubApiRepository()],
+				}),
+			});
+		}
+
+		const repositories = await createComposioBroker({
+			...config,
+			proxyMaxPages: 3,
+		}).run("github.listRepositories", generateComposioConnection(), {});
+
+		expect(proxyRequests()).toHaveLength(3);
+		expect(repositories).toHaveLength(2);
 	});
 
 	it("refuses an answer GitHub's documented response does not match", async () => {
