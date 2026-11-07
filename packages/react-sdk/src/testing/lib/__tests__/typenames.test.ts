@@ -28,8 +28,10 @@ describe("withTypenames", () => {
 		expect(withTypenames("query Me { me { id } }", undefined)).toBeUndefined();
 	});
 
-	it("expands each fragment once per object, so repeated spreads stay fast", () => {
-		// Every fragment spreads the next one twice: expanding each occurrence is 2^depth steps.
+	it("expands each fragment once per object, so repeated spreads stay within the budget", () => {
+		// Every fragment spreads the next one twice: expanding each occurrence is 2^depth steps,
+		// far past the traversal budget, so a regression fails here with the budget error instead
+		// of hanging, and no wall-clock measurement is needed.
 		const depth = 28;
 		const fragments = Array.from(
 			{ length: depth },
@@ -38,12 +40,10 @@ describe("withTypenames", () => {
 		).join("\n");
 		const query = `query Q { me { ...F0 } } ${fragments} fragment F${depth} on Me { id }`;
 		const id = faker.string.uuid();
-		const started = performance.now();
 
 		const result = withTypenames(query, { me: { id } });
 
 		expect(result).toEqual({ me: { __typename: "Me", id } });
-		expect(performance.now() - started).toBeLessThan(1000);
 	});
 
 	it.each([
