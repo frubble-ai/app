@@ -79,12 +79,13 @@ describe("osiris as a broker", () => {
 		const { accountRef } = await broker.startConnect(attempt);
 		const channel = {
 			id: `C${faker.string.alphanumeric(8)}`,
-			name: "general",
-			is_private: true,
+			name: faker.word.noun(),
+			is_private: faker.datatype.boolean(),
 			num_members: null,
 		};
+		const team = { id: faker.string.uuid(), name: faker.company.name() };
 		osiris.answerAction("slack.list_channels", [channel]);
-		osiris.answerAction("linear.list_teams", [{ id: "t1", name: "Core" }]);
+		osiris.answerAction("linear.list_teams", [team]);
 
 		await expect(
 			broker.run(
@@ -93,7 +94,12 @@ describe("osiris as a broker", () => {
 				{},
 			),
 		).resolves.toEqual([
-			{ id: channel.id, name: "general", isPrivate: true, memberCount: null },
+			{
+				id: channel.id,
+				name: channel.name,
+				isPrivate: channel.is_private,
+				memberCount: null,
+			},
 		]);
 		await expect(
 			broker.run(
@@ -101,6 +107,6 @@ describe("osiris as a broker", () => {
 				{ organizationId: attempt.organizationId, accountRef },
 				{},
 			),
-		).resolves.toEqual([{ id: "t1", name: "Core" }]);
+		).resolves.toEqual([team]);
 	});
 });

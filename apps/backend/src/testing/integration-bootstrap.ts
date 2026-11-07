@@ -10,6 +10,7 @@ import {
 	createMockConnectionBroker,
 	type TMockConnectionBroker,
 } from "./mock-connection-broker";
+import { mockIntegrations } from "./mock-integrations";
 import { createDbCloner } from "./test-db";
 import {
 	buildTestAuth,
@@ -69,13 +70,10 @@ export async function cloneForTest(
 	const auth = buildTestAuth(clone.db, config);
 	const captured = createCapturedMessages();
 	const broker = createMockConnectionBroker();
-	const integrations: TIntegrations = {
-		brokers: {
-			composio: broker.broker,
-			osiris: createMockConnectionBroker().broker,
-		},
-		connectThrough: "composio",
-	};
+	const integrations: TIntegrations = mockIntegrations(
+		config.integrations.connectThrough,
+		broker,
+	);
 
 	setConfigForTests(config);
 	setCtxForTests({

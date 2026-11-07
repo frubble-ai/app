@@ -26,7 +26,6 @@ export type TBrokerHarness = {
 	loseConnect(): { accountRef: () => string };
 	/** The account was removed already, elsewhere. */
 	removedElsewhere(accountRef: string): void;
-	/** The GitHub user of every connection belongs to `organizations`. */
 	/** Our GitHub App is installed at `installations`, which give `repositories` (none: no install). */
 	answerGithub(github: {
 		installations: TGithubInstallation[];

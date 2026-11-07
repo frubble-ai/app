@@ -91,7 +91,7 @@ async function connected(
 
 /** A second broker beside the first; new connections go through it from now on. */
 async function replaceBroker(clone: TTestClone) {
-	// Only `composio` exists; a real replacement adds its key to INTEGRATION_BROKERS and its row.
+	// Not one of INTEGRATION_BROKERS; a real replacement adds its key there and its row.
 	const key = "replacement" as TIntegrationBroker;
 	await clone.db.insert(integrationBroker).values({ key });
 	const replacement = createMockConnectionBroker();
@@ -134,7 +134,7 @@ describe("connecting a provider", () => {
 				.select({ broker: integrationConnection.broker })
 				.from(integrationConnection)
 				.where(eq(integrationConnection.id, connect.attemptId)),
-		).resolves.toEqual([{ broker: "composio" }]);
+		).resolves.toEqual([{ broker: "osiris" }]);
 		await expect(
 			listIntegrationsUseCase({ userId: owner.id, organizationId }),
 		).resolves.toEqual([]);
