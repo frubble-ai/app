@@ -92,7 +92,7 @@ To add a broker:
 2. Its row in the constants migration's `integration_broker`
    ([migrations](style-guide/migrations.md#constants)), and its key in `INTEGRATION_BROKERS`.
 3. Its entry in `brokers` in `build-use-case-context`; moving new connections to it is
-   `connectThrough`.
+   `CONNECT_THROUGH` in `src/config/integrations/index.ts`, a change in code, not a setting.
 4. Its entry in `BROKERS` in `eslint.config.mjs`: its folder and its libraries, so the rest of
    `src/` may not import them.
 5. Its contract test: `describeConnectionBrokerContract` (`src/testing/`) with a harness that

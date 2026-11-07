@@ -53,7 +53,7 @@ describe("buildConfig", () => {
 			publicUrl: "http://localhost:8080",
 			appUrl: "http://localhost:3000",
 			integrations: {
-				connectThrough: "composio",
+				connectThrough: "osiris",
 				osiris: {
 					url: "http://localhost:8090",
 					apiKey: env.OSIRIS_API_KEY,
@@ -115,11 +115,6 @@ describe("buildConfig", () => {
 			label: "a short osiris API key",
 			env: { OSIRIS_API_KEY: "short" },
 			message: /OSIRIS_API_KEY/,
-		},
-		{
-			label: "a broker that does not exist",
-			env: { INTEGRATIONS_CONNECT_THROUGH: "nango" },
-			message: /INTEGRATIONS_CONNECT_THROUGH/,
 		},
 		{
 			label: "no database CA outside local",
