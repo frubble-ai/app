@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { DateTime } from "luxon";
 import { delay, HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll } from "vitest";
@@ -35,7 +36,7 @@ const state = {
 function account(id: string) {
 	const found = state.accounts.get(id);
 	if (!found) return undefined;
-	const now = new Date().toISOString();
+	const now = DateTime.utc().toISO();
 	return {
 		...found,
 		auth_config_id: "ac_test",

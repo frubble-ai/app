@@ -295,16 +295,19 @@ describe("connecting a provider", () => {
 		const removals = () =>
 			clone.broker.calls().filter((call) => call === "removeAccount").length;
 
+		let finished = 0;
 		const settles = [0, 1].map(() =>
-			completeIntegrationConnectUseCase({ connectionId: attempt.connectionId }),
+			completeIntegrationConnectUseCase({
+				connectionId: attempt.connectionId,
+			}).finally(() => {
+				finished += 1;
+			}),
 		);
 		// The first settle retires the row and starts removing its account, which waits. The second
-		// finds the row retiring; it must leave the removal to the first, not start its own.
-		await vi.waitFor(() => expect(removals()).toBe(1));
-		await Promise.race([
-			Promise.allSettled(settles),
-			new Promise((resolve) => setTimeout(resolve, 500)),
-		]);
+		// finds the row retiring and must leave the removal to the first, so it finishes while the
+		// removal still waits. A second that swept would wait on the removal too, and never finish.
+		await vi.waitFor(() => expect(finished).toBe(1));
+		expect(removals()).toBe(1);
 		removal.release();
 		await Promise.all(settles);
 
