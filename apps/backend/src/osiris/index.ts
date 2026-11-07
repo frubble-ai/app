@@ -10,13 +10,12 @@ import type {
 	TIntegrationAction,
 	TIntegrationActions,
 } from "@/integrations";
-import { listGithubInstallations } from "./github/list-installations";
-import { listGithubRepositories } from "./github/list-repositories";
+import { listGithubInstallations, listGithubRepositories } from "./github";
 import { accountState } from "./lib/account-state";
 import { answer, OsirisError } from "./lib/answer";
 import { createOsiris, type TOsiris } from "./lib/client";
-import { listLinearTeams } from "./linear/list-teams";
-import { listSlackChannels } from "./slack/list-channels";
+import { listLinearTeams } from "./linear";
+import { listSlackChannels } from "./slack";
 
 /** Each action as osiris runs it, read into our output. */
 const ACTIONS: {
