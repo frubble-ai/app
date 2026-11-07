@@ -1822,13 +1822,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@frubble-ai/osiris-client@portal:../../../../osiris/connections/clients/typescript::locator=%40frubble%2Fbackend%40workspace%3Aapps%2Fbackend":
-  version: 0.0.0-use.local
-  resolution: "@frubble-ai/osiris-client@portal:../../../../osiris/connections/clients/typescript::locator=%40frubble%2Fbackend%40workspace%3Aapps%2Fbackend"
+"@frubble-ai/osiris-client@npm:0.1.0-dev.g5f35b10dbe17":
+  version: 0.1.0-dev.g5f35b10dbe17
+  resolution: "@frubble-ai/osiris-client@npm:0.1.0-dev.g5f35b10dbe17::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40frubble-ai%2Fosiris-client%2F0.1.0-dev.g5f35b10dbe17%2F9a64e83479780bad8abfce5f2520cdb993e46843"
   peerDependencies:
     zod: ^4.0.0
+  checksum: 10c0/912c829ef182cbc0e98144aac094bbae878b8ca589fb3b06731ae4b1f677b35a51c7ab1b3f31b05585dd312c13ea783831ce9ca5e7f44d080548a6324dcf5159
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@frubble/app@workspace:apps/app":
   version: 0.0.0-use.local
@@ -1870,7 +1871,7 @@ __metadata:
     "@composio/core": "npm:0.27.0"
     "@composio/json-schema-to-zod": "npm:0.4.0"
     "@faker-js/faker": "npm:^10.6.0"
-    "@frubble-ai/osiris-client": "portal:../../../../osiris/connections/clients/typescript"
+    "@frubble-ai/osiris-client": "npm:0.1.0-dev.g5f35b10dbe17"
     "@frubble/db": "workspace:*"
     "@frubble/emails": "workspace:*"
     "@frubble/events": "workspace:*"

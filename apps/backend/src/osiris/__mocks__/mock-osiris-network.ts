@@ -38,6 +38,9 @@ function account(id: string) {
 		scope: null,
 		access_token_expires_at: null,
 		last_error: null,
+		setup_complete: found.status === "active",
+		refresh_task: null,
+		refresh_task_at: null,
 		created_at: now,
 		updated_at: now,
 	};
