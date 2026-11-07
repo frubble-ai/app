@@ -5,6 +5,7 @@ import {
 	osiris,
 	setupOsirisNetwork,
 } from "@/osiris/__mocks__/mock-osiris-network";
+import { OsirisError } from "@/osiris/lib/answer";
 import { generateConnectAttempt } from "@/shared/__mocks__/generate-connect-attempt";
 import { describeConnectionBrokerContract } from "@/testing/connection-broker-contract";
 import { buildTestConfig } from "@/testing/test-environment";
@@ -108,5 +109,39 @@ describe("osiris as a broker", () => {
 				{},
 			),
 		).resolves.toEqual([team]);
+	});
+
+	it("reads an expired pending connection as failed", async () => {
+		const broker = osirisBroker();
+		const { accountRef } = await broker.startConnect(generateConnectAttempt());
+		osiris.setStatus(accountRef, "expired");
+
+		await expect(broker.accountState(accountRef)).resolves.toBe("failed");
+	});
+
+	it("fails a removal osiris refuses with anything but not found", async () => {
+		const broker = osirisBroker();
+		const { accountRef } = await broker.startConnect(generateConnectAttempt());
+		osiris.failDelete(accountRef, 500);
+
+		await expect(broker.removeAccount(accountRef)).rejects.toMatchObject({
+			name: OsirisError.name,
+			status: 500,
+		});
+	});
+
+	it("fails an action osiris refuses", async () => {
+		const broker = osirisBroker();
+		const attempt = generateConnectAttempt({ provider: "github" });
+		const { accountRef } = await broker.startConnect(attempt);
+		osiris.failAction("github.list_repositories", 502);
+
+		await expect(
+			broker.run(
+				"github.listRepositories",
+				{ organizationId: attempt.organizationId, accountRef },
+				{},
+			),
+		).rejects.toMatchObject({ name: OsirisError.name, status: 502 });
 	});
 });

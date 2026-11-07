@@ -20,6 +20,10 @@ const state = {
 	nextRedirect: undefined as string | undefined,
 	loseNext: false,
 	actions: new Map<string, unknown[]>(),
+	/** Deletes that osiris refuses, by account, with this status. */
+	failedDeletes: new Map<string, number>(),
+	/** Actions that osiris refuses, by name, with this status. */
+	failedActions: new Map<string, number>(),
 	requests: [] as Array<{
 		method: string;
 		path: string;
@@ -44,6 +48,13 @@ function account(id: string) {
 		created_at: now,
 		updated_at: now,
 	};
+}
+
+function refused(status: number) {
+	return HttpResponse.json(
+		{ error: { code: "OS_99", type: "internal", message: "refused" } },
+		{ status },
+	);
 }
 
 function notFound() {
@@ -109,6 +120,8 @@ const osirisNetwork = setupServer(
 	}),
 	http.delete(`${OSIRIS}/v1/connected-accounts/:id`, ({ params }) => {
 		const id = String(params.id);
+		const failed = state.failedDeletes.get(id);
+		if (failed !== undefined) return refused(failed);
 		if (!state.accounts.delete(id)) return notFound();
 		return HttpResponse.json({ id, deleted: true });
 	}),
@@ -139,6 +152,8 @@ const osirisNetwork = setupServer(
 				body: null,
 			});
 			if (!state.accounts.has(String(params.id))) return notFound();
+			const failed = state.failedActions.get(String(params.action));
+			if (failed !== undefined) return refused(failed);
 			return HttpResponse.json({
 				data: state.actions.get(String(params.action)) ?? [],
 			});
@@ -153,6 +168,8 @@ export function setupOsirisNetwork() {
 		state.accounts.clear();
 		state.hanging.clear();
 		state.actions.clear();
+		state.failedDeletes.clear();
+		state.failedActions.clear();
 		state.requests.length = 0;
 		state.nextRedirect = undefined;
 		state.loseNext = false;
@@ -185,6 +202,14 @@ export const osiris = {
 	},
 	answerAction(action: string, data: unknown[]) {
 		state.actions.set(action, data);
+	},
+	/** Osiris refuses to delete the account with `status`. */
+	failDelete(id: string, status: number) {
+		state.failedDeletes.set(id, status);
+	},
+	/** Osiris refuses `action` with `status`. */
+	failAction(action: string, status: number) {
+		state.failedActions.set(action, status);
 	},
 	requests: () => state.requests,
 };
