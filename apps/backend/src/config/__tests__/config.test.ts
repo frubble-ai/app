@@ -98,6 +98,19 @@ describe("buildConfig", () => {
 	});
 
 	it.each([
+		{ label: "unset", env: {} },
+		{ label: "empty", env: { CORS_ORIGIN: "" } },
+		{ label: "blank", env: { CORS_ORIGIN: "   " } },
+		{ label: "only commas", env: { CORS_ORIGIN: " , ,, " } },
+	])("reads CORS_ORIGIN $label as no origin at all", ({ env }) => {
+		const base = generateEnv();
+		delete base.CORS_ORIGIN;
+		withEnv({ ...base, ...env });
+
+		expect(buildConfig().cors.origin).toEqual([]);
+	});
+
+	it.each([
 		{
 			label: "a wildcard origin",
 			env: { CORS_ORIGIN: "https://*.example.com" },
