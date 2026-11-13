@@ -47,12 +47,16 @@ export function buildYoga(args: {
 			],
 		}),
 		logging: createYogaLogger(),
-		cors: {
-			origin: args.corsOrigin,
-			methods: ["GET", "POST", "OPTIONS"],
-			credentials: true,
-			allowedHeaders: ["Content-Type", "Authorization"],
-		},
+		// Yoga reads an empty origin list as "allow every origin", with credentials.
+		cors:
+			args.corsOrigin.length > 0
+				? {
+						origin: args.corsOrigin,
+						methods: ["GET", "POST", "OPTIONS"],
+						credentials: true,
+						allowedHeaders: ["Content-Type", "Authorization"],
+					}
+				: false,
 		context: async ({ request }) => {
 			try {
 				const user = await loadAuthenticatedUserFromRequestUseCase({
