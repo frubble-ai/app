@@ -84,9 +84,9 @@ extend type Query {
 
 extend type Mutation {
 	"""
-	Email a 6-digit sign-up code to an address that has no account yet. A
-	registered address gets `FORBIDDEN` with a generic message, so the app can
-	offer sign-in instead.
+	Email a 6-digit sign-up code to an address that has no account yet. An
+	address that has one is emailed a note saying so instead. Always answers
+	`sent: true`, so the response never says whether an account exists.
 	"""
 	requestSignUpCode(input: RequestSignUpCodeInput!): RequestCodePayload!
 

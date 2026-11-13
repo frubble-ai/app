@@ -8,8 +8,10 @@ worker sends the emails.
 
 1. `requestSignUpCode(input: { email })`. The API mints a code, stores only its SHA-256 (with the flow
    prefix and the address) in Better Auth's `verification` table with 15 minutes to live, and
-   publishes a `signup.code_requested` message. A registered address answers `FORBIDDEN` with
-   a generic message, so the app can offer sign-in instead.
+   publishes a `signup.code_requested` message. A registered address gets no code: the worker
+   emails it a `signup.account_exists` notice instead (sign in, or reset the password), and the
+   API answers `sent: true` either way, so the request does not say which addresses have an
+   account. Both paths count against the same rate limits.
 2. The worker receives the message from Pub/Sub, renders the template in
    `@frubble/emails` and sends it through the provider in `EMAIL_PROVIDER`.
 3. `signUp(input: { email, code, name, password })`. The code is verified without being consumed, the

@@ -5,7 +5,6 @@ import { getConfig } from "@/config";
 import { insertTestUser } from "@/testing/insert-test-user";
 import { setupIntegrationTestContext } from "@/testing/setup-integration-test-context";
 import { requestSignUpCodeUseCase } from "@/use-cases/cases/request-sign-up-code.use-case";
-import { SIGN_UP_UNAVAILABLE_MESSAGE } from "@/use-cases/cases/sign-up-with-email.use-case";
 import { verifyOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
 
 const { getClone } = setupIntegrationTestContext();
@@ -39,14 +38,40 @@ describe("requestSignUpCodeUseCase", () => {
 		).toBe("valid");
 	});
 
-	it("an address that already has an account is refused without an email", async () => {
+	it("an address that already has an account is told so, and gets no code", async () => {
 		const clone = getClone();
 		const existing = await insertTestUser(clone.db);
 
 		await expect(
 			requestSignUpCodeUseCase({ email: existing.email }),
-		).rejects.toThrow(SIGN_UP_UNAVAILABLE_MESSAGE);
-		expect(clone.captured.emails).toEqual([]);
+		).resolves.toBeUndefined();
+
+		expect(clone.captured.emails).toEqual([
+			{ type: "signup.account_exists", email: existing.email },
+		]);
+	});
+
+	it("answers a registered and a new address alike", async () => {
+		const existing = await insertTestUser(getClone().db);
+
+		const forRegistered = await requestSignUpCodeUseCase({
+			email: existing.email,
+		});
+		const forNew = await requestSignUpCodeUseCase({ email: newEmail() });
+
+		expect(forRegistered).toEqual(forNew);
+	});
+
+	it("counts requests for a registered address against the same limits", async () => {
+		const existing = await insertTestUser(getClone().db);
+		const { limit } = getConfig().authRateLimits.perEmail;
+		for (let attempt = 0; attempt < limit; attempt++) {
+			await requestSignUpCodeUseCase({ email: existing.email });
+		}
+
+		await expect(
+			requestSignUpCodeUseCase({ email: existing.email }),
+		).rejects.toMatchObject({ name: "TooManyRequestsError" });
 	});
 
 	it("a malformed address is refused", async () => {

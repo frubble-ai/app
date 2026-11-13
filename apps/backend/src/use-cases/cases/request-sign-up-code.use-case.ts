@@ -1,13 +1,11 @@
 import { z } from "zod";
 import { defineUseCase } from "@/use-cases";
-import { SIGN_UP_UNAVAILABLE_MESSAGE } from "@/use-cases/cases/sign-up-with-email.use-case";
 import { issueOneTimeCode } from "@/use-cases/lib/auth/one-time-code";
 import {
 	authRateLimitChecks,
 	enforceRateLimits,
 } from "@/use-cases/lib/auth/rate-limit";
 import { findUserIdByEmail } from "@/use-cases/lib/auth/user-lookup";
-import { forbidden } from "@/use-cases/lib/shared/domain-errors";
 
 const requestSignUpCodeArgsSchema = z.object({
 	email: z
@@ -18,7 +16,11 @@ const requestSignUpCodeArgsSchema = z.object({
 	clientIp: z.string().optional(),
 });
 
-/** Email a 6-digit sign-up code to an address with no account yet; `signUp` redeems it. */
+/**
+ * Email a 6-digit sign-up code to an address with no account yet; `signUp` redeems it. An address
+ * that has one gets an email saying so instead, and the caller gets the same answer either way, so
+ * the request cannot be used to find out which addresses are registered.
+ */
 export const requestSignUpCodeUseCase = defineUseCase(
 	async function requestSignUpCodeUseCase(
 		ctx,
@@ -35,8 +37,8 @@ export const requestSignUpCodeUseCase = defineUseCase(
 		);
 
 		if (await findUserIdByEmail(ctx.db, email)) {
-			// FORBIDDEN lets the app offer sign-in; the message stays generic.
-			throw forbidden(SIGN_UP_UNAVAILABLE_MESSAGE);
+			await ctx.messages.send({ type: "signup.account_exists", email });
+			return;
 		}
 
 		const code = await issueOneTimeCode(ctx.db, ctx.config.authSignup, email);

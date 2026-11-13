@@ -58,6 +58,10 @@ export function generateEmailMessageCases(): Array<{
 			},
 		},
 		{
+			message: { type: "signup.account_exists", email: address },
+			email: { type: "signup.account_exists", props: {} },
+		},
+		{
 			message: {
 				type: "password.reset_requested",
 				email: address,

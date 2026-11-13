@@ -22,6 +22,8 @@ export function toEmail(message: TEmailMessage): TEmail {
 				type: message.type,
 				props: { code: message.code },
 			};
+		case "signup.account_exists":
+			return { type: message.type, props: {} };
 		case "password.reset_requested":
 			return { type: message.type, props: { code: message.code } };
 		case "organization.invitation_sent":

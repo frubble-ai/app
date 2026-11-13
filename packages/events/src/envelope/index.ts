@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
 	passwordResetRequestedSchema,
+	signupAccountExistsSchema,
 	signupCodeRequestedSchema,
 } from "../catalog/auth";
 import type { TMessage, TMessageChannel, TMessagesOn } from "../catalog/index";
@@ -36,6 +37,7 @@ export const messageContextSchema = z.object({
 export const ENVELOPE_SCHEMAS = {
 	emails: z.discriminatedUnion("type", [
 		signupCodeRequestedSchema.extend(envelopeFields),
+		signupAccountExistsSchema.extend(envelopeFields),
 		passwordResetRequestedSchema.extend(envelopeFields),
 		organizationInvitationSentSchema.extend(envelopeFields),
 	]),
