@@ -24,6 +24,12 @@ app injects its own: the browser's `localStorage`, in `apps/app/src/shared/token
 the token lives in memory only, and a store that fails (storage blocked) leaves the session in
 memory for the page's life.
 
+The browser tells every other tab of the origin when one removes the token from `localStorage`.
+The app listens for that (`bootSession`, `apps/app/src/shared/session`, on the `TOKEN_KEY` the SDK
+exports) and, in a tab that still holds a token, ends the session: the memory token, `me` and the
+cache go, the sign-in screen shows, and `clearSession({ revoke: false })` leaves the server alone,
+because the tab that signed out already revoked the session. A token another tab sets is ignored.
+
 Changing the password revokes every session, the caller's too, and the API answers with a new
 token: `changePassword` stores it in place of the old one.
 
