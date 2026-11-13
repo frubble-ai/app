@@ -10,6 +10,7 @@ export {
 	getToken,
 	loadToken,
 	setToken,
+	TOKEN_KEY,
 } from "./lib/token";
 
 /** The signed-in user, and the actions that start, change and end a session. */
