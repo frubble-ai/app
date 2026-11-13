@@ -7,6 +7,7 @@ export {
 	getToken,
 	loadToken,
 	setToken,
+	TOKEN_KEY,
 	useAuth,
 } from "./auth/index";
 export * from "./gql/documents";

@@ -29,6 +29,19 @@ describe("clearSession", () => {
 		});
 	});
 
+	it("forgets the token and the user but leaves the server alone when asked not to revoke", async () => {
+		await setToken(faker.string.alphanumeric(40));
+
+		await clearSession({ revoke: false });
+
+		expect(getToken()).toBeNull();
+		expect(graphqlClient.cache.writeQuery).toHaveBeenCalledWith({
+			query: MeDocument,
+			data: { me: null },
+		});
+		expect(graphqlClient.mutate).not.toHaveBeenCalled();
+	});
+
 	it("revokes nothing when no one was signed in", async () => {
 		await clearSession();
 

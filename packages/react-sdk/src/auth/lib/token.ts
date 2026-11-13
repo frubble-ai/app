@@ -1,4 +1,5 @@
-const TOKEN_KEY = "frubble_auth_token";
+/** The key the token persists under, for a store that can tell when another context changes it. */
+export const TOKEN_KEY = "frubble_auth_token";
 
 /**
  * Where the session token persists, given by each app: secure storage on native, the browser's
