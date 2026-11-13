@@ -16,13 +16,9 @@ import { requestSignUpCodeUseCase } from "@/use-cases/cases/request-sign-up-code
 import { resetPasswordUseCase } from "@/use-cases/cases/reset-password.use-case";
 import { signInWithEmailPasswordUseCase } from "@/use-cases/cases/sign-in-with-email-password.use-case";
 import { signOutUseCase } from "@/use-cases/cases/sign-out.use-case";
-import {
-	SIGN_UP_UNAVAILABLE_MESSAGE,
-	signUpWithEmailUseCase,
-} from "@/use-cases/cases/sign-up-with-email.use-case";
+import { signUpWithEmailUseCase } from "@/use-cases/cases/sign-up-with-email.use-case";
 import {
 	badInput,
-	forbidden,
 	tooManyRequests,
 } from "@/use-cases/lib/shared/domain-errors";
 
@@ -126,25 +122,6 @@ describe("Mutation.requestSignUpCode", () => {
 			clientIp: context.clientIp,
 		});
 		expect(result).toEqual({ sent: true });
-	});
-
-	it("a registered address is refused as forbidden", async () => {
-		vi.mocked(requestSignUpCodeUseCase).mockRejectedValue(
-			forbidden(SIGN_UP_UNAVAILABLE_MESSAGE),
-		);
-		const resolve = callResolver(resolvers.Mutation?.requestSignUpCode);
-
-		const error = await expectGraphqlError(
-			() =>
-				resolve(
-					{},
-					{ input: { email: faker.internet.email() } },
-					generateContext(),
-					info,
-				),
-			"FORBIDDEN",
-		);
-		expect(error.message).toBe(SIGN_UP_UNAVAILABLE_MESSAGE);
 	});
 });
 

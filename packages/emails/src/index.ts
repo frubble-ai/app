@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { render } from "react-email";
 import { OrganizationInvitationEmail } from "./templates/organization-invitation";
 import { PasswordResetEmail } from "./templates/password-reset";
+import { SignupAccountExistsEmail } from "./templates/signup-account-exists";
 import { SignupCodeEmail } from "./templates/signup-code";
 
 // Every email type comes from the catalog's `TEmailMessage`: a new message there is a compile
@@ -16,6 +17,7 @@ export type TEmailLinks = {
 
 type TEmailPropsMap = {
 	"signup.code_requested": { code: string } & TEmailLinks;
+	"signup.account_exists": TEmailLinks;
 	"password.reset_requested": { code: string } & TEmailLinks;
 	"organization.invitation_sent": {
 		organizationName: string;
@@ -38,6 +40,10 @@ const EMAILS: { [TType in TEmailType]: TEmailTemplate<TType> } = {
 	"signup.code_requested": {
 		subject: "Your Frubble code",
 		build: (props) => SignupCodeEmail(props),
+	},
+	"signup.account_exists": {
+		subject: "You already have a Frubble account",
+		build: (props) => SignupAccountExistsEmail(props),
 	},
 	"password.reset_requested": {
 		subject: "Reset your password",
