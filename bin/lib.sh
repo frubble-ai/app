@@ -66,14 +66,18 @@ ensure_pubsub() {
     "{\"topic\":\"projects/$PUBSUB_PROJECT/topics/$PUBSUB_TOPIC\",\"pushConfig\":$push_config,\"ackDeadlineSeconds\":30}"
   # A subscription that already existed keeps its push URL; set it again, so
   # a new token or worker port reaches it too.
-  curl -fsS -X POST "$base/subscriptions/$PUBSUB_TOPIC-worker:modifyPushConfig" \
-    -H 'Content-Type: application/json' -d "{\"pushConfig\":$push_config}" >/dev/null \
+  # The body carries the token, so it goes in through stdin: a command-line
+  # argument is readable by every user in the process list.
+  printf '%s' "{\"pushConfig\":$push_config}" \
+    | curl -fsS -X POST "$base/subscriptions/$PUBSUB_TOPIC-worker:modifyPushConfig" \
+      -H 'Content-Type: application/json' --data-binary @- >/dev/null \
     || { echo "error: could not update the push subscription's URL" >&2; exit 1; }
 }
 
 put_pubsub() {
   local status
-  status=$(curl -sS -o /dev/null -w '%{http_code}' -X PUT "$1" -H 'Content-Type: application/json' -d "$2")
+  # Body through stdin, not `-d`: the subscription's carries the push token.
+  status=$(printf '%s' "$2" | curl -sS -o /dev/null -w '%{http_code}' -X PUT "$1" -H 'Content-Type: application/json' --data-binary @-)
   case "$status" in
     200|409) ;;
     *) echo "error: $1 answered $status" >&2; exit 1 ;;
