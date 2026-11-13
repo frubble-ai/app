@@ -98,12 +98,14 @@ describe("buildConfig", () => {
 	});
 
 	it.each([
-		{ label: "unset", env: {} },
+		{ label: "unset", env: { CORS_ORIGIN: undefined } },
 		{ label: "empty", env: { CORS_ORIGIN: "" } },
 		{ label: "blank", env: { CORS_ORIGIN: "   " } },
 		{ label: "only commas", env: { CORS_ORIGIN: " , ,, " } },
 	])("reads CORS_ORIGIN $label as no origin at all", ({ env }) => {
 		withEnv({ ...generateEnv(), ...env });
+		// withEnv turns undefined into ""; unset means absent from process.env.
+		if (env.CORS_ORIGIN === undefined) vi.stubEnv("CORS_ORIGIN", undefined);
 
 		expect(buildConfig().cors.origin).toEqual([]);
 	});
