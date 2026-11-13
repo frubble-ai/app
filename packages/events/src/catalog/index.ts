@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
 	passwordResetRequestedSchema,
+	signupAccountExistsSchema,
 	signupCodeRequestedSchema,
 } from "./auth";
 import { organizationInvitationSentSchema } from "./organizations";
@@ -14,6 +15,7 @@ export * from "./organizations";
 /** Every email; the channel `emails` carries them. */
 export const EMAIL_MESSAGE_SCHEMAS = [
 	signupCodeRequestedSchema,
+	signupAccountExistsSchema,
 	passwordResetRequestedSchema,
 	organizationInvitationSentSchema,
 ] as const;

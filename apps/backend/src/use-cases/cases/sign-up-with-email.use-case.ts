@@ -22,7 +22,7 @@ import { badInput, forbidden } from "@/use-cases/lib/shared/domain-errors";
 export const INVALID_SIGN_UP_CODE_MESSAGE =
 	"Sign up code is invalid or has expired";
 /** Deliberately generic: it does not say the address is registered. */
-export const SIGN_UP_UNAVAILABLE_MESSAGE =
+const SIGN_UP_UNAVAILABLE_MESSAGE =
 	"We couldn't sign you up with this email. Try signing in instead.";
 
 const signUpWithEmailArgsSchema = z.object({

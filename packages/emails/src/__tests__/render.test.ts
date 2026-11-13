@@ -42,6 +42,18 @@ describe("renderEmail", () => {
 		},
 	);
 
+	it("renders the account-exists notice with the brand, a way back in and no code", async () => {
+		const html = await renderEmail("signup.account_exists", {});
+
+		expect(html).toContain("You already have an account");
+		expect(html).toContain("Sign in");
+		expect(html).toContain("Frubble");
+		expect(html).not.toMatch(/\b\d{6}\b/);
+		expect(getSubject("signup.account_exists")).toBe(
+			"You already have a Frubble account",
+		);
+	});
+
 	it("renders the organization invitation with its link and names", async () => {
 		const props = {
 			organizationName: faker.company.name(),
