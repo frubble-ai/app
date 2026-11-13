@@ -103,9 +103,7 @@ describe("buildConfig", () => {
 		{ label: "blank", env: { CORS_ORIGIN: "   " } },
 		{ label: "only commas", env: { CORS_ORIGIN: " , ,, " } },
 	])("reads CORS_ORIGIN $label as no origin at all", ({ env }) => {
-		const base = generateEnv();
-		delete base.CORS_ORIGIN;
-		withEnv({ ...base, ...env });
+		withEnv({ ...generateEnv(), ...env });
 
 		expect(buildConfig().cors.origin).toEqual([]);
 	});
