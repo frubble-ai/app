@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import {
 	clearSession,
+	clearToken,
 	getToken,
 	graphqlClient,
 	TOKEN_KEY,
@@ -31,13 +32,16 @@ describe("session", () => {
 
 	describe("another tab signing out", () => {
 		/** What the browser sends the other tabs when a tab removes `key` from localStorage. */
-		function otherTabRemoves(key: string | null) {
+		function otherTabRemoves(
+			key: string | null,
+			storageArea: Storage = window.localStorage,
+		) {
 			window.dispatchEvent(
 				new StorageEvent("storage", {
 					key,
 					oldValue: faker.string.alphanumeric(40),
 					newValue: null,
-					storageArea: window.localStorage,
+					storageArea,
 				}),
 			);
 		}
@@ -61,6 +65,20 @@ describe("session", () => {
 
 		it("leaves this tab alone when another key goes", () => {
 			otherTabRemoves(faker.lorem.word());
+
+			expect(clearSession).not.toHaveBeenCalled();
+		});
+
+		it("leaves this tab alone when the removal happens in sessionStorage", () => {
+			otherTabRemoves(TOKEN_KEY, window.sessionStorage);
+
+			expect(clearSession).not.toHaveBeenCalled();
+		});
+
+		it("leaves a tab that holds no token alone: it has no session to end", async () => {
+			await clearToken();
+
+			otherTabRemoves(TOKEN_KEY);
 
 			expect(clearSession).not.toHaveBeenCalled();
 		});
